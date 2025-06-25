@@ -98,7 +98,7 @@ services:
   # 4. CUARTEL GENERAL ML - MLflow Server
   # ---------------------------------------------------------------------------
   mlflow:
-    image: mlflow/mlflow:2.8.1
+    image: python:3.11-slim
     container_name: chocolate_factory_mlops
     ports:
       - "${MLFLOW_PORT:-5000}:5000"
@@ -113,11 +113,12 @@ services:
       - backend
     restart: unless-stopped
     command: >
+      sh -c "pip install mlflow==2.8.1 psycopg2-binary &&
       mlflow server
       --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       --default-artifact-root /mlflow/artifacts
       --host 0.0.0.0
-      --port 5000
+      --port 5000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
@@ -141,9 +142,7 @@ services:
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
       - MLFLOW_URL=http://mlflow:5000
     volumes:
-      - ./docker/services/nodered/data:/data
-      - ./docker/services/nodered/flows.json:/data/flows.json:ro
-      - ./docker/services/nodered/settings.js:/data/settings.js:ro
+      - nodered_data:/data
     depends_on:
       - influxdb
       - mlflow
@@ -165,6 +164,16 @@ services:
 # =============================================================================
 # RED INTERNA
 # =============================================================================
+# =============================================================================
+# VOLÚMENES DOCKER
+# =============================================================================
+volumes:
+  nodered_data:
+    driver: local
+
+# =============================================================================
+# RED INTERNA
+# =============================================================================
 networks:
   backend:
     driver: bridge
@@ -174,5 +183,4 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: "172.18.0.0/16"
-          gateway: "172.18.0.1"
+        - subnet: "192.168.100.0/24"
