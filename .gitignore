@@ -8,3 +8,7 @@ venv/
 .vscode/settings.json
 docker/volumes/
 *.log
+
+# Docker volumes
+docker/services/*/data/
+docker/volumes/
