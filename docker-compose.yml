@@ -1,0 +1,186 @@
+# =============================================================================
+# TFM CHOCOLATE FACTORY - DOCKER COMPOSE
+# =============================================================================
+# Arquitectura de 4 contenedores para la simulación y monitoreo
+# de la fábrica de chocolate
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. EL CEREBRO AUTÓNOMO - FastAPI + APScheduler
+  # ---------------------------------------------------------------------------
+  fastapi-app:
+    build:
+      context: .
+      dockerfile: docker/fastapi.Dockerfile
+    container_name: chocolate_factory_brain
+    ports:
+      - "${FASTAPI_PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TZ=${TZ:-Europe/Madrid}
+      - PYTHONPATH=/app
+      # APIs Externas
+      - REE_API_TOKEN=${REE_API_TOKEN}
+      - AEMET_API_KEY=${AEMET_API_KEY}
+      # Conexiones internas Docker
+      - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI_DOCKER}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+    volumes:
+      - ./data:/app/data
+      - ./src/configs:/app/configs
+      - ./docker/services/fastapi/logs:/app/logs
+    depends_on:
+      - influxdb
+      - mlflow
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # 2. EL ALMACÉN PRINCIPAL - InfluxDB
+  # ---------------------------------------------------------------------------
+  influxdb:
+    image: influxdb:2.7
+    container_name: chocolate_factory_storage
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+    volumes:
+      - ./docker/services/influxdb/data:/var/lib/influxdb2
+      - ./docker/services/influxdb/config:/etc/influxdb2
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # 3. CUARTEL GENERAL ML - PostgreSQL (para MLflow)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15
+    container_name: chocolate_factory_postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - ./docker/services/postgres/data:/var/lib/postgresql/data
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # 4. CUARTEL GENERAL ML - MLflow Server
+  # ---------------------------------------------------------------------------
+  mlflow:
+    image: python:3.11-slim
+    container_name: chocolate_factory_mlops
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - ./docker/services/mlflow/artifacts:/mlflow/artifacts
+    depends_on:
+      - postgres
+    networks:
+      - backend
+    restart: unless-stopped
+    command: >
+      sh -c "pip install mlflow==2.8.1 psycopg2-binary &&
+      mlflow server
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # 5. EL MONITOR - Node-RED (Dashboard Read-Only)
+  # ---------------------------------------------------------------------------
+  nodered:
+    image: nodered/node-red:3.1
+    container_name: chocolate_factory_monitor
+    ports:
+      - "${NODERED_PORT:-1880}:1880"
+    environment:
+      - TZ=${TZ:-Europe/Madrid}
+      # Conexiones a otros servicios
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - MLFLOW_URL=http://mlflow:5000
+    volumes:
+      - nodered_data:/data
+    depends_on:
+      - influxdb
+      - mlflow
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1880"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# =============================================================================
+# ESTRUCTURA DE DIRECTORIOS PARA BIND MOUNTS
+# =============================================================================
+# Los datos ahora se mapean directamente a ./docker/services/[servicio]
+# para acceso directo, backups y monitoreo en tiempo real
+
+# =============================================================================
+# RED INTERNA
+# =============================================================================
+# =============================================================================
+# VOLÚMENES DOCKER
+# =============================================================================
+volumes:
+  nodered_data:
+    driver: local
+
+# =============================================================================
+# RED INTERNA
+# =============================================================================
+networks:
+  backend:
+    driver: bridge
+    driver_opts:
+      # evita fragmentación sobre Tailscale
+      com.docker.network.driver.mtu: "1280"
+    ipam:
+      driver: default
+      config:
+        - subnet: "192.168.100.0/24"
