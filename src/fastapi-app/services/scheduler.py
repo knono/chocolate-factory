@@ -223,7 +223,27 @@ class SchedulerService:
         )
         logger.info(f"Added production optimization job (every {self.config.optimization_interval_minutes} minutes)")
         
-        # 5. Weekly Data Cleanup - Sundays at 2 AM
+        # 5. AEMET Weather Data Ingestion - Every 3 hours
+        self.scheduler.add_job(
+            func=self._aemet_weather_ingestion_job,
+            trigger=CronTrigger(minute=15, hour="*/3"),  # Every 3 hours at :15
+            id="aemet_weather_ingestion",
+            name="AEMET Weather Data Ingestion",
+            replace_existing=True
+        )
+        logger.info("Added AEMET weather ingestion job (every 3 hours at :15)")
+        
+        # 6. AEMET Token Renewal Check - Daily at 3 AM
+        self.scheduler.add_job(
+            func=self._aemet_token_check_job,
+            trigger=CronTrigger(hour=3, minute=0),
+            id="aemet_token_check",
+            name="AEMET Token Renewal Check",
+            replace_existing=True
+        )
+        logger.info("Added AEMET token check job (daily at 3:00 AM)")
+        
+        # 7. Weekly Data Cleanup - Sundays at 2 AM
         self.scheduler.add_job(
             func=self._weekly_cleanup_job,
             trigger=CronTrigger(day_of_week=6, hour=2, minute=0),  # Sunday = 6
@@ -320,6 +340,62 @@ class SchedulerService:
             logger.error(f"Production optimization job failed: {e}")
             await self._send_alert("Optimization Error", str(e))
             raise
+    
+    async def _aemet_weather_ingestion_job(self):
+        """Scheduled job for AEMET weather data ingestion"""
+        job_start = datetime.now()
+        
+        try:
+            logger.info("Starting scheduled AEMET weather ingestion")
+            
+            async with DataIngestionService() as service:
+                stats = await service.ingest_current_weather()
+            
+            logger.info(f"AEMET ingestion completed: {stats.successful_writes} records, "
+                       f"{stats.success_rate:.1f}% success rate")
+            
+            # Alert on low success rate
+            if stats.success_rate < 80 and stats.total_records > 0:
+                await self._send_alert(
+                    "AEMET Ingestion Warning",
+                    f"Low success rate: {stats.success_rate:.1f}% ({stats.successful_writes}/{stats.total_records})"
+                )
+            
+        except Exception as e:
+            logger.error(f"AEMET weather ingestion job failed: {e}")
+            await self._send_alert("AEMET Ingestion Error", str(e))
+            raise
+    
+    async def _aemet_token_check_job(self):
+        """Scheduled job to check and renew AEMET token if needed"""
+        try:
+            logger.info("Checking AEMET token status")
+            
+            from .aemet_client import AEMETClient
+            
+            async with AEMETClient() as client:
+                token_status = await client.get_token_status()
+            
+            if token_status.get("status") == "expired":
+                logger.warning("AEMET token expired, will be renewed on next API call")
+                await self._send_alert(
+                    "AEMET Token Expired",
+                    "Token has expired and will be renewed automatically on next API request"
+                )
+            elif token_status.get("expires_soon"):
+                days_left = token_status.get("days_until_expiry", 0)
+                logger.info(f"AEMET token expires in {days_left} days")
+                if days_left <= 1:
+                    await self._send_alert(
+                        "AEMET Token Expiring Soon",
+                        f"Token expires in {days_left} days"
+                    )
+            else:
+                logger.debug("AEMET token is valid")
+                
+        except Exception as e:
+            logger.error(f"AEMET token check job failed: {e}")
+            await self._send_alert("AEMET Token Check Error", str(e))
     
     async def _weekly_cleanup_job(self):
         """Scheduled job for weekly data cleanup and maintenance"""

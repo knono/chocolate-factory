@@ -210,6 +210,154 @@ def get_tariff_period(hour: int, is_weekend: bool = False) -> str:
         return 'P6'  # Valle
 
 
+@dataclass
+class WeatherDataSchema:
+    """Schema for weather_data measurement (AEMET data)"""
+    
+    # Tags (indexed for queries)
+    TAGS = {
+        'station_id': [],  # Dynamic - station identifiers
+        'station_name': [],  # Dynamic - station names
+        'province': [],  # Dynamic - Spanish provinces
+        'data_source': ['aemet', 'forecast', 'historical'],
+        'data_type': ['current', 'daily', 'hourly'],
+        'season': ['winter', 'spring', 'summer', 'fall']
+    }
+    
+    # Fields (time series values)
+    FIELDS = {
+        'temperature': float,  # °C
+        'temperature_max': float,  # °C
+        'temperature_min': float,  # °C
+        'humidity': float,  # %
+        'humidity_max': float,  # %
+        'humidity_min': float,  # %
+        'pressure': float,  # hPa
+        'pressure_max': float,  # hPa
+        'pressure_min': float,  # hPa
+        'wind_speed': float,  # km/h
+        'wind_direction': float,  # degrees
+        'wind_gust': float,  # km/h
+        'precipitation': float,  # mm
+        'solar_radiation': float,  # W/m²
+        'altitude': float,  # meters
+        # Derived fields for chocolate production
+        'heat_index': float,  # Calculated comfort index
+        'chocolate_production_index': float,  # Custom index for production suitability
+    }
+    
+    @staticmethod
+    def validate_tags(tags: Dict[str, str]) -> bool:
+        """Validate tag values against allowed values"""
+        for tag_key, tag_value in tags.items():
+            if tag_key in WeatherDataSchema.TAGS:
+                allowed_values = WeatherDataSchema.TAGS[tag_key]
+                if allowed_values and tag_value not in allowed_values:
+                    return False
+        return True
+    
+    @staticmethod
+    def create_point(timestamp: datetime, tags: Dict[str, str], fields: Dict[str, Any]) -> Dict:
+        """Create InfluxDB point for weather data"""
+        if not WeatherDataSchema.validate_tags(tags):
+            raise ValueError("Invalid tag values")
+            
+        return {
+            "measurement": "weather_data",
+            "time": timestamp,
+            "tags": tags,
+            "fields": fields
+        }
+
+
+def calculate_heat_index(temperature_c: float, humidity_percent: float) -> float:
+    """
+    Calculate heat index (feels-like temperature) for chocolate production planning
+    
+    Args:
+        temperature_c: Temperature in Celsius
+        humidity_percent: Relative humidity percentage
+        
+    Returns:
+        Heat index in Celsius
+    """
+    if temperature_c < 20:  # Heat index not meaningful below 20°C
+        return temperature_c
+    
+    # Convert to Fahrenheit for standard heat index formula
+    temp_f = (temperature_c * 9/5) + 32
+    
+    # Rothfusz heat index formula
+    hi_f = (-42.379 + 
+            2.04901523 * temp_f + 
+            10.14333127 * humidity_percent - 
+            0.22475541 * temp_f * humidity_percent - 
+            6.83783e-3 * temp_f**2 - 
+            5.481717e-2 * humidity_percent**2 + 
+            1.22874e-3 * temp_f**2 * humidity_percent + 
+            8.5282e-4 * temp_f * humidity_percent**2 - 
+            1.99e-6 * temp_f**2 * humidity_percent**2)
+    
+    # Convert back to Celsius
+    return (hi_f - 32) * 5/9
+
+
+def calculate_chocolate_production_index(temperature_c: float, humidity_percent: float,
+                                       pressure_hpa: float = None) -> float:
+    """
+    Calculate custom index for chocolate production suitability
+    
+    Optimal conditions for chocolate production:
+    - Temperature: 18-22°C (ideal: 20°C)
+    - Humidity: 45-55% (ideal: 50%)
+    - Pressure: stable (little impact on index)
+    
+    Args:
+        temperature_c: Temperature in Celsius
+        humidity_percent: Relative humidity percentage
+        pressure_hpa: Atmospheric pressure in hPa (optional)
+        
+    Returns:
+        Index from 0-100 (100 = optimal conditions)
+    """
+    # Temperature component (0-50 points)
+    temp_optimal = 20.0
+    temp_tolerance = 4.0  # ±4°C tolerance
+    temp_diff = abs(temperature_c - temp_optimal)
+    temp_score = max(0, 50 - (temp_diff / temp_tolerance) * 50)
+    
+    # Humidity component (0-40 points)
+    humidity_optimal = 50.0
+    humidity_tolerance = 10.0  # ±10% tolerance
+    humidity_diff = abs(humidity_percent - humidity_optimal)
+    humidity_score = max(0, 40 - (humidity_diff / humidity_tolerance) * 40)
+    
+    # Pressure component (0-10 points) - less critical
+    pressure_score = 10.0  # Default if no pressure data
+    if pressure_hpa is not None:
+        # Stable pressure around 1013 hPa is good
+        pressure_optimal = 1013.0
+        pressure_tolerance = 20.0  # ±20 hPa tolerance
+        pressure_diff = abs(pressure_hpa - pressure_optimal)
+        pressure_score = max(0, 10 - (pressure_diff / pressure_tolerance) * 10)
+    
+    total_score = temp_score + humidity_score + pressure_score
+    return round(total_score, 1)
+
+
+def get_season_from_date(date: datetime) -> str:
+    """Determine season from date for Spanish climate"""
+    month = date.month
+    if month in [12, 1, 2]:
+        return "winter"
+    elif month in [3, 4, 5]:
+        return "spring"
+    elif month in [6, 7, 8]:
+        return "summer"
+    else:
+        return "fall"
+
+
 def calculate_energy_cost(price_eur_kwh: float, energy_kwh: float, 
                          grid_fees: float = 0, system_charges: float = 0) -> float:
     """Calculate total energy cost including fees and charges"""
