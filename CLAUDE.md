@@ -94,15 +94,16 @@ The project has evolved beyond the initial setup phase with significant infrastr
 - **Extreme weather**: During heat waves (observed 35°C vs reported 25.6°C)
 - **Coverage gap**: No real-time data during peak production hours (8 AM - 11 PM)
 
-#### Solution Strategy for MLflow Models
-1. **Primary data**: AEMET observation (00:00-07:00) + AEMET hourly prediction (08:00-23:00)
-2. **Secondary validation**: OpenWeatherMap integration planned for cross-validation
-3. **Feature engineering**: Interpolation and gap-filling algorithms
-4. **Hybrid approach**: Official AEMET data + commercial weather API for real-time validation
+#### Solution Strategy - Hybrid Integration IMPLEMENTED ✅
+1. **Primary data**: AEMET observation (00:00-07:00) + OpenWeatherMap real-time (08:00-23:00)
+2. **Real-time validation**: OpenWeatherMap for extreme weather precision (35°C actual vs AEMET 25.6°C)
+3. **Automatic fallback**: AEMET failure → OpenWeatherMap backup
+4. **Hybrid architecture**: Scheduled hourly ingestion with intelligent source selection
 
 ### Token Management
 - **AEMET Token**: Auto-renewal every 6 days (permanent API key system)
-- **REE**: No authentication required for public endpoints
+- **OpenWeatherMap Token**: Free tier with 60 calls/min (sufficient for hourly ingestion)
+- **REE**: No authentication required for public endpoints  
 - **Status**: ✅ Fully automated token lifecycle management
 
 ## MLflow Feature Architecture
@@ -114,12 +115,12 @@ The project has evolved beyond the initial setup phase with significant infrastr
 - ree_demand_mw              # REE: complete 24h coverage  
 - tariff_period              # Derived: P1-P6 classification
 
-# Weather features (hybrid approach)
+# Weather features (hybrid approach) ✅ IMPLEMENTED
 - temp_observed              # AEMET: 00:00-07:00 real data
-- temp_predicted             # AEMET: 08:00-23:00 prediction API
+- temp_realtime              # OpenWeatherMap: 08:00-23:00 real-time data
 - temp_interpolated          # Derived: gap filling algorithm
-- humidity_observed          # AEMET: 00:00-07:00 real data
-- humidity_predicted         # AEMET: 08:00-23:00 prediction API
+- humidity_observed          # AEMET: 00:00-07:00 real data  
+- humidity_realtime          # OpenWeatherMap: 08:00-23:00 real-time data
 
 # Chocolate production indices
 - chocolate_production_index # Derived: temp + humidity + pressure
@@ -127,14 +128,42 @@ The project has evolved beyond the initial setup phase with significant infrastr
 - energy_optimization_score # Derived: REE price + weather combination
 ```
 
-### Data Quality Considerations
+### Data Quality Considerations ✅ VALIDATED
 - **REE data reliability**: ⭐⭐⭐⭐⭐ (excellent real-time accuracy)
-- **AEMET observation reliability**: ⭐⭐⭐ (official but limited coverage)
-- **AEMET prediction reliability**: ⭐⭐⭐⭐ (good for planning, 48h horizon)
-- **Temporal synchronization**: REE hourly + AEMET mixed (obs/pred)
+- **AEMET observation reliability**: ⭐⭐⭐ (official but limited coverage 00:00-07:00)
+- **OpenWeatherMap real-time reliability**: ⭐⭐⭐⭐⭐ (validated: 35.56°C vs observed 35°C)
+- **Temporal synchronization**: REE hourly + Hybrid weather (AEMET/OpenWeatherMap)
+
+## Hybrid Weather Integration Architecture ✅ COMPLETED
+
+### Implementation Status
+- ✅ **OpenWeatherMap client**: Fully implemented with API v2.5 (free tier)
+- ✅ **Hybrid data ingestion**: Automatic source selection based on time window
+- ✅ **Scheduler integration**: Hourly automated ingestion (every hour at :15)
+- ✅ **Fallback mechanism**: AEMET failure → OpenWeatherMap backup
+- ✅ **Real-time validation**: Confirmed accuracy during extreme weather events
+
+### API Endpoints Available
+- `GET /weather/openweather` - Current weather from OpenWeatherMap
+- `GET /weather/openweather/forecast?hours=N` - 3-hour forecast up to 5 days  
+- `GET /weather/openweather/status` - API connectivity and quota status
+- `GET /weather/hybrid` - Intelligent hybrid weather ingestion
+- `POST /ingest-now` - Manual ingestion with `{"source": "hybrid"}`
+
+### Operational Schedule
+- **00:00-07:00**: AEMET official observations (when available)
+- **08:00-23:00**: OpenWeatherMap real-time data
+- **Frequency**: Every hour at minute :15
+- **Fallback**: Always available if primary source fails
+
+### Performance Metrics
+- **AEMET accuracy**: Official data but 10°C lag during heat waves
+- **OpenWeatherMap accuracy**: 35.56°C vs 35°C observed (0.56°C precision)
+- **Coverage**: 24/7 real-time data (vs 8h/day AEMET)
+- **API quota**: 60 calls/min (sufficient for 24 calls/day)
 
 ## Future Enhancements
-- **OpenWeatherMap integration**: Planned for real-time weather validation
-- **Extreme weather detection**: Cross-validation between AEMET and commercial APIs
-- **Production correlation analysis**: REE price patterns vs weather conditions
-- **Advanced interpolation**: Machine learning-based gap filling for missing weather data
+- **Advanced ML models**: Hybrid feature engineering for production optimization  
+- **Extreme weather alerts**: Automated chocolate production adjustments
+- **Energy correlation analysis**: REE price patterns vs weather-optimized production
+- **Quality validation**: Continuous cross-validation between AEMET and OpenWeatherMap

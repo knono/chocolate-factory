@@ -24,6 +24,7 @@ import os
 
 from .ree_client import REEClient, REEPriceData, REEDemandData
 from .aemet_client import AEMETClient, AEMETWeatherData
+from .openweathermap_client import OpenWeatherMapClient
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -555,6 +556,111 @@ class DataIngestionService:
                        f"Success rate: {stats.success_rate:.1f}%")
         
         return stats
+    
+    async def ingest_openweathermap_weather(self) -> DataIngestionStats:
+        """
+        Ingest OpenWeatherMap weather data into InfluxDB
+        
+        Returns:
+            DataIngestionStats with ingestion results
+        """
+        if not self.client or not self.write_api:
+            raise RuntimeError("Service not initialized. Use async context manager.")
+        
+        start_time = datetime.now()
+        stats = DataIngestionStats()
+        
+        try:
+            logger.info("Starting OpenWeatherMap weather data ingestion")
+            
+            # Fetch data from OpenWeatherMap API
+            async with OpenWeatherMapClient() as owm_client:
+                current_weather = await owm_client.get_current_weather()
+            
+            if current_weather:
+                stats.total_records = 1
+                logger.info("Retrieved current weather from OpenWeatherMap")
+                
+                # Validate data
+                is_valid, validation_errors = self._validate_weather_data(current_weather)
+                
+                if not is_valid:
+                    stats.validation_errors += 1
+                    logger.warning(f"OpenWeatherMap validation failed: {validation_errors}")
+                    return stats
+                
+                try:
+                    # Transform to InfluxDB point with OpenWeatherMap-specific tags
+                    point = self._transform_aemet_weather_to_influx_point(current_weather)
+                    
+                    # Update tags to indicate OpenWeatherMap source
+                    point = point.tag("data_source", "openweathermap")
+                    point = point.tag("data_type", "current_realtime")
+                    
+                    # Write to InfluxDB
+                    logger.info("Writing OpenWeatherMap data to InfluxDB")
+                    self.write_api.write(
+                        bucket=self.config.bucket,
+                        org=self.config.org,
+                        record=[point]
+                    )
+                    stats.successful_writes = 1
+                    logger.info("Successfully wrote OpenWeatherMap weather record to InfluxDB")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to write OpenWeatherMap data to InfluxDB: {e}")
+                    stats.failed_writes = 1
+                    raise
+            else:
+                logger.warning("No weather data retrieved from OpenWeatherMap")
+                
+        except Exception as e:
+            logger.error(f"OpenWeatherMap weather ingestion failed: {e}")
+            raise
+        
+        finally:
+            stats.processing_time_seconds = (datetime.now() - start_time).total_seconds()
+            logger.info(f"OpenWeatherMap ingestion completed in {stats.processing_time_seconds:.2f}s - "
+                       f"Success rate: {stats.success_rate:.1f}%")
+        
+        return stats
+    
+    async def ingest_hybrid_weather(self, 
+                                   force_openweathermap: bool = False,
+                                   station_ids: Optional[List[str]] = None) -> DataIngestionStats:
+        """
+        Hybrid weather ingestion strategy:
+        - Hours 00:00-07:00: Use AEMET (official observations)
+        - Hours 08:00-23:00: Use OpenWeatherMap (real-time data)
+        - Can force OpenWeatherMap for testing
+        
+        Args:
+            force_openweathermap: Force use of OpenWeatherMap regardless of time
+            station_ids: List of AEMET station IDs for fallback
+            
+        Returns:
+            DataIngestionStats with combined results
+        """
+        current_hour = datetime.now(timezone.utc).hour
+        
+        # Determine data source based on hybrid strategy
+        use_aemet = (0 <= current_hour <= 7) and not force_openweathermap
+        
+        if use_aemet:
+            logger.info(f"Hybrid strategy: Using AEMET (hour {current_hour:02d}:xx - official observation window)")
+            try:
+                stats = await self.ingest_aemet_weather(station_ids=station_ids)
+                if stats.successful_writes > 0:
+                    return stats
+                else:
+                    logger.warning("AEMET ingestion failed, falling back to OpenWeatherMap")
+            except Exception as e:
+                logger.warning(f"AEMET ingestion error, falling back to OpenWeatherMap: {e}")
+        else:
+            logger.info(f"Hybrid strategy: Using OpenWeatherMap (hour {current_hour:02d}:xx - real-time data window)")
+        
+        # Use OpenWeatherMap (either by strategy or as fallback)
+        return await self.ingest_openweathermap_weather()
     
     async def ingest_current_weather(self, station_ids: Optional[List[str]] = None) -> DataIngestionStats:
         """Ingest current weather data for specified stations"""

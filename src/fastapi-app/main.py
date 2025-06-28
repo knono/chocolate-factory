@@ -21,6 +21,7 @@ from services.scheduler import get_scheduler_service, start_scheduler, stop_sche
 from services.data_ingestion import DataIngestionService, run_current_ingestion, run_daily_ingestion
 from services.ree_client import REEClient
 from services.aemet_client import AEMETClient
+from services.openweathermap_client import OpenWeatherMapClient
 
 # Configurar logging
 logging.basicConfig(
@@ -99,7 +100,10 @@ async def root():
             "ree_prices": "/ree/prices",
             "aemet_weather": "/aemet/weather", 
             "openweather": "/weather/openweather",
+            "openweather_forecast": "/weather/openweather/forecast",
+            "openweather_status": "/weather/openweather/status",
             "weather_comparison": "/weather/comparison",
+            "hybrid_weather": "/weather/hybrid",
             "aemet_token": "/aemet/token/status",
             "docs": "/docs"
         }
@@ -142,6 +146,18 @@ async def ingest_now(request: IngestionRequest, background_tasks: BackgroundTask
                     await service.ingest_current_weather()
             background_tasks.add_task(run_aemet_ingestion)
             message = "🌤️ Ingestión AEMET iniciada en background"
+        elif request.source == "openweathermap":
+            async def run_owm_ingestion():
+                async with DataIngestionService() as service:
+                    await service.ingest_openweathermap_weather()
+            background_tasks.add_task(run_owm_ingestion)
+            message = "🌍 Ingestión OpenWeatherMap iniciada en background"
+        elif request.source == "weather" or request.source == "hybrid":
+            async def run_hybrid_ingestion():
+                async with DataIngestionService() as service:
+                    await service.ingest_hybrid_weather()
+            background_tasks.add_task(run_hybrid_ingestion)
+            message = "🌤️🌍 Ingestión híbrida AEMET+OpenWeatherMap iniciada en background"
         elif request.source == "all":
             background_tasks.add_task(run_current_ingestion)
             async def run_aemet_ingestion():
@@ -293,39 +309,187 @@ async def get_raw_aemet_data():
 
 @app.get("/weather/openweather")
 async def get_openweather_linares():
-    """🌤️ OpenWeatherMap - Segunda opinión para Linares, Jaén"""
+    """🌤️ OpenWeatherMap - Datos en tiempo real para Linares, Jaén"""
     try:
-        # Coordenadas de Linares: 38.0917, -3.6303
-        openweather_url = "https://api.openweathermap.org/data/2.5/weather"
-        params = {
-            "lat": 38.0917,
-            "lon": -3.6303,
-            "appid": "demo_key",  # Se necesitaría API key real
-            "units": "metric",
-            "lang": "es"
-        }
-        
-        # Para demostración, simulamos datos realistas basados en tus observaciones
-        current_temp = 35  # Tu observación actual
-        return {
-            "🏭": "TFM Chocolate Factory - Segunda Fuente",
-            "📍": "Linares, Jaén (OpenWeatherMap)",
-            "🌡️": f"{current_temp}°C",
-            "🌡️_max": "39°C",
-            "🌡️_min": "22°C", 
-            "💧": "15%",
-            "🌬️": "8 km/h NE",
-            "📊": "1015 hPa",
-            "☔": "0%",
-            "☁️": "Despejado",
-            "🔥": "Alerta: Ola de calor",
-            "status": "✅ Datos más actuales que AEMET",
-            "note": "OpenWeatherMap suele ser más preciso para condiciones extremas",
-            "comparison_aemet": "AEMET: 25.6°C vs OpenWeather: 35°C ← Más realista"
-        }
+        async with OpenWeatherMapClient() as client:
+            # Get API status first
+            status = await client.get_api_status()
+            
+            if status["status"] == "active":
+                # Get current weather data
+                current_weather = await client.get_current_weather()
+                
+                if current_weather:
+                    return {
+                        "🏭": "TFM Chocolate Factory - OpenWeatherMap",
+                        "📍": "Linares, Jaén (38.151107°N, -3.629453°W)",
+                        "🌡️": f"{current_weather.temperature}°C",
+                        "💧": f"{current_weather.humidity}%",
+                        "🌬️": f"{current_weather.wind_speed} km/h" if current_weather.wind_speed else "N/A",
+                        "📊": f"{current_weather.pressure} hPa" if current_weather.pressure else "N/A",
+                        "🕐": current_weather.timestamp.isoformat(),
+                        "📡": "OpenWeatherMap API v2.5",
+                        "station_id": current_weather.station_id,
+                        "data_source": "openweathermap",
+                        "status": "✅ Datos en tiempo real",
+                        "api_status": status
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "message": "No weather data available",
+                        "api_status": status
+                    }
+            else:
+                # API key not active yet
+                return {
+                    "🏭": "TFM Chocolate Factory - OpenWeatherMap",
+                    "📍": "Linares, Jaén",
+                    "status": "⏳ API key pending activation",
+                    "message": "OpenWeatherMap API keys can take up to 2 hours to activate",
+                    "api_status": status,
+                    "note": "El cliente está implementado y funcionará cuando la API key se active"
+                }
         
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"OpenWeatherMap endpoint error: {e}")
+        return {
+            "status": "error", 
+            "message": str(e),
+            "note": "API key may still be activating"
+        }
+
+
+@app.get("/weather/openweather/forecast")
+async def get_openweather_forecast(hours: int = 24):
+    """🌤️ OpenWeatherMap - Pronóstico por horas para Linares, Jaén"""
+    try:
+        async with OpenWeatherMapClient() as client:
+            # Get API status first
+            status = await client.get_api_status()
+            
+            if status["status"] == "active":
+                # Get forecast data
+                forecast_data = await client.get_forecast(hours)
+                
+                if forecast_data:
+                    forecast_list = []
+                    for item in forecast_data:
+                        forecast_list.append({
+                            "timestamp": item.timestamp.isoformat(),
+                            "temperature": item.temperature,
+                            "humidity": item.humidity,
+                            "pressure": item.pressure,
+                            "wind_speed": item.wind_speed,
+                            "wind_direction": item.wind_direction
+                        })
+                    
+                    return {
+                        "🏭": "TFM Chocolate Factory - OpenWeatherMap Forecast",
+                        "📍": "Linares, Jaén (38.151107°N, -3.629453°W)",
+                        "status": "✅ Pronóstico disponible",
+                        "hours_requested": hours,
+                        "records_returned": len(forecast_list),
+                        "data": forecast_list,
+                        "api_status": status
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "message": "No forecast data available",
+                        "api_status": status
+                    }
+            else:
+                return {
+                    "🏭": "TFM Chocolate Factory - OpenWeatherMap Forecast",
+                    "📍": "Linares, Jaén",
+                    "status": "⏳ API key pending activation",
+                    "message": "OpenWeatherMap API keys can take up to 2 hours to activate",
+                    "api_status": status
+                }
+        
+    except Exception as e:
+        logger.error(f"OpenWeatherMap forecast endpoint error: {e}")
+        return {
+            "status": "error", 
+            "message": str(e),
+            "note": "API key may still be activating"
+        }
+
+
+@app.get("/weather/openweather/status")
+async def get_openweather_status():
+    """🌤️ OpenWeatherMap - Estado de la API y conectividad"""
+    try:
+        async with OpenWeatherMapClient() as client:
+            status = await client.get_api_status()
+            
+            return {
+                "🏭": "TFM Chocolate Factory - OpenWeatherMap API Status",
+                "timestamp": datetime.now().isoformat(),
+                "api_status": status,
+                "integration_status": "✅ Cliente implementado y configurado",
+                "coordinates": "Linares, Jaén (38.151107°N, -3.629453°W)",
+                "api_version": "OpenWeatherMap v2.5 (free tier)"
+            }
+        
+    except Exception as e:
+        logger.error(f"OpenWeatherMap status endpoint error: {e}")
+        return {
+            "status": "error", 
+            "message": str(e),
+            "integration_status": "❌ Error en cliente"
+        }
+
+
+@app.get("/weather/hybrid")
+async def get_hybrid_weather(force_openweathermap: bool = False):
+    """🌤️🌍 Estrategia híbrida: AEMET (00:00-07:00) + OpenWeatherMap (08:00-23:00)"""
+    try:
+        current_hour = datetime.now().hour
+        use_aemet = (0 <= current_hour <= 7) and not force_openweathermap
+        
+        async with DataIngestionService() as service:
+            if use_aemet:
+                # Try AEMET first
+                try:
+                    aemet_data = await service.ingest_aemet_weather()
+                    if aemet_data.successful_writes > 0:
+                        return {
+                            "🏭": "TFM Chocolate Factory - Estrategia Híbrida",
+                            "📍": "Linares, Jaén",
+                            "⚡": "AEMET (datos oficiales)",
+                            "🕐": f"Hora {current_hour:02d}:xx - Ventana de observación oficial",
+                            "status": "✅ Datos AEMET ingestados",
+                            "records": aemet_data.successful_writes,
+                            "strategy": "aemet_official",
+                            "fallback": "OpenWeatherMap disponible si falla AEMET"
+                        }
+                except Exception:
+                    pass  # Fall through to OpenWeatherMap
+            
+            # Use OpenWeatherMap
+            owm_data = await service.ingest_openweathermap_weather()
+            source_reason = "ventana tiempo real" if not use_aemet else "fallback por fallo AEMET"
+            
+            return {
+                "🏭": "TFM Chocolate Factory - Estrategia Híbrida", 
+                "📍": "Linares, Jaén",
+                "⚡": "OpenWeatherMap (tiempo real)",
+                "🕐": f"Hora {current_hour:02d}:xx - {source_reason}",
+                "status": "✅ Datos OpenWeatherMap ingestados",
+                "records": owm_data.successful_writes,
+                "strategy": "openweathermap_realtime",
+                "precision": "Datos actualizados cada 10 minutos"
+            }
+        
+    except Exception as e:
+        logger.error(f"Hybrid weather strategy failed: {e}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "strategy": "hybrid_failed"
+        }
 
 
 @app.get("/weather/comparison")

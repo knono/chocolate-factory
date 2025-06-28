@@ -223,15 +223,15 @@ class SchedulerService:
         )
         logger.info(f"Added production optimization job (every {self.config.optimization_interval_minutes} minutes)")
         
-        # 5. AEMET Weather Data Ingestion - Every 3 hours
+        # 5. Hybrid Weather Data Ingestion - Every hour at :15
         self.scheduler.add_job(
-            func=self._aemet_weather_ingestion_job,
-            trigger=CronTrigger(minute=15, hour="*/3"),  # Every 3 hours at :15
-            id="aemet_weather_ingestion",
-            name="AEMET Weather Data Ingestion",
+            func=self._hybrid_weather_ingestion_job,
+            trigger=CronTrigger(minute=15),  # Every hour at :15
+            id="hybrid_weather_ingestion",
+            name="Hybrid Weather Data Ingestion",
             replace_existing=True
         )
-        logger.info("Added AEMET weather ingestion job (every 3 hours at :15)")
+        logger.info("Added hybrid weather ingestion job (hourly at :15)")
         
         # 6. AEMET Token Renewal Check - Daily at 3 AM
         self.scheduler.add_job(
@@ -341,29 +341,31 @@ class SchedulerService:
             await self._send_alert("Optimization Error", str(e))
             raise
     
-    async def _aemet_weather_ingestion_job(self):
-        """Scheduled job for AEMET weather data ingestion"""
+    async def _hybrid_weather_ingestion_job(self):
+        """Scheduled job for hybrid weather data ingestion (AEMET + OpenWeatherMap)"""
         job_start = datetime.now()
+        current_hour = job_start.hour
         
         try:
-            logger.info("Starting scheduled AEMET weather ingestion")
+            logger.info(f"Starting scheduled hybrid weather ingestion (hour {current_hour:02d}:xx)")
             
             async with DataIngestionService() as service:
-                stats = await service.ingest_current_weather()
+                stats = await service.ingest_hybrid_weather()
             
-            logger.info(f"AEMET ingestion completed: {stats.successful_writes} records, "
+            data_source = "AEMET" if (0 <= current_hour <= 7) else "OpenWeatherMap"
+            logger.info(f"Hybrid ingestion completed using {data_source}: {stats.successful_writes} records, "
                        f"{stats.success_rate:.1f}% success rate")
             
             # Alert on low success rate
             if stats.success_rate < 80 and stats.total_records > 0:
                 await self._send_alert(
-                    "AEMET Ingestion Warning",
-                    f"Low success rate: {stats.success_rate:.1f}% ({stats.successful_writes}/{stats.total_records})"
+                    "Hybrid Weather Ingestion Warning",
+                    f"Low success rate using {data_source}: {stats.success_rate:.1f}% ({stats.successful_writes}/{stats.total_records})"
                 )
             
         except Exception as e:
-            logger.error(f"AEMET weather ingestion job failed: {e}")
-            await self._send_alert("AEMET Ingestion Error", str(e))
+            logger.error(f"Hybrid weather ingestion job failed: {e}")
+            await self._send_alert("Hybrid Weather Ingestion Error", str(e))
             raise
     
     async def _aemet_token_check_job(self):

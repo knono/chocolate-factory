@@ -24,6 +24,7 @@ services:
       # APIs Externas
       - REE_API_TOKEN=${REE_API_TOKEN}
       - AEMET_API_KEY=${AEMET_API_KEY}
+      - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
       # Conexiones internas Docker
       - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
       - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI_DOCKER}
