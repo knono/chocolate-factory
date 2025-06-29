@@ -340,6 +340,30 @@ class REEClient:
         except Exception as e:
             logger.error(f"Failed to get 24h price forecast: {e}")
             return []
+    
+    async def get_price_range(self, start_date: datetime, end_date: datetime) -> List[REEPriceData]:
+        """
+        Get historical price data for a specific date range
+        
+        Args:
+            start_date: Start datetime for historical data
+            end_date: End datetime for historical data
+            
+        Returns:
+            List of REEPriceData objects for the specified range
+        """
+        try:
+            logger.info(f"📊 Fetching REE historical data: {start_date.date()} to {end_date.date()}")
+            
+            # Use existing PVPC method which supports date ranges
+            prices = await self.get_pvpc_prices(start_date, end_date)
+            
+            logger.info(f"✅ Retrieved {len(prices)} historical REE records")
+            return prices
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to fetch historical REE data {start_date} to {end_date}: {e}")
+            raise
 
 
 # Utility functions

@@ -1164,10 +1164,123 @@ async def initialize_all_systems(background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/init/aemet/historical-data")
+async def initialize_aemet_historical_data(years_back: int = 3):
+    """🌤️ Carga de datos históricos meteorológicos de AEMET
+    
+    Descarga datos meteorológicos oficiales de AEMET (Agencia Estatal de Meteorología)
+    para la estación de Linares, Jaén (5279X).
+    
+    Args:
+        years_back: Años hacia atrás para cargar (default: 3)
+        
+    Expected:
+        - ~1,095 registros diarios (3 años × 365 días)  
+        - Datos oficiales españoles de temperatura, humedad, presión
+        - Duración: 15-30 minutos (chunks de 3 años por limitación API)
+        
+    Limitaciones AEMET API:
+        - Máximo 5 años por consulta
+        - Rate limits por API key
+        - Datos climatológicos diarios disponibles desde 1920
+    """
+    try:
+        logger.info("Starting AEMET historical data initialization...")
+        
+        async with InitializationService() as init_service:
+            stats = await init_service.initialize_aemet_historical_data(years_back)
+            
+            return {
+                "🏭": "TFM Chocolate Factory - AEMET Historical Data",
+                "status": "✅ Completed",
+                "data_source": "AEMET (Agencia Estatal de Meteorología)",
+                "station": "5279X - Linares, Jaén",
+                "years_loaded": years_back,
+                "weather_records_written": stats.aemet_historical_records,
+                "duration_seconds": stats.total_duration_seconds,
+                "errors": stats.errors if stats.errors else None,
+                "timestamp": datetime.now().isoformat(),
+                "next_steps": {
+                    "verify_data": "GET /init/aemet/status",
+                    "complete_historical": "POST /init/complete-historical-data",
+                    "start_operations": "POST /ingest-now with hybrid weather"
+                }
+            }
+    
+    except Exception as e:
+        logger.error(f"Failed to initialize AEMET historical data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/init/complete-historical-data")
+async def initialize_complete_historical_data():
+    """📊🌤️ Inicialización completa de datos históricos: REE + AEMET
+    
+    Carga completa de datos históricos para MLflow:
+    - REE: Precios eléctricos post-COVID (2022-2024) ~17,520 registros
+    - AEMET: Datos meteorológicos (3 años) ~1,095 registros
+    
+    Duración estimada: 45-90 minutos
+    """
+    try:
+        logger.info("Starting complete historical data initialization...")
+        
+        async with InitializationService() as init_service:
+            stats = await init_service.initialize_complete_historical_data()
+            
+            return {
+                "🏭": "TFM Chocolate Factory - Complete Historical Data",
+                "status": "✅ Completed",
+                "data_sources": {
+                    "REE": "Precios eléctricos españoles (Red Eléctrica de España)",
+                    "AEMET": "Datos meteorológicos oficiales (Linares, Jaén)"
+                },
+                "results": {
+                    "ree_records_written": stats.historical_ree_records,
+                    "aemet_records_written": stats.aemet_historical_records,
+                    "total_records": stats.historical_ree_records + stats.aemet_historical_records
+                },
+                "duration_seconds": stats.total_duration_seconds,
+                "errors": stats.errors if stats.errors else None,
+                "timestamp": datetime.now().isoformat(),
+                "mlflow_ready": {
+                    "status": "✅ Ready for ML model training",
+                    "feature_coverage": "REE prices + AEMET weather (3 years)",
+                    "recommended_models": [
+                        "Chocolate production optimization",
+                        "Energy cost prediction",
+                        "Weather-based quality control"
+                    ]
+                }
+            }
+    
+    except Exception as e:
+        logger.error(f"Failed to initialize complete historical data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/init/aemet/status")
+async def get_aemet_initialization_status():
+    """🌤️ Estado de inicialización de datos históricos AEMET"""
+    try:
+        async with HistoricalDataIngestion() as ingestion:
+            weather_status = await ingestion.check_existing_weather_data()
+            
+            return {
+                "🏭": "TFM Chocolate Factory - AEMET Status",
+                "data_source": "AEMET (Agencia Estatal de Meteorología)", 
+                "station": "5279X - Linares, Jaén",
+                "weather_data": weather_status,
+                "recommendations": {
+                    "load_historical": weather_status.get("needs_weather_historical_load", True),
+                    "endpoint": "POST /init/aemet/historical-data?years_back=3"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    except Exception as e:
+        logger.error(f"Failed to get AEMET status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/init/datosclima/etl")

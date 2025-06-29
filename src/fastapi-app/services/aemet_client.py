@@ -248,15 +248,25 @@ class AEMETClient:
         
         url = f"{self.config.base_url}/{endpoint}"
         
-        # API key is now in headers, not params
+        # AEMET uses API key as query parameter, not header
         if params is None:
             params = {}
+        
+        # Add API key to query parameters (AEMET way)
+        params['api_key'] = self._current_token
         
         for attempt in range(self.config.max_retries):
             try:
                 logger.debug(f"AEMET API request: {url} - Attempt {attempt + 1}")
                 
-                response = await self.client.get(url, headers=self._get_headers(), params=params)
+                # Use simpler headers without Bearer token
+                headers = {
+                    "Accept": "application/json",
+                    "User-Agent": "TFM-Chocolate-Factory/1.0",
+                    "cache-control": "no-cache"
+                }
+                
+                response = await self.client.get(url, headers=headers, params=params)
                 response.raise_for_status()
                 
                 # Rate limiting
@@ -399,12 +409,16 @@ class AEMETClient:
         
         Args:
             start_date: Start date for data query
-            end_date: End date for data query
+            end_date: End date for data query  
             station_id: Optional specific station ID
             
         Returns:
             List of AEMETWeatherData objects
         """
+        # Validate date range (AEMET limitation: max 5 years)
+        if (end_date - start_date).days > 1825:  # ~5 years
+            raise ValueError("Date range too large. AEMET API supports maximum 5 years per request.")
+        
         # Format dates for AEMET API
         start_str = start_date.strftime("%Y-%m-%dT%H:%M:%SUTC")
         end_str = end_date.strftime("%Y-%m-%dT%H:%M:%SUTC")
@@ -424,23 +438,28 @@ class AEMETClient:
                 
                 weather_data = []
                 for record in weather_records:
+                    # Parse temperature values safely
+                    temp_avg = self._safe_float(record.get('tmed'))
+                    temp_max = self._safe_float(record.get('tmax'))
+                    temp_min = self._safe_float(record.get('tmin'))
+                    
                     weather_data.append(AEMETWeatherData(
                         timestamp=datetime.fromisoformat(record.get('fecha', datetime.now().isoformat())),
                         station_id=record.get('indicativo', ''),
                         station_name=record.get('nombre'),
                         province=record.get('provincia'),
-                        altitude=record.get('altitud'),
-                        temperature=record.get('tmed'),
-                        temperature_max=record.get('tmax'),
-                        temperature_min=record.get('tmin'),
-                        humidity=record.get('hrMedia'),
-                        pressure=record.get('presMedia'),
-                        wind_speed=record.get('vvMedia'),
-                        precipitation=record.get('prec'),
-                        solar_radiation=record.get('sol')
+                        altitude=self._safe_float(record.get('altitud')),
+                        temperature=temp_avg,
+                        temperature_max=temp_max,
+                        temperature_min=temp_min,
+                        humidity=self._safe_float(record.get('hrMedia')),
+                        pressure=self._safe_float(record.get('presMedia')),
+                        wind_speed=self._safe_float(record.get('vvMedia')),
+                        precipitation=self._safe_float(record.get('prec')),
+                        solar_radiation=self._safe_float(record.get('sol'))
                     ))
                 
-                logger.info(f"Retrieved {len(weather_data)} daily weather records")
+                logger.info(f"Retrieved {len(weather_data)} daily weather records from {start_date.date()} to {end_date.date()}")
                 return weather_data
             
             return []
@@ -448,6 +467,61 @@ class AEMETClient:
         except Exception as e:
             logger.error(f"Failed to fetch daily weather data: {e}")
             raise
+    
+    async def get_historical_weather_chunked(self, start_date: datetime, end_date: datetime,
+                                           station_id: str = "5279X", chunk_years: int = 4) -> List[AEMETWeatherData]:
+        """
+        Get historical weather data for large date ranges by chunking into smaller requests
+        
+        Args:
+            start_date: Start date for historical data
+            end_date: End date for historical data
+            station_id: Weather station ID (default: Linares, Jaén)
+            chunk_years: Years per chunk (max 5 due to AEMET limitation)
+            
+        Returns:
+            List of AEMETWeatherData objects for entire date range
+        """
+        if chunk_years > 4:
+            chunk_years = 4  # Safe limit below AEMET's 5-year max
+        
+        all_weather_data = []
+        current_start = start_date
+        
+        while current_start < end_date:
+            # Calculate chunk end date
+            chunk_end = min(
+                current_start + timedelta(days=chunk_years * 365),
+                end_date
+            )
+            
+            logger.info(f"Fetching AEMET historical data chunk: {current_start.date()} to {chunk_end.date()}")
+            
+            try:
+                chunk_data = await self.get_daily_weather(current_start, chunk_end, station_id)
+                all_weather_data.extend(chunk_data)
+                
+                # Rate limiting between chunks
+                await asyncio.sleep(2.0)
+                
+            except Exception as e:
+                logger.error(f"Failed to fetch chunk {current_start.date()} to {chunk_end.date()}: {e}")
+                # Continue with next chunk instead of failing completely
+            
+            current_start = chunk_end + timedelta(days=1)
+        
+        logger.info(f"Historical data download complete: {len(all_weather_data)} records from {start_date.date()} to {end_date.date()}")
+        return all_weather_data
+    
+    def _safe_float(self, value: Any) -> Optional[float]:
+        """Safely convert value to float, handling None and invalid strings"""
+        if value is None or value == "":
+            return None
+        
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
     
     async def get_token_status(self) -> Dict[str, Any]:
         """Get current token status for monitoring"""
