@@ -182,16 +182,20 @@ class SchedulerService:
     
     async def _add_jobs(self):
         """Add all scheduled jobs"""
+        # 🚀 TEMPORARY ACCELERATION MODE (24-48h for MLflow data collection)
+        # TODO: Revert to normal frequency after data collection:
+        # - REE: CronTrigger(minute=5) [hourly at :05]  
+        # - Weather: CronTrigger(minute=15) [hourly at :15]
         
-        # 1. REE Price Data Ingestion - Every hour at minute 5
+        # 1. REE Price Data Ingestion - ACCELERATED: Every 15 minutes for 24-48h data collection
         self.scheduler.add_job(
             func=self._ingest_ree_prices_job,
-            trigger=CronTrigger(minute=5),  # Every hour at :05
+            trigger=IntervalTrigger(minutes=15),  # ACCELERATED: Every 15 minutes
             id="ree_price_ingestion",
-            name="REE Price Data Ingestion",
+            name="REE Price Data Ingestion (ACCELERATED)",
             replace_existing=True
         )
-        logger.info("Added REE price ingestion job (hourly at :05)")
+        logger.info("🚀 Added REE price ingestion job (ACCELERATED: every 15 minutes)")
         
         # 2. Daily Data Backfill - 1 AM daily
         self.scheduler.add_job(
@@ -223,15 +227,15 @@ class SchedulerService:
         )
         logger.info(f"Added production optimization job (every {self.config.optimization_interval_minutes} minutes)")
         
-        # 5. Hybrid Weather Data Ingestion - Every hour at :15
+        # 5. Hybrid Weather Data Ingestion - ACCELERATED: Every 15 minutes for 24-48h data collection
         self.scheduler.add_job(
             func=self._hybrid_weather_ingestion_job,
-            trigger=CronTrigger(minute=15),  # Every hour at :15
+            trigger=IntervalTrigger(minutes=15),  # ACCELERATED: Every 15 minutes
             id="hybrid_weather_ingestion",
             name="Hybrid Weather Data Ingestion",
             replace_existing=True
         )
-        logger.info("Added hybrid weather ingestion job (hourly at :15)")
+        logger.info("🚀 Added hybrid weather ingestion job (ACCELERATED: every 15 minutes)")
         
         # 6. AEMET Token Renewal Check - Daily at 3 AM
         self.scheduler.add_job(
