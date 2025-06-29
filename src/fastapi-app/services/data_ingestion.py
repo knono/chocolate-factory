@@ -330,6 +330,86 @@ class DataIngestionService:
         logger.info(f"Historical backfill completed: {total_stats.successful_writes} total records")
         return total_stats
     
+    async def ingest_ree_prices_historical(self, prices: List) -> DataIngestionStats:
+        """
+        Ingest historical REE price data (for initialization)
+        
+        Args:
+            prices: List of REEPriceData objects from historical API calls
+            
+        Returns:
+            DataIngestionStats for the ingestion operation
+        """
+        start_time = datetime.now()
+        stats = DataIngestionStats()
+        stats.total_records = len(prices)
+        
+        if not prices:
+            logger.warning("No historical price data provided")
+            return stats
+        
+        try:
+            logger.info(f"📊 Processing {len(prices)} historical REE price records")
+            
+            # Transform to InfluxDB points
+            valid_points = []
+            for price_data in prices:
+                try:
+                    # Convert EUR/MWh to EUR/kWh for consistency
+                    price_eur_kwh = price_data.price_eur_mwh / 1000.0
+                    
+                    # Basic validation
+                    if not (0.001 <= price_eur_kwh <= 1.0):  # Reasonable price range
+                        logger.warning(f"Price out of range: {price_eur_kwh} EUR/kWh at {price_data.timestamp}")
+                        stats.validation_errors += 1
+                        continue
+                    
+                    # Create InfluxDB point with historical tag
+                    point = Point("energy_prices") \
+                        .tag("source", "REE") \
+                        .tag("market_type", price_data.market_type) \
+                        .tag("data_source", "ree_historical") \
+                        .tag("season", get_season_from_date(price_data.timestamp)) \
+                        .field("price_eur_kwh", price_eur_kwh) \
+                        .field("price_eur_mwh", price_data.price_eur_mwh) \
+                        .time(price_data.timestamp)
+                    
+                    valid_points.append(point)
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to process price record {price_data.timestamp}: {e}")
+                    stats.validation_errors += 1
+            
+            # Batch write to InfluxDB
+            if valid_points:
+                try:
+                    logger.info(f"📥 Writing {len(valid_points)} historical points to InfluxDB")
+                    self.write_api.write(
+                        bucket=self.config.bucket,
+                        org=self.config.org,
+                        record=valid_points
+                    )
+                    stats.successful_writes = len(valid_points)
+                    logger.info(f"✅ Successfully wrote {stats.successful_writes} historical price records")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Failed to write historical data to InfluxDB: {e}")
+                    stats.failed_writes = len(valid_points)
+                    raise
+            else:
+                logger.warning("No valid historical price points to write")
+            
+        except Exception as e:
+            logger.error(f"❌ Historical REE price ingestion failed: {e}")
+            raise
+        
+        finally:
+            stats.processing_time_seconds = (datetime.now() - start_time).total_seconds()
+            logger.info(f"Historical ingestion completed in {stats.processing_time_seconds:.2f}s - "
+                       f"Success rate: {stats.success_rate:.1f}%")
+        
+        return stats
+    
     def _transform_aemet_weather_to_influx_point(self, weather_data: AEMETWeatherData) -> Point:
         """Transform AEMET weather data to InfluxDB point"""
         
