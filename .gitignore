@@ -15,3 +15,7 @@ docker/volumes/
 
 # Ignorar artefactos y datos generados por MLflow
 docker/services/mlflow/
+
+# Scripts y directorios de empaquetado
+package-for-windows.sh
+chocolate-factory-package/
