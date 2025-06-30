@@ -12,3 +12,6 @@ docker/volumes/
 # Docker volumes
 docker/services/*/data/
 docker/volumes/
+
+# Ignorar artefactos y datos generados por MLflow
+docker/services/mlflow/

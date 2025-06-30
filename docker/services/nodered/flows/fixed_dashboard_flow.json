@@ -1,0 +1,400 @@
+[
+    {
+        "id": "fixed_dashboard_tab",
+        "type": "tab",
+        "label": "🏭 Dashboard Chocolate Factory",
+        "disabled": false,
+        "info": "Dashboard funcional sin errores"
+    },
+    {
+        "id": "ui_base_config",
+        "type": "ui_base",
+        "theme": {
+            "name": "theme-light",
+            "lightTheme": {
+                "default": "#0094CE",
+                "baseColor": "#0094CE",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": true,
+                "reset": false
+            },
+            "darkTheme": {
+                "default": "#097479",
+                "baseColor": "#097479",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif",
+                "edited": false
+            },
+            "customTheme": {
+                "name": "Untitled Theme 1",
+                "default": "#4B7930",
+                "baseColor": "#4B7930",
+                "baseFont": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+            },
+            "themeState": {
+                "base-color": {
+                    "default": "#0094CE",
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-titlebar-backgroundColor": {
+                    "value": "#0094CE",
+                    "edited": false
+                },
+                "page-backgroundColor": {
+                    "value": "#fafafa",
+                    "edited": false
+                },
+                "page-sidebar-backgroundColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "group-textColor": {
+                    "value": "#1bbfff",
+                    "edited": false
+                },
+                "group-borderColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "group-backgroundColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "widget-textColor": {
+                    "value": "#111111",
+                    "edited": false
+                },
+                "widget-backgroundColor": {
+                    "value": "#0094ce",
+                    "edited": false
+                },
+                "widget-borderColor": {
+                    "value": "#ffffff",
+                    "edited": false
+                },
+                "base-font": {
+                    "value": "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen-Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif"
+                }
+            },
+            "angularTheme": {
+                "primary": "indigo",
+                "accents": "blue",
+                "warn": "red",
+                "background": "grey"
+            }
+        },
+        "site": {
+            "name": "TFM Chocolate Factory Dashboard",
+            "hideToolbar": "false",
+            "allowSwipe": "false",
+            "lockMenu": "false",
+            "allowTempTheme": "true",
+            "dateFormat": "DD/MM/YYYY",
+            "sizes": {
+                "sx": 48,
+                "sy": 48,
+                "gx": 6,
+                "gy": 6,
+                "cx": 6,
+                "cy": 6,
+                "px": 0,
+                "py": 0
+            }
+        }
+    },
+    {
+        "id": "timer_inject",
+        "type": "inject",
+        "z": "fixed_dashboard_tab",
+        "name": "⏰ Timer 15s",
+        "props": [{"p": "payload"}],
+        "repeat": "15",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 3,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 80,
+        "wires": [["get_dashboard_data"]]
+    },
+    {
+        "id": "get_dashboard_data",
+        "type": "http request",
+        "z": "fixed_dashboard_tab",
+        "name": "📊 Dashboard API",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": false,
+        "url": "http://fastapi-app:8000/dashboard/summary",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 320,
+        "y": 80,
+        "wires": [["process_dashboard_data"]]
+    },
+    {
+        "id": "process_dashboard_data",
+        "type": "function",
+        "z": "fixed_dashboard_tab",
+        "name": "🔄 Procesar Datos",
+        "func": "const data = msg.payload;\n\n// Precio energía - para chart y gauge\nconst priceMsg = {\n    payload: data.current?.energy_price || 0,\n    topic: \"energy_price\"\n};\nnode.send([priceMsg, null, null, null]);\n\n// Temperatura\nconst tempMsg = {\n    payload: data.current?.temperature || 0,\n    topic: \"temperature\"\n};\nnode.send([null, tempMsg, null, null]);\n\n// Humedad \nconst humMsg = {\n    payload: data.current?.humidity || 0,\n    topic: \"humidity\"\n};\nnode.send([null, null, humMsg, null]);\n\n// ML Score\nconst mlMsg = {\n    payload: data.predictions?.energy_score || 0,\n    topic: \"ml_score\"\n};\nnode.send([null, null, null, mlMsg]);\n\nreturn null;",
+        "outputs": 4,
+        "noerr": 0,
+        "x": 540,
+        "y": 80,
+        "wires": [
+            ["price_chart", "price_gauge"],
+            ["temp_gauge"],
+            ["humidity_gauge"],
+            ["ml_gauge"]
+        ]
+    },
+    {
+        "id": "price_chart",
+        "type": "ui_chart",
+        "z": "fixed_dashboard_tab",
+        "name": "📈 Precio Energía Trend",
+        "group": "energy_group",
+        "order": 1,
+        "width": 8,
+        "height": 4,
+        "label": "Evolución Precio Energía",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "Cargando datos...",
+        "dot": true,
+        "ymin": "0.10",
+        "ymax": "0.35",
+        "removeOlder": 1,
+        "removeOlderPoints": "30",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": ["#1f77b4", "#ff7f0e", "#2ca02c"],
+        "outputs": 1,
+        "x": 790,
+        "y": 40,
+        "wires": [[]]
+    },
+    {
+        "id": "price_gauge",
+        "type": "ui_gauge",
+        "z": "fixed_dashboard_tab",
+        "name": "💰 Precio Actual",
+        "group": "energy_group",
+        "order": 2,
+        "width": 4,
+        "height": 4,
+        "gtype": "gage",
+        "title": "Precio Actual",
+        "label": "€/kWh",
+        "format": "{{value | number:3}}",
+        "min": 0.05,
+        "max": 0.40,
+        "colors": ["#00b500", "#e6e600", "#ca3838"],
+        "seg1": 0.15,
+        "seg2": 0.25,
+        "x": 780,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "temp_gauge",
+        "type": "ui_gauge",
+        "z": "fixed_dashboard_tab",
+        "name": "🌡️ Temperatura",
+        "group": "weather_group",
+        "order": 1,
+        "width": 12,
+        "height": 4,
+        "gtype": "gage",
+        "title": "Temperatura Linares",
+        "label": "°C",
+        "format": "{{value | number:1}}",
+        "min": 10,
+        "max": 45,
+        "colors": ["#0066cc", "#00b500", "#ca3838"],
+        "seg1": 20,
+        "seg2": 35,
+        "x": 780,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "humidity_gauge",
+        "type": "ui_gauge",
+        "z": "fixed_dashboard_tab",
+        "name": "💧 Humedad",
+        "group": "weather_group",
+        "order": 2,
+        "width": 12,
+        "height": 4,
+        "gtype": "gage",
+        "title": "Humedad Relativa",
+        "label": "%",
+        "format": "{{value | number:0}}",
+        "min": 0,
+        "max": 100,
+        "colors": ["#ca3838", "#00b500", "#ca3838"],
+        "seg1": 40,
+        "seg2": 80,
+        "x": 780,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "ml_gauge",
+        "type": "ui_gauge",
+        "z": "fixed_dashboard_tab",
+        "name": "🤖 Score ML",
+        "group": "ml_group",
+        "order": 1,
+        "width": 12,
+        "height": 4,
+        "gtype": "gage",
+        "title": "Optimización Energética ML",
+        "label": "/100",
+        "format": "{{value | number:1}}",
+        "min": 0,
+        "max": 100,
+        "colors": ["#ca3838", "#e6e600", "#00b500"],
+        "seg1": 40,
+        "seg2": 70,
+        "x": 780,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "info_button",
+        "type": "ui_button",
+        "z": "fixed_dashboard_tab",
+        "name": "🔍 Info Detallada",
+        "group": "controls_group",
+        "order": 1,
+        "width": 12,
+        "height": 1,
+        "passthru": false,
+        "label": "Información Detallada",
+        "tooltip": "Ver información completa del sistema",
+        "color": "",
+        "bgcolor": "#2196F3",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "info_request",
+        "x": 160,
+        "y": 200,
+        "wires": [["get_complete_info"]]
+    },
+    {
+        "id": "get_complete_info",
+        "type": "http request",
+        "z": "fixed_dashboard_tab",
+        "name": "📋 Complete API",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": false,
+        "url": "http://fastapi-app:8000/dashboard/complete",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 380,
+        "y": 200,
+        "wires": [["format_complete_info"]]
+    },
+    {
+        "id": "format_complete_info",
+        "type": "function",
+        "z": "fixed_dashboard_tab",
+        "name": "📄 Formatear Info",
+        "func": "const data = msg.payload;\nlet info = \"=== 🏭 TFM CHOCOLATE FACTORY ===\\n\\n\";\n\nif (data.current_info) {\n    info += \"📊 INFORMACIÓN ACTUAL:\\n\";\n    if (data.current_info.energy) {\n        info += `💰 Precio: ${data.current_info.energy.price_eur_kwh} €/kWh\\n`;\n        info += `📈 Tendencia: ${data.current_info.energy.trend || 'estable'}\\n`;\n    }\n    if (data.current_info.weather) {\n        info += `🌡️ Temperatura: ${data.current_info.weather.temperature}°C\\n`;\n        info += `💧 Humedad: ${data.current_info.weather.humidity}%\\n`;\n        info += `🎯 Confort: ${data.current_info.weather.comfort_index}\\n`;\n    }\n    info += `🏭 Producción: ${data.current_info.production_status}\\n\\n`;\n}\n\nif (data.predictions) {\n    info += \"🤖 PREDICCIONES ML:\\n\";\n    if (data.predictions.energy_optimization) {\n        info += `⚡ Score: ${data.predictions.energy_optimization.score}/100\\n`;\n        info += `💡 Recomendación: ${data.predictions.energy_optimization.recommendation}\\n`;\n    }\n    if (data.predictions.production_recommendation) {\n        info += `🎯 Producción: ${data.predictions.production_recommendation.class}\\n`;\n    }\n    info += \"\\n\";\n}\n\nif (data.recommendations) {\n    info += \"💡 RECOMENDACIONES:\\n\";\n    Object.keys(data.recommendations).forEach(category => {\n        const recs = data.recommendations[category];\n        if (Array.isArray(recs) && recs.length > 0) {\n            info += `${category.toUpperCase()}:\\n`;\n            recs.forEach(rec => info += `  • ${rec}\\n`);\n        }\n    });\n    info += \"\\n\";\n}\n\nif (data.system_status) {\n    info += \"⚙️ SISTEMA:\\n\";\n    info += `Estado: ${data.system_status.status}\\n`;\n    if (data.system_status.data_sources) {\n        info += \"Fuentes:\\n\";\n        Object.keys(data.system_status.data_sources).forEach(source => {\n            info += `  • ${source}: ${data.system_status.data_sources[source]}\\n`;\n        });\n    }\n}\n\ninfo += `\\n⏰ ${new Date(data.timestamp).toLocaleString()}`;\n\nmsg.payload = info;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 600,
+        "y": 200,
+        "wires": [["info_display"]]
+    },
+    {
+        "id": "info_display",
+        "type": "ui_text",
+        "z": "fixed_dashboard_tab",
+        "group": "info_group",
+        "order": 1,
+        "width": 12,
+        "height": 10,
+        "name": "📋 Información Completa",
+        "label": "",
+        "format": "<div style='margin-top: 40px; padding: 20px;'><br><br><br><br><pre style='font-family: monospace; font-size: 11px; line-height: 1.3; background: #f5f5f5; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; overflow-x: hidden; margin-top: 20px;'>{{msg.payload}}</pre></div>",
+        "layout": "row-left",
+        "x": 820,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "energy_group",
+        "type": "ui_group",
+        "name": "📈 Energía",
+        "tab": "main_tab",
+        "order": 1,
+        "disp": true,
+        "width": "12",
+        "collapse": false
+    },
+    {
+        "id": "weather_group",
+        "type": "ui_group",
+        "name": "🌡️ Clima",
+        "tab": "main_tab",
+        "order": 2,
+        "disp": true,
+        "width": "12",
+        "collapse": false
+    },
+    {
+        "id": "ml_group",
+        "type": "ui_group",
+        "name": "🤖 Machine Learning",
+        "tab": "main_tab",
+        "order": 3,
+        "disp": true,
+        "width": "12",
+        "collapse": false
+    },
+    {
+        "id": "controls_group",
+        "type": "ui_group",
+        "name": "🎛️ Controles",
+        "tab": "main_tab",
+        "order": 4,
+        "disp": true,
+        "width": "12",
+        "collapse": false
+    },
+    {
+        "id": "info_group",
+        "type": "ui_group",
+        "name": "📋 Información Detallada",
+        "tab": "main_tab",
+        "order": 5,
+        "disp": true,
+        "width": "12",
+        "collapse": false
+    },
+    {
+        "id": "main_tab",
+        "type": "ui_tab",
+        "name": "🏭 TFM Chocolate Factory",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    }
+]

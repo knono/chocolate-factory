@@ -27,6 +27,7 @@ from services.initialization.historical_ingestion import HistoricalDataIngestion
 from services.mlflow_client import MLflowService, get_mlflow_service
 from services.feature_engineering import ChocolateFeatureEngine
 from services.ml_models import ChocolateMLModels
+from services.dashboard import DashboardService
 
 # Configurar logging
 logging.basicConfig(
@@ -1741,6 +1742,98 @@ async def get_models_status():
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
+
+
+# === DASHBOARD ENDPOINTS ===
+
+@app.get("/dashboard/complete", tags=["Dashboard"])
+async def get_complete_dashboard():
+    """🎯 Dashboard completo con información, predicciones y recomendaciones"""
+    try:
+        dashboard_service = DashboardService()
+        return await dashboard_service.get_complete_dashboard_data()
+    except Exception as e:
+        logger.error(f"Complete dashboard failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)}")
+
+
+@app.get("/dashboard/summary", tags=["Dashboard"])
+async def get_dashboard_summary():
+    """📊 Resumen rápido para el dashboard Node-RED"""
+    try:
+        dashboard_service = DashboardService()
+        full_data = await dashboard_service.get_complete_dashboard_data()
+        
+        # Extraer solo la información esencial para Node-RED
+        current_info = full_data.get("current_info", {})
+        predictions = full_data.get("predictions", {})
+        
+        summary = {
+            "🏢": "TFM Chocolate Factory - Dashboard Summary",
+            "current": {
+                "energy_price": current_info.get("energy", {}).get("price_eur_kwh", 0) if current_info.get("energy") else 0,
+                "temperature": current_info.get("weather", {}).get("temperature", 0) if current_info.get("weather") else 0,
+                "humidity": current_info.get("weather", {}).get("humidity", 0) if current_info.get("weather") else 0,
+                "production_status": current_info.get("production_status", "🔄 Cargando...")
+            },
+            "predictions": {
+                "energy_score": predictions.get("energy_optimization", {}).get("score", 0),
+                "production_class": predictions.get("production_recommendation", {}).get("class", "Unknown")
+            },
+            "alerts_count": len(full_data.get("alerts", [])),
+            "status": full_data.get("system_status", {}).get("status", "🔄 Cargando..."),
+            "timestamp": full_data.get("timestamp", datetime.now().isoformat())
+        }
+        
+        return summary
+        
+    except Exception as e:
+        logger.error(f"Dashboard summary failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Dashboard summary error: {str(e)}")
+
+
+@app.get("/dashboard/alerts", tags=["Dashboard"])
+async def get_dashboard_alerts():
+    """🚨 Alertas activas del sistema"""
+    try:
+        dashboard_service = DashboardService()
+        full_data = await dashboard_service.get_complete_dashboard_data()
+        
+        return {
+            "🏢": "TFM Chocolate Factory - Alertas Activas",
+            "alerts": full_data["alerts"],
+            "alert_counts": {
+                "critical": len([a for a in full_data["alerts"] if a.get("level") == "critical"]),
+                "warning": len([a for a in full_data["alerts"] if a.get("level") == "warning"]),
+                "high": len([a for a in full_data["alerts"] if a.get("level") == "high"]),
+                "info": len([a for a in full_data["alerts"] if a.get("level") == "info"])
+            },
+            "timestamp": full_data["timestamp"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Dashboard alerts failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Dashboard alerts error: {str(e)}")
+
+
+@app.get("/dashboard/recommendations", tags=["Dashboard"])
+async def get_dashboard_recommendations():
+    """💡 Recomendaciones operativas actuales"""
+    try:
+        dashboard_service = DashboardService()
+        full_data = await dashboard_service.get_complete_dashboard_data()
+        
+        return {
+            "🏢": "TFM Chocolate Factory - Recomendaciones Operativas",
+            "recommendations": full_data["recommendations"],
+            "priority_count": len(full_data["recommendations"]["priority"]),
+            "total_recommendations": sum(len(v) for v in full_data["recommendations"].values() if isinstance(v, list)),
+            "timestamp": full_data["timestamp"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Dashboard recommendations failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Dashboard recommendations error: {str(e)}")
 
 
 # === BACKGROUND TASKS ===
