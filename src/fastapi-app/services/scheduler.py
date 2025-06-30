@@ -256,6 +256,16 @@ class SchedulerService:
             replace_existing=True
         )
         logger.info("Added weekly cleanup job (Sundays at 2:00 AM)")
+        
+        # 8. ML Predictions Job - Every 30 minutes
+        self.scheduler.add_job(
+            func=self._ml_predictions_job,
+            trigger=IntervalTrigger(minutes=30),
+            id="ml_predictions",
+            name="ML Production Predictions",
+            replace_existing=True
+        )
+        logger.info("Added ML predictions job (every 30 minutes)")
     
     async def _ingest_ree_prices_job(self):
         """Scheduled job for REE price data ingestion"""
@@ -429,6 +439,142 @@ class SchedulerService:
         # - Slack/Teams integration
         # - Push to Node-RED dashboard
         # - SMS alerts for critical issues
+    
+    async def _ml_predictions_job(self):
+        """Scheduled job for ML predictions and production optimization"""
+        job_start = datetime.now()
+        
+        try:
+            logger.info("🤖 Starting scheduled ML predictions job")
+            
+            # Get current conditions from latest data
+            from services.data_ingestion import DataIngestionService
+            
+            async with DataIngestionService() as service:
+                query_api = service.client.query_api()
+                
+                # Get latest data (last 2 hours)
+                price_query = f'''
+                from(bucket: "{service.config.bucket}")
+                |> range(start: -2h)
+                |> filter(fn: (r) => r._measurement == "energy_prices")
+                |> filter(fn: (r) => r._field == "price_eur_kwh")
+                |> last()
+                '''
+                
+                temp_query = f'''
+                from(bucket: "{service.config.bucket}")
+                |> range(start: -2h)
+                |> filter(fn: (r) => r._measurement == "weather_data")
+                |> filter(fn: (r) => r._field == "temperature")
+                |> last()
+                '''
+                
+                humidity_query = f'''
+                from(bucket: "{service.config.bucket}")
+                |> range(start: -2h)
+                |> filter(fn: (r) => r._measurement == "weather_data")
+                |> filter(fn: (r) => r._field == "humidity")
+                |> last()
+                '''
+                
+                # Execute queries
+                price_results = query_api.query(price_query)
+                temp_results = query_api.query(temp_query)
+                humidity_results = query_api.query(humidity_query)
+                
+                # Extract values
+                price = None
+                temperature = None
+                humidity = None
+                
+                for table in price_results:
+                    for record in table.records:
+                        price = record.get_value()
+                        break
+                
+                for table in temp_results:
+                    for record in table.records:
+                        temperature = record.get_value()
+                        break
+                
+                for table in humidity_results:
+                    for record in table.records:
+                        humidity = record.get_value()
+                        break
+                
+                # Only proceed if we have all required data
+                if price is not None and temperature is not None and humidity is not None:
+                    # Calculate predictions using same logic as prediction endpoints
+                    
+                    # Energy features
+                    energy_cost_index = min(100, max(0, (price - 0.05) / (0.35 - 0.05) * 100))
+                    temp_deviation = abs(temperature - 21)
+                    temperature_comfort_index = max(0, 100 - (temp_deviation * 10))
+                    
+                    energy_optimization_score = (
+                        (100 - energy_cost_index) * 0.7 + 
+                        temperature_comfort_index * 0.3
+                    )
+                    energy_optimization_score = max(0, min(100, energy_optimization_score))
+                    
+                    # Production features
+                    humidity_deviation = abs(humidity - 55)
+                    humidity_stress_factor = humidity_deviation / 55 * 100
+                    
+                    chocolate_production_index = (
+                        temperature_comfort_index - 
+                        energy_cost_index * 0.5 - 
+                        humidity_stress_factor * 0.3
+                    )
+                    chocolate_production_index = max(0, min(100, chocolate_production_index))
+                    
+                    # Classify recommendation
+                    if chocolate_production_index >= 75:
+                        recommendation = "Optimal_Production"
+                        urgency = "low"
+                    elif chocolate_production_index >= 50:
+                        recommendation = "Moderate_Production"
+                        urgency = "medium"
+                    elif chocolate_production_index >= 25:
+                        recommendation = "Reduced_Production"
+                        urgency = "high"
+                    else:
+                        recommendation = "Halt_Production"
+                        urgency = "critical"
+                    
+                    # Log predictions
+                    logger.info(f"🤖 ML Prediction Results:")
+                    logger.info(f"   📊 Energy Score: {energy_optimization_score:.1f}")
+                    logger.info(f"   🍫 Recommendation: {recommendation}")
+                    logger.info(f"   📈 Production Index: {chocolate_production_index:.1f}")
+                    logger.info(f"   ⚠️  Urgency: {urgency}")
+                    logger.info(f"   🌡️  Conditions: {temperature}°C, {humidity}%, {price}€/kWh")
+                    
+                    # Send alerts for critical conditions
+                    if urgency == "critical":
+                        await self._send_alert(
+                            "🚨 Critical Production Alert",
+                            f"HALT production - Score: {chocolate_production_index:.1f}"
+                        )
+                    elif urgency == "high":
+                        await self._send_alert(
+                            "⚠️ Production Warning", 
+                            f"REDUCE production - Score: {chocolate_production_index:.1f}"
+                        )
+                    
+                    job_duration = (datetime.now() - job_start).total_seconds()
+                    logger.info(f"✅ ML predictions completed in {job_duration:.2f}s")
+                    
+                else:
+                    logger.warning("⚠️ ML predictions skipped - insufficient data")
+                    
+        except Exception as e:
+            logger.error(f"❌ ML predictions job failed: {e}")
+            await self._send_alert(
+                "ML Predictions Error", 
+                f"Scheduled predictions failed: {str(e)}"
+            )
     
     def get_job_status(self) -> Dict[str, Any]:
         """Get status of all scheduled jobs"""

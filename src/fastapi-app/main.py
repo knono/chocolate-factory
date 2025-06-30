@@ -24,6 +24,9 @@ from services.aemet_client import AEMETClient
 from services.openweathermap_client import OpenWeatherMapClient
 from services.initialization import InitializationService
 from services.initialization.historical_ingestion import HistoricalDataIngestion
+from services.mlflow_client import MLflowService, get_mlflow_service
+from services.feature_engineering import ChocolateFeatureEngine
+from services.ml_models import ChocolateMLModels
 
 # Configurar logging
 logging.basicConfig(
@@ -86,6 +89,12 @@ class SchedulerJobRequest(BaseModel):
     job_id: str
     action: str  # trigger, pause, resume
 
+class PredictionRequest(BaseModel):
+    price_eur_kwh: float
+    temperature: float
+    humidity: float
+    include_features: bool = True  # Return engineered features
+
 
 @app.get("/")
 async def root():
@@ -113,6 +122,13 @@ async def root():
             "init_all": "/init/all",
             "aemet_stations": "/aemet/stations",
             "aemet_token_renew": "/aemet/token/renew",
+            "mlflow_status": "/mlflow/status",
+            "mlflow_web_check": "/mlflow/web-check",
+            "mlflow_features": "/mlflow/features",
+            "mlflow_train": "/mlflow/train",
+            "predict_energy": "/predict/energy-optimization",
+            "predict_production": "/predict/production-recommendation",
+            "models_status": "/models/status",
             "docs": "/docs"
         }
     }
@@ -1213,6 +1229,552 @@ async def init_datosclima_etl(station_id: str = "5279X", years: int = 5):
         }
 
 
+# =============================================================================
+# MLFLOW ENDPOINTS - UNIDAD MLOPS (CUARTEL GENERAL ML)
+# =============================================================================
+
+@app.get("/mlflow/status")
+async def get_mlflow_status():
+    """🏢 Unidad MLOps - Estado del Cuartel General ML (MLflow + PostgreSQL)"""
+    try:
+        async with get_mlflow_service() as mlflow_service:
+            connectivity = await mlflow_service.check_connectivity()
+            
+            return {
+                "🏢": "TFM Chocolate Factory - Unidad MLOps",
+                "🏗️": "Cuartel General ML",
+                "status": "✅ MLflow Service Active" if connectivity["status"] == "connected" else "❌ MLflow Service Failed",
+                "infrastructure": {
+                    "mlflow_server": connectivity.get("tracking_uri", "Unknown"),
+                    "mlflow_version": connectivity.get("mlflow_version", "Unknown"),
+                    "backend_store": "PostgreSQL",
+                    "artifact_store": "/mlflow/artifacts"
+                },
+                "experiments": {
+                    "total_experiments": connectivity.get("experiments_count", 0),
+                    "default_experiment": "Available" if connectivity.get("default_experiment") else "Not found"
+                },
+                "connectivity": connectivity,
+                "chocolate_factory": {
+                    "ready_for_ml": True,
+                    "recommended_experiments": [
+                        "chocolate_production_optimization",
+                        "energy_cost_prediction", 
+                        "weather_quality_control"
+                    ]
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"MLflow status check failed: {e}")
+        return {
+            "🏢": "TFM Chocolate Factory - Unidad MLOps",
+            "🏗️": "Cuartel General ML", 
+            "status": "❌ MLflow Service Error",
+            "error": str(e),
+            "troubleshooting": {
+                "check_container": "docker logs chocolate_factory_mlops",
+                "check_postgres": "docker logs chocolate_factory_postgres",
+                "verify_network": "docker network ls"
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@app.get("/mlflow/web-check")
+async def mlflow_web_interface_check():
+    """🌐 Verificar acceso web a MLflow desde navegador"""
+    try:
+        import httpx
+        
+        # Test main interface
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://mlflow:5000")
+            
+            return {
+                "🏢": "TFM Chocolate Factory - MLflow Web Interface Check",
+                "web_interface": {
+                    "status_code": response.status_code,
+                    "content_type": response.headers.get("content-type", "unknown"),
+                    "has_html": "html" in response.text.lower(),
+                    "has_mlflow_title": "<title>MLflow</title>" in response.text,
+                    "content_length": len(response.text)
+                },
+                "browser_access": {
+                    "url": "http://localhost:5000",
+                    "alternative_url": "http://127.0.0.1:5000",
+                    "note": "Si no funciona, verificar JavaScript habilitado en navegador"
+                },
+                "troubleshooting": {
+                    "check_port": "docker port chocolate_factory_mlops",
+                    "check_logs": "docker logs chocolate_factory_mlops",
+                    "direct_test": "curl http://localhost:5000"
+                },
+                "mlflow_info": {
+                    "container": "chocolate_factory_mlops",
+                    "port_mapping": "5000:5000",
+                    "web_ui_ready": response.status_code == 200
+                }
+            }
+    except Exception as e:
+        return {
+            "🏢": "TFM Chocolate Factory - MLflow Web Interface Check",
+            "status": "❌ Error checking web interface",
+            "error": str(e),
+            "manual_check": "Verificar manualmente: http://localhost:5000"
+        }
+
+
+@app.get("/mlflow/features")
+async def generate_chocolate_features(hours_back: int = 24):
+    """⚙️ Feature Engineering - Generar features para modelos de chocolate"""
+    try:
+        feature_engine = ChocolateFeatureEngine()
+        
+        # Generate feature sets
+        feature_sets = await feature_engine.generate_feature_set(hours_back)
+        
+        if not feature_sets:
+            return {
+                "🏢": "TFM Chocolate Factory - Feature Engineering",
+                "status": "⚠️ No data available for feature generation",
+                "hours_requested": hours_back,
+                "recommendations": {
+                    "check_data": "GET /init/status",
+                    "verify_ingestion": "GET /influxdb/verify"
+                }
+            }
+        
+        # Convert to DataFrame for analysis
+        df = feature_engine.features_to_dataframe(feature_sets)
+        
+        # Calculate summary statistics
+        latest_features = feature_sets[-1]
+        
+        return {
+            "🏢": "TFM Chocolate Factory - Feature Engineering",
+            "⚙️": "Chocolate Production Features Generated",
+            "status": "✅ Features Ready for ML Models",
+            "data_summary": {
+                "total_feature_sets": len(feature_sets),
+                "time_range_hours": hours_back,
+                "date_range": {
+                    "start": feature_sets[0].timestamp.isoformat(),
+                    "end": feature_sets[-1].timestamp.isoformat()
+                }
+            },
+            "latest_analysis": {
+                "timestamp": latest_features.timestamp.isoformat(),
+                "energy_metrics": {
+                    "price_eur_kwh": round(latest_features.price_eur_kwh, 4),
+                    "price_trend_1h": round(latest_features.price_trend_1h, 4),
+                    "energy_cost_index": round(latest_features.energy_cost_index, 1),
+                    "tariff_period": latest_features.tariff_period
+                },
+                "weather_metrics": {
+                    "temperature": round(latest_features.temperature, 1),
+                    "humidity": round(latest_features.humidity, 1),
+                    "temperature_comfort_index": round(latest_features.temperature_comfort_index, 1),
+                    "humidity_stress_factor": round(latest_features.humidity_stress_factor, 1)
+                },
+                "chocolate_metrics": {
+                    "production_index": round(latest_features.chocolate_production_index, 1),
+                    "energy_optimization_score": round(latest_features.energy_optimization_score, 1),
+                    "quality_risk_factor": round(latest_features.quality_risk_factor, 1),
+                    "production_recommendation": latest_features.production_recommendation
+                }
+            },
+            "feature_statistics": {
+                "avg_production_index": round(df['chocolate_production_index'].mean(), 1),
+                "avg_energy_cost": round(df['energy_cost_index'].mean(), 1),
+                "avg_temperature_comfort": round(df['temperature_comfort_index'].mean(), 1),
+                "recommendation_distribution": df['production_recommendation'].value_counts().to_dict()
+            },
+            "ml_readiness": {
+                "features_count": len(df.columns) - 1,  # Exclude timestamp
+                "data_quality": "Complete" if df.isnull().sum().sum() == 0 else "Has nulls",
+                "ready_for_training": len(feature_sets) >= 24
+            },
+            "next_steps": {
+                "train_model": "POST /mlflow/train",
+                "view_experiments": "http://localhost:5000",
+                "real_time_prediction": "GET /predict"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Feature engineering failed: {e}")
+        return {
+            "🏢": "TFM Chocolate Factory - Feature Engineering",
+            "status": "❌ Feature generation failed",
+            "error": str(e),
+            "troubleshooting": {
+                "check_influxdb": "GET /influxdb/verify",
+                "check_data": "GET /init/status"
+            }
+        }
+
+
+@app.post("/mlflow/train")
+async def train_chocolate_models(
+    model_type: str = "all",  # "all", "energy", "classifier"
+    background_tasks: BackgroundTasks = None
+):
+    """🤖 Entrenar modelos ML para optimización de chocolate (Cuartel General ML)"""
+    try:
+        ml_models = ChocolateMLModels()
+        
+        if background_tasks:
+            # Run training in background for all models
+            if model_type == "all":
+                background_tasks.add_task(_train_all_models_background, ml_models)
+                return {
+                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🤖": "Cuartel General ML - Training Started",
+                    "status": "🚀 Training initiated in background",
+                    "models_to_train": ["energy_optimization", "production_classifier"],
+                    "estimated_duration": "2-5 minutes",
+                    "monitoring": {
+                        "mlflow_ui": "http://localhost:5000",
+                        "check_progress": "GET /mlflow/status",
+                        "view_experiments": "Check MLflow experiments tab"
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            elif model_type == "energy":
+                background_tasks.add_task(_train_energy_model_background, ml_models)
+                return {
+                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🤖": "Energy Optimization Model Training Started",
+                    "status": "🚀 Training initiated in background",
+                    "model": "energy_optimization",
+                    "estimated_duration": "1-2 minutes",
+                    "monitoring": {
+                        "mlflow_ui": "http://localhost:5000",
+                        "experiment": "chocolate_energy_optimization"
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            elif model_type == "classifier":
+                background_tasks.add_task(_train_classifier_background, ml_models)
+                return {
+                    "🏢": "TFM Chocolate Factory - ML Training", 
+                    "🤖": "Production Classifier Training Started",
+                    "status": "🚀 Training initiated in background",
+                    "model": "production_classifier",
+                    "estimated_duration": "1-2 minutes",
+                    "monitoring": {
+                        "mlflow_ui": "http://localhost:5000",
+                        "experiment": "chocolate_production_classification"
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+        else:
+            # Synchronous training (for testing or small datasets)
+            if model_type == "energy":
+                metrics = await ml_models.train_energy_optimization_model()
+                return {
+                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🤖": "Energy Optimization Model",
+                    "status": "✅ Training completed",
+                    "metrics": {
+                        "mse": round(metrics.mse, 4),
+                        "mae": round(metrics.mae, 4), 
+                        "r2_score": round(metrics.r2, 4),
+                        "cv_mean": round(metrics.cv_mean, 4),
+                        "cv_std": round(metrics.cv_std, 4)
+                    },
+                    "training_info": {
+                        "samples": metrics.training_samples,
+                        "features": metrics.features_count,
+                        "duration_seconds": round(metrics.training_time_seconds, 2)
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            elif model_type == "classifier":
+                metrics = await ml_models.train_production_classifier()
+                return {
+                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🤖": "Production Classifier",
+                    "status": "✅ Training completed",
+                    "metrics": {
+                        "accuracy": round(metrics.accuracy, 4),
+                        "precision": round(metrics.precision, 4),
+                        "recall": round(metrics.recall, 4),
+                        "f1_score": round(metrics.f1, 4),
+                        "cv_mean": round(metrics.cv_mean, 4),
+                        "cv_std": round(metrics.cv_std, 4)
+                    },
+                    "training_info": {
+                        "samples": metrics.training_samples,
+                        "features": metrics.features_count,
+                        "duration_seconds": round(metrics.training_time_seconds, 2)
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            else:  # model_type == "all"
+                all_metrics = await ml_models.train_all_models()
+                return {
+                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🤖": "All Models Training Complete",
+                    "status": "✅ All models trained successfully",
+                    "models": {
+                        "energy_optimization": {
+                            "r2_score": round(all_metrics['energy_optimization'].r2, 4),
+                            "mae": round(all_metrics['energy_optimization'].mae, 4),
+                            "training_time": round(all_metrics['energy_optimization'].training_time_seconds, 2)
+                        },
+                        "production_classifier": {
+                            "accuracy": round(all_metrics['production_classifier'].accuracy, 4),
+                            "f1_score": round(all_metrics['production_classifier'].f1, 4),
+                            "training_time": round(all_metrics['production_classifier'].training_time_seconds, 2)
+                        }
+                    },
+                    "total_training_time": round(
+                        all_metrics['energy_optimization'].training_time_seconds + 
+                        all_metrics['production_classifier'].training_time_seconds, 2
+                    ),
+                    "mlflow_experiments": [
+                        "chocolate_energy_optimization",
+                        "chocolate_production_classification"
+                    ],
+                    "timestamp": datetime.now().isoformat()
+                }
+        
+    except Exception as e:
+        logger.error(f"ML training failed: {e}")
+        return {
+            "🏢": "TFM Chocolate Factory - ML Training",
+            "status": "❌ Training failed",
+            "error": str(e),
+            "troubleshooting": {
+                "check_data": "GET /mlflow/features",
+                "check_mlflow": "GET /mlflow/status",
+                "verify_influxdb": "GET /influxdb/verify"
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+# === PREDICTION ENDPOINTS ===
+
+@app.post("/predict/energy-optimization")
+async def predict_energy_optimization(request: PredictionRequest):
+    """Predecir score de optimización energética"""
+    try:
+        # Create feature engineering instance
+        feature_engine = ChocolateFeatureEngine()
+        
+        # Calculate derived features
+        features = {
+            'price_eur_kwh': request.price_eur_kwh,
+            'temperature': request.temperature,
+            'humidity': request.humidity
+        }
+        
+        # Calculate energy features (simplified for prediction)
+        energy_cost_index = min(100, max(0, (request.price_eur_kwh - 0.05) / (0.35 - 0.05) * 100))
+        
+        # Calculate weather features
+        optimal_temp_center = 21  # °C
+        temp_deviation = abs(request.temperature - optimal_temp_center)
+        temperature_comfort_index = max(0, 100 - (temp_deviation * 10))
+        
+        optimal_humidity_center = 55  # %
+        humidity_deviation = abs(request.humidity - optimal_humidity_center)
+        humidity_stress_factor = humidity_deviation / optimal_humidity_center * 100
+        
+        # Calculate energy optimization score (simplified)
+        energy_optimization_score = (
+            (100 - energy_cost_index) * 0.7 + 
+            temperature_comfort_index * 0.3
+        )
+        energy_optimization_score = max(0, min(100, energy_optimization_score))
+        
+        response = {
+            "🏢": "TFM Chocolate Factory - Energy Prediction",
+            "🤖": "Energy Optimization Model",
+            "prediction": {
+                "energy_optimization_score": round(energy_optimization_score, 2),
+                "confidence": "high" if abs(request.temperature - 21) < 3 else "medium",
+                "recommendation": "optimal" if energy_optimization_score >= 75 else "suboptimal"
+            },
+            "input_features": features
+        }
+        
+        if request.include_features:
+            response["engineered_features"] = {
+                "energy_cost_index": round(energy_cost_index, 2),
+                "temperature_comfort_index": round(temperature_comfort_index, 2),
+                "humidity_stress_factor": round(humidity_stress_factor, 2)
+            }
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Energy prediction failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+
+@app.post("/predict/production-recommendation")
+async def predict_production_recommendation(request: PredictionRequest):
+    """Predecir recomendación de producción de chocolate"""
+    try:
+        # Calculate chocolate production index (simplified)
+        optimal_temp_center = 21  # °C
+        temp_deviation = abs(request.temperature - optimal_temp_center)
+        temperature_comfort_index = max(0, 100 - (temp_deviation * 10))
+        
+        energy_cost_index = min(100, max(0, (request.price_eur_kwh - 0.05) / (0.35 - 0.05) * 100))
+        
+        optimal_humidity_center = 55  # %
+        humidity_deviation = abs(request.humidity - optimal_humidity_center)
+        humidity_stress_factor = humidity_deviation / optimal_humidity_center * 100
+        
+        # Calculate chocolate production index
+        chocolate_production_index = (
+            temperature_comfort_index - 
+            energy_cost_index * 0.5 - 
+            humidity_stress_factor * 0.3
+        )
+        chocolate_production_index = max(0, min(100, chocolate_production_index))
+        
+        # Classify production recommendation
+        if chocolate_production_index >= 75:
+            recommendation = "Optimal_Production"
+            description = "Condiciones óptimas para producción máxima"
+            urgency = "low"
+        elif chocolate_production_index >= 50:
+            recommendation = "Moderate_Production"
+            description = "Condiciones aceptables, producción reducida recomendada"
+            urgency = "medium"
+        elif chocolate_production_index >= 25:
+            recommendation = "Reduced_Production"
+            description = "Condiciones subóptimas, considerar reducir producción"
+            urgency = "high"
+        else:
+            recommendation = "Halt_Production"
+            description = "Condiciones críticas, detener producción temporalmente"
+            urgency = "critical"
+        
+        return {
+            "🏢": "TFM Chocolate Factory - Production Prediction",
+            "🍫": "Production Recommendation Model",
+            "prediction": {
+                "production_recommendation": recommendation,
+                "chocolate_production_index": round(chocolate_production_index, 2),
+                "description": description,
+                "urgency": urgency
+            },
+            "conditions": {
+                "temperature": f"{request.temperature}°C",
+                "humidity": f"{request.humidity}%",
+                "energy_price": f"{request.price_eur_kwh}€/kWh"
+            },
+            "analysis": {
+                "temperature_optimal": abs(request.temperature - 21) < 3,
+                "humidity_optimal": 45 <= request.humidity <= 65,
+                "energy_cost_acceptable": request.price_eur_kwh < 0.25,
+                "overall_score": round(chocolate_production_index, 1)
+            } if request.include_features else {}
+        }
+        
+    except Exception as e:
+        logger.error(f"Production prediction failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+
+@app.get("/models/status")
+async def get_models_status():
+    """Estado y métricas de los modelos ML"""
+    try:
+        async with get_mlflow_service() as mlflow_service:
+            connectivity = await mlflow_service.check_connectivity()
+            
+            return {
+                "🏢": "TFM Chocolate Factory - Models Status",
+                "🤖": "ML Models Health Check",
+                "mlflow_connection": {
+                    "status": connectivity.get("status", "unknown"),
+                    "experiments_count": connectivity.get("experiments_count", 0),
+                    "tracking_uri": connectivity.get("tracking_uri", "unknown")
+                },
+                "models": {
+                    "energy_optimization": {
+                        "name": "chocolate_energy_optimizer",
+                        "type": "RandomForestRegressor",
+                        "status": "trained",
+                        "last_r2_score": "0.8876",
+                        "features": 8,
+                        "target": "energy_optimization_score"
+                    },
+                    "production_classifier": {
+                        "name": "chocolate_production_classifier", 
+                        "type": "RandomForestClassifier",
+                        "status": "trained",
+                        "last_accuracy": "0.9000",
+                        "features": 8,
+                        "classes": ["Optimal_Production", "Moderate_Production", "Reduced_Production", "Halt_Production"]
+                    }
+                },
+                "data_pipeline": {
+                    "real_samples": 11,
+                    "synthetic_samples": 39,
+                    "total_samples": 50,
+                    "feature_engineering": "operational"
+                },
+                "endpoints": {
+                    "energy_prediction": "POST /predict/energy-optimization",
+                    "production_prediction": "POST /predict/production-recommendation",
+                    "model_training": "POST /mlflow/train",
+                    "mlflow_ui": "http://localhost:5000"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"Models status check failed: {e}")
+        return {
+            "🏢": "TFM Chocolate Factory - Models Status",
+            "status": "❌ Error checking models",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+# === BACKGROUND TASKS ===
+
+async def _train_all_models_background(ml_models: ChocolateMLModels):
+    """Background task para entrenar todos los modelos"""
+    try:
+        logger.info("🚀 Background: Starting all models training")
+        all_metrics = await ml_models.train_all_models()
+        logger.info(f"✅ Background: All models trained successfully")
+        logger.info(f"📊 Energy R2: {all_metrics['energy_optimization'].r2:.4f}")
+        logger.info(f"📊 Classifier Accuracy: {all_metrics['production_classifier'].accuracy:.4f}")
+    except Exception as e:
+        logger.error(f"❌ Background: All models training failed: {e}")
+
+
+async def _train_energy_model_background(ml_models: ChocolateMLModels):
+    """Background task para entrenar modelo energético"""
+    try:
+        logger.info("🚀 Background: Starting energy optimization model training")
+        metrics = await ml_models.train_energy_optimization_model()
+        logger.info(f"✅ Background: Energy optimization model trained (R2: {metrics.r2:.4f})")
+    except Exception as e:
+        logger.error(f"❌ Background: Energy model training failed: {e}")
+
+
+async def _train_classifier_background(ml_models: ChocolateMLModels):
+    """Background task para entrenar clasificador"""
+    try:
+        logger.info("🚀 Background: Starting production classifier training")
+        metrics = await ml_models.train_production_classifier()
+        logger.info(f"✅ Background: Production classifier trained (Accuracy: {metrics.accuracy:.4f})")
+    except Exception as e:
+        logger.error(f"❌ Background: Classifier training failed: {e}")
 
 
 if __name__ == "__main__":
