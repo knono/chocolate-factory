@@ -187,15 +187,15 @@ class SchedulerService:
         # - REE: CronTrigger(minute=5) [hourly at :05]  
         # - Weather: CronTrigger(minute=15) [hourly at :15]
         
-        # 1. REE Price Data Ingestion - ACCELERATED: Every 15 minutes for 24-48h data collection
+        # 1. REE Price Data Ingestion - ACCELERATED: Every 5 minutes for maximum data collection
         self.scheduler.add_job(
             func=self._ingest_ree_prices_job,
-            trigger=IntervalTrigger(minutes=15),  # ACCELERATED: Every 15 minutes
+            trigger=IntervalTrigger(minutes=5),  # ACCELERATED: Every 5 minutes
             id="ree_price_ingestion",
             name="REE Price Data Ingestion (ACCELERATED)",
             replace_existing=True
         )
-        logger.info("🚀 Added REE price ingestion job (ACCELERATED: every 15 minutes)")
+        logger.info("🚀 Added REE price ingestion job (ACCELERATED: every 5 minutes)")
         
         # 2. Daily Data Backfill - 1 AM daily
         self.scheduler.add_job(
@@ -227,15 +227,15 @@ class SchedulerService:
         )
         logger.info(f"Added production optimization job (every {self.config.optimization_interval_minutes} minutes)")
         
-        # 5. Hybrid Weather Data Ingestion - ACCELERATED: Every 15 minutes for 24-48h data collection
+        # 5. Hybrid Weather Data Ingestion - ACCELERATED: Every 5 minutes for maximum data collection
         self.scheduler.add_job(
             func=self._hybrid_weather_ingestion_job,
-            trigger=IntervalTrigger(minutes=15),  # ACCELERATED: Every 15 minutes
+            trigger=IntervalTrigger(minutes=5),  # ACCELERATED: Every 5 minutes
             id="hybrid_weather_ingestion",
             name="Hybrid Weather Data Ingestion",
             replace_existing=True
         )
-        logger.info("🚀 Added hybrid weather ingestion job (ACCELERATED: every 15 minutes)")
+        logger.info("🚀 Added hybrid weather ingestion job (ACCELERATED: every 5 minutes)")
         
         # 6. AEMET Token Renewal Check - Daily at 3 AM
         self.scheduler.add_job(

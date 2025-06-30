@@ -35,6 +35,7 @@ services:
       - ./data:/app/data
       - ./src/configs:/app/configs
       - ./docker/services/fastapi/logs:/app/logs
+      - ./docker/services/mlflow/artifacts:/mlflow/artifacts
     depends_on:
       - influxdb
       - mlflow

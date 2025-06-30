@@ -169,8 +169,40 @@ class ChocolateMLModels:
                     }
                 )
                 
-                # Log model metadata instead of actual model file to avoid permissions issues
-                logger.info(f"✅ Model training completed - model ready for registration: chocolate_energy_optimizer")
+                # Log the trained model as MLflow artifact
+                try:
+                    # Get experiment by name and start a new run
+                    experiment = mlflow.get_experiment_by_name(experiment_name)
+                    if experiment is None:
+                        experiment_id = mlflow.create_experiment(experiment_name)
+                    else:
+                        experiment_id = experiment.experiment_id
+                    
+                    with mlflow.start_run(experiment_id=experiment_id, run_name=f"energy_model_artifact_{datetime.now().strftime('%Y%m%d_%H%M')}"):
+                        # Log the trained model as artifact (manual method due to MLflow version issues)
+                        import pickle
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
+                            pickle.dump(model, f)
+                            mlflow.log_artifact(f.name, "model")
+                        
+                        # Log the scaler as well (manual method)
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
+                            pickle.dump(self.scaler, f)
+                            mlflow.log_artifact(f.name, "scaler")
+                        
+                        # Log feature names as artifact
+                        import tempfile
+                        import json
+                        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                            json.dump(list(X.columns), f)
+                            mlflow.log_artifact(f.name, "features")
+                        
+                        logger.info(f"✅ Model and scaler saved as MLflow artifacts")
+                        
+                except Exception as artifact_error:
+                    logger.warning(f"⚠️ Failed to save model artifacts: {artifact_error}")
+                    logger.info(f"✅ Model training completed - metrics logged, but artifacts failed")
                 
                 logger.info(f"✅ Energy optimization model trained and logged: {run_id}")
             
@@ -273,8 +305,48 @@ class ChocolateMLModels:
                     }
                 )
                 
-                # Log model metadata instead of actual model file to avoid permissions issues
-                logger.info(f"✅ Model training completed - model ready for registration: chocolate_production_classifier")
+                # Log the trained classifier model as MLflow artifact
+                try:
+                    # Get experiment by name and start a new run
+                    experiment = mlflow.get_experiment_by_name(experiment_name)
+                    if experiment is None:
+                        experiment_id = mlflow.create_experiment(experiment_name)
+                    else:
+                        experiment_id = experiment.experiment_id
+                    
+                    with mlflow.start_run(experiment_id=experiment_id, run_name=f"production_model_artifact_{datetime.now().strftime('%Y%m%d_%H%M')}"):
+                        # Log the trained classifier as artifact (manual method)
+                        import pickle
+                        import tempfile
+                        import json
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
+                            pickle.dump(model, f)
+                            mlflow.log_artifact(f.name, "model")
+                        
+                        # Log the scaler as well (manual method)
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
+                            pickle.dump(self.scaler, f)
+                            mlflow.log_artifact(f.name, "scaler")
+                        
+                        # Log label encoder as pickle artifact
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
+                            pickle.dump(self.label_encoder, f)
+                            mlflow.log_artifact(f.name, "label_encoder")
+                        
+                        # Log feature names and class mapping as artifacts
+                        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                            json.dump({
+                                "feature_names": list(X.columns),
+                                "classes": list(self.label_encoder.classes_),
+                                "class_mapping": {str(k): int(v) for k, v in zip(self.label_encoder.classes_, self.label_encoder.transform(self.label_encoder.classes_))}
+                            }, f)
+                            mlflow.log_artifact(f.name, "metadata")
+                        
+                        logger.info(f"✅ Classifier model, scaler, and label encoder saved as MLflow artifacts")
+                        
+                except Exception as artifact_error:
+                    logger.warning(f"⚠️ Failed to save classifier artifacts: {artifact_error}")
+                    logger.info(f"✅ Model training completed - metrics logged, but artifacts failed")
                 
                 logger.info(f"✅ Production classifier trained and logged: {run_id}")
             
