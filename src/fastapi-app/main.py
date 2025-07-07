@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 
@@ -1742,6 +1742,199 @@ async def get_models_status():
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
+
+
+# === GAP DETECTION & BACKFILL ENDPOINTS ===
+
+@app.get("/gaps/detect", tags=["Data Management"])
+async def detect_data_gaps(days_back: int = 7):
+    """🔍 Detectar gaps (huecos) en los datos de InfluxDB"""
+    try:
+        from services.gap_detector import gap_detector
+        
+        # Realizar análisis de gaps
+        analysis = await gap_detector.detect_all_gaps(days_back)
+        
+        # Convertir gaps a formato serializable
+        ree_gaps_data = []
+        for gap in analysis.ree_gaps:
+            ree_gaps_data.append({
+                "measurement": gap.measurement,
+                "start_time": gap.start_time.isoformat(),
+                "end_time": gap.end_time.isoformat(),
+                "duration_hours": round(gap.gap_duration_hours, 1),
+                "missing_records": gap.missing_records,
+                "severity": gap.severity
+            })
+        
+        weather_gaps_data = []
+        for gap in analysis.weather_gaps:
+            weather_gaps_data.append({
+                "measurement": gap.measurement,
+                "start_time": gap.start_time.isoformat(),
+                "end_time": gap.end_time.isoformat(),
+                "duration_hours": round(gap.gap_duration_hours, 1),
+                "missing_records": gap.missing_records,
+                "severity": gap.severity
+            })
+        
+        return {
+            "🏭": "TFM Chocolate Factory - Gap Analysis",
+            "🔍": "Análisis de Huecos en Datos",
+            "analysis_period": f"Últimos {days_back} días",
+            "timestamp": analysis.analysis_timestamp.isoformat(),
+            "summary": {
+                "total_gaps": analysis.total_gaps_found,
+                "ree_gaps": len(analysis.ree_gaps),
+                "weather_gaps": len(analysis.weather_gaps),
+                "estimated_backfill_time": analysis.estimated_backfill_duration
+            },
+            "ree_data_gaps": ree_gaps_data,
+            "weather_data_gaps": weather_gaps_data,
+            "recommended_strategy": analysis.recommended_backfill_strategy,
+            "next_steps": {
+                "manual_backfill": "POST /gaps/backfill",
+                "ree_only": "POST /gaps/backfill/ree",
+                "weather_only": "POST /gaps/backfill/weather"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Gap detection failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/gaps/summary", tags=["Data Management"])
+async def get_data_summary():
+    """📊 Resumen rápido del estado de los datos"""
+    try:
+        from services.gap_detector import gap_detector
+        
+        # Obtener últimos timestamps
+        latest = await gap_detector.get_latest_timestamps()
+        
+        # Calcular tiempo desde última actualización
+        now = datetime.now(timezone.utc)
+        
+        ree_status = "❌ Sin datos"
+        ree_gap_hours = None
+        if latest['latest_ree']:
+            ree_gap_hours = (now - latest['latest_ree']).total_seconds() / 3600
+            if ree_gap_hours < 2:
+                ree_status = "✅ Actualizado"
+            elif ree_gap_hours < 24:
+                ree_status = f"⚠️ {int(ree_gap_hours)}h atrasado"
+            else:
+                ree_status = f"🚨 {int(ree_gap_hours // 24)}d atrasado"
+        
+        weather_status = "❌ Sin datos"
+        weather_gap_hours = None
+        if latest['latest_weather']:
+            weather_gap_hours = (now - latest['latest_weather']).total_seconds() / 3600
+            if weather_gap_hours < 2:
+                weather_status = "✅ Actualizado"
+            elif weather_gap_hours < 24:
+                weather_status = f"⚠️ {int(weather_gap_hours)}h atrasado"
+            else:
+                weather_status = f"🚨 {int(weather_gap_hours // 24)}d atrasado"
+        
+        return {
+            "🏭": "TFM Chocolate Factory - Data Summary",
+            "📊": "Estado Actual de Datos",
+            "timestamp": now.isoformat(),
+            "ree_prices": {
+                "status": ree_status,
+                "latest_data": latest['latest_ree'].isoformat() if latest['latest_ree'] else None,
+                "gap_hours": round(ree_gap_hours, 1) if ree_gap_hours else None
+            },
+            "weather_data": {
+                "status": weather_status,
+                "latest_data": latest['latest_weather'].isoformat() if latest['latest_weather'] else None,
+                "gap_hours": round(weather_gap_hours, 1) if weather_gap_hours else None
+            },
+            "recommendations": {
+                "action_needed": ree_gap_hours and ree_gap_hours > 2 or weather_gap_hours and weather_gap_hours > 2,
+                "suggested_endpoint": "GET /gaps/detect para análisis completo"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Data summary failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/gaps/backfill", tags=["Data Management"])
+async def execute_backfill(
+    days_back: int = 10,
+    background_tasks: BackgroundTasks = None
+):
+    """🔄 Ejecutar backfill inteligente para rellenar gaps de datos"""
+    try:
+        from services.backfill_service import backfill_service
+        
+        if background_tasks:
+            # Ejecutar en background para gaps grandes
+            background_tasks.add_task(
+                _execute_backfill_background, 
+                backfill_service, 
+                days_back
+            )
+            
+            return {
+                "🏭": "TFM Chocolate Factory - Backfill Started",
+                "🔄": "Proceso de Backfill Iniciado",
+                "status": "🚀 Executing in background",
+                "days_processing": days_back,
+                "estimated_duration": "5-15 minutes",
+                "monitoring": {
+                    "check_progress": "GET /gaps/summary",
+                    "verify_results": "GET /influxdb/verify"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            # Ejecutar síncronamente para pruebas
+            result = await backfill_service.execute_intelligent_backfill(days_back)
+            return {
+                "🏭": "TFM Chocolate Factory - Backfill Completed",
+                "🔄": "Proceso de Backfill Terminado",
+                **result
+            }
+            
+    except Exception as e:
+        logger.error(f"Backfill execution failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/gaps/backfill/auto", tags=["Data Management"])
+async def execute_auto_backfill(max_gap_hours: float = 6.0):
+    """🤖 Backfill automático solo si hay gaps significativos"""
+    try:
+        from services.backfill_service import backfill_service
+        
+        result = await backfill_service.check_and_execute_auto_backfill(max_gap_hours)
+        
+        return {
+            "🏭": "TFM Chocolate Factory - Auto Backfill",
+            "🤖": "Backfill Automático Inteligente", 
+            **result,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Auto backfill failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _execute_backfill_background(backfill_service, days_back: int):
+    """Función helper para ejecutar backfill en background"""
+    try:
+        logger.info(f"🔄 Starting background backfill for {days_back} days")
+        result = await backfill_service.execute_intelligent_backfill(days_back)
+        logger.info(f"✅ Background backfill completed: {result.get('summary', {}).get('overall_success_rate', 0)}% success")
+        
+    except Exception as e:
+        logger.error(f"❌ Background backfill failed: {e}")
 
 
 # === DASHBOARD ENDPOINTS ===
