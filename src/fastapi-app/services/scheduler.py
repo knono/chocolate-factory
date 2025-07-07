@@ -266,6 +266,26 @@ class SchedulerService:
             replace_existing=True
         )
         logger.info("Added ML predictions job (every 30 minutes)")
+        
+        # 9. ML Model Training/Retraining Job - Every 30 minutes
+        self.scheduler.add_job(
+            func=self._ml_training_job,
+            trigger=IntervalTrigger(minutes=30),
+            id="ml_training",
+            name="ML Model Training/Retraining",
+            replace_existing=True
+        )
+        logger.info("Added ML training job (every 30 minutes)")
+        
+        # 10. Auto Backfill Check - Every 2 hours
+        self.scheduler.add_job(
+            func=self._auto_backfill_check_job,
+            trigger=IntervalTrigger(hours=2),
+            id="auto_backfill_check",
+            name="Auto Backfill Detection",
+            replace_existing=True
+        )
+        logger.info("Added auto backfill check job (every 2 hours)")
     
     async def _ingest_ree_prices_job(self):
         """Scheduled job for REE price data ingestion"""
@@ -574,6 +594,121 @@ class SchedulerService:
             await self._send_alert(
                 "ML Predictions Error", 
                 f"Scheduled predictions failed: {str(e)}"
+            )
+    
+    async def _ml_training_job(self):
+        """Scheduled job for ML model training/retraining"""
+        job_start = datetime.now()
+        
+        try:
+            logger.info("🤖 Starting scheduled ML model training job")
+            
+            # Import MLflow training models
+            from services.ml_models import ChocolateMLModels
+            
+            # Initialize ML models service
+            ml_models = ChocolateMLModels()
+            
+            # Check if we have enough data for training
+            # Prepare training data to validate sample count
+            try:
+                X, targets = await ml_models.prepare_training_data()
+                sample_count = len(X)
+                
+                if sample_count < 10:
+                    logger.warning(f"⚠️ ML training skipped - insufficient data: {sample_count} samples (need ≥10)")
+                    return
+                
+                logger.info(f"📊 Training with {sample_count} samples")
+                
+            except Exception as data_error:
+                logger.warning(f"⚠️ ML training skipped - data preparation failed: {data_error}")
+                return
+            
+            # Train all models (both energy optimization and production classifier)
+            training_results = await ml_models.train_all_models()
+            
+            # Log training results
+            logger.info("🎯 ML Training Results:")
+            for model_name, metrics in training_results.items():
+                if model_name == "energy_optimization":
+                    logger.info(f"   🔋 Energy Model: R² = {metrics.r2:.4f}, MAE = {metrics.mae:.4f}")
+                elif model_name == "production_classifier":
+                    logger.info(f"   🍫 Production Model: Accuracy = {metrics.accuracy:.4f}")
+                
+                logger.info(f"   ⏱️  {model_name}: {metrics.training_time_seconds:.1f}s, {metrics.training_samples} samples")
+            
+            # Send success alert for significant training improvements
+            energy_metrics = training_results.get("energy_optimization")
+            if energy_metrics and energy_metrics.r2 > 0.85:
+                await self._send_alert(
+                    "🎯 ML Training Success",
+                    f"High-performance models trained - Energy R²: {energy_metrics.r2:.3f}"
+                )
+            
+            job_duration = (datetime.now() - job_start).total_seconds()
+            logger.info(f"✅ ML training completed in {job_duration:.2f}s")
+            
+        except Exception as e:
+            logger.error(f"❌ ML training job failed: {e}")
+            await self._send_alert(
+                "ML Training Error", 
+                f"Scheduled model training failed: {str(e)}"
+            )
+    
+    async def _auto_backfill_check_job(self):
+        """Scheduled job to detect gaps and execute automatic backfill"""
+        job_start = datetime.now()
+        
+        try:
+            logger.info("🤖 Starting auto backfill detection job")
+            
+            # Import backfill service
+            from services.backfill_service import backfill_service
+            
+            # Verificar si hay gaps significativos (más de 3 horas)
+            result = await backfill_service.check_and_execute_auto_backfill(max_gap_hours=3.0)
+            
+            if result.get("status") == "no_action_needed":
+                logger.debug("✅ Auto backfill check: No action needed, data is up to date")
+            
+            elif result.get("trigger") == "automatic":
+                # Se ejecutó backfill automático
+                summary = result.get("summary", {})
+                success_rate = summary.get("overall_success_rate", 0)
+                
+                logger.info(f"🔄 Auto backfill executed: {success_rate}% success rate")
+                
+                # Alertar sobre backfill exitoso
+                if success_rate > 80:
+                    await self._send_alert(
+                        "🔄 Auto Backfill Success",
+                        f"Sistema recuperado automáticamente - {success_rate:.1f}% datos restaurados"
+                    )
+                else:
+                    await self._send_alert(
+                        "⚠️ Auto Backfill Partial",
+                        f"Backfill parcial - {success_rate:.1f}% datos restaurados - Revisar manualmente"
+                    )
+            
+            else:
+                # Error en el proceso
+                error_msg = result.get("message", "Unknown error")
+                logger.warning(f"⚠️ Auto backfill issue: {error_msg}")
+                
+                await self._send_alert(
+                    "Auto Backfill Warning",
+                    f"Sistema de recuperación automática encontró problemas: {error_msg}"
+                )
+            
+            job_duration = (datetime.now() - job_start).total_seconds()
+            logger.info(f"✅ Auto backfill check completed in {job_duration:.2f}s")
+            
+        except Exception as e:
+            logger.error(f"❌ Auto backfill check job failed: {e}")
+            await self._send_alert(
+                "Auto Backfill Error",
+                f"Sistema de recuperación automática falló: {str(e)}"
             )
     
     def get_job_status(self) -> Dict[str, Any]:
