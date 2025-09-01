@@ -1,0 +1,90 @@
+# =============================================================================
+# TFM CHOCOLATE FACTORY - TAILSCALE SIDECAR OVERRIDE
+# =============================================================================
+# Configuración para sidecar real que se une a tailnet como 'factory-chocolate'
+# Solo expone /dashboard - sin puertos al host
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # SIDECAR TAILSCALE - Dispositivo independiente en tailnet
+  # ---------------------------------------------------------------------------
+  chocolate-factory:
+    build:
+      context: .
+      dockerfile: docker/tailscale-sidecar.Dockerfile
+    container_name: chocolate-factory
+    hostname: chocolate-factory
+    networks:
+      - backend
+    # SIN PUERTOS EXPUESTOS - El sidecar maneja su propia red Tailscale
+    # ports: []  # Intencionalmente vacío - acceso solo vía tailnet
+    environment:
+      # REQUIRED: Tailscale Auth Key (debe ser generado por el usuario)
+      - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY}
+      - TAILSCALE_HOSTNAME=chocolate-factory
+      - NGINX_UPSTREAM=chocolate_factory_brain:8000
+      - TAILSCALE_STATE_DIR=/var/lib/tailscale
+    volumes:
+      # Persistir estado de Tailscale para reconexiones
+      - tailscale_state:/var/lib/tailscale
+      # Logs para debugging
+      - ./logs/sidecar:/var/log
+    depends_on:
+      - fastapi-app
+    restart: unless-stopped
+    # Privilegios necesarios para Tailscale
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/dashboard", "||", "exit", "1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # SERVICIOS EXISTENTES - Sin cambios de puertos
+  # ---------------------------------------------------------------------------
+  
+  # FastAPI: Mantener puertos para desarrollo local
+  fastapi-app:
+    ports:
+      - "${FASTAPI_PORT:-8000}:8000"    # Mantener para desarrollo
+    
+  # InfluxDB: Mantener puerto para administración
+  influxdb:
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"   # Mantener para administración
+    
+  # MLflow: Mantener puerto para desarrollo
+  mlflow:
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"     # Mantener para desarrollo
+
+# =============================================================================
+# VOLÚMENES PERSISTENTES
+# =============================================================================
+volumes:
+  # Estado persistente de Tailscale para reconexiones
+  tailscale_state:
+    driver: local
+
+# =============================================================================
+# RED OPTIMIZADA PARA TAILSCALE
+# =============================================================================
+networks:
+  backend:
+    driver: bridge
+    driver_opts:
+      # MTU optimizado para Tailscale - evita fragmentación
+      com.docker.network.driver.mtu: "1280"
+    ipam:
+      driver: default
+      config:
+        - subnet: "192.168.100.0/24"
+          gateway: "192.168.100.1"
