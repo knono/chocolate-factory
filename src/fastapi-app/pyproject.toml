@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-app"
-version = "0.1.0"
+version = "0.9.0"
 description = "TFM Chocolate Factory - FastAPI Brain with ML and Simulation capabilities"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,6 +28,9 @@ dependencies = [
     # HTTP Client for External APIs
     "httpx>=0.25.0",
     "requests>=2.31.0",
+    
+    # Dashboard and UI
+    "reflex>=0.4.0",
     
     # Configuration and Environment
     "pydantic>=2.4.0",

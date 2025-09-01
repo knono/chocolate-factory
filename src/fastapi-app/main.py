@@ -9,8 +9,9 @@ El Cerebro Autónomo: FastAPI + APScheduler para automatización completa
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -66,7 +67,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configurar CORS para Node-RED dashboard
+# Configurar CORS para dashboard integrado
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # En producción, especificar dominios
@@ -2061,6 +2062,194 @@ async def _train_classifier_background(ml_models: ChocolateMLModels):
         logger.info(f"✅ Background: Production classifier trained (Accuracy: {metrics.accuracy:.4f})")
     except Exception as e:
         logger.error(f"❌ Background: Classifier training failed: {e}")
+
+
+# === DASHBOARD REFLEX ENDPOINTS ===
+
+@app.get("/dashboard", response_class=HTMLResponse, tags=["Dashboard"])
+async def serve_reflex_dashboard():
+    """🎯 Servir dashboard Reflex (reemplaza Node-RED)"""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Chocolate Factory Dashboard</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body {
+                font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background: #f7fafc;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 20px;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            .metrics {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin-bottom: 20px;
+            }
+            .card {
+                background: white;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 20px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .metric-value {
+                font-size: 2em;
+                font-weight: bold;
+                margin: 10px 0;
+            }
+            .status {
+                display: inline-block;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 0.8em;
+                font-weight: bold;
+            }
+            .status.connected {
+                background: #c6f6d5;
+                color: #22543d;
+            }
+            .status.loading {
+                background: #fef5e7;
+                color: #744210;
+            }
+            button {
+                background: #3182ce;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-left: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <span style="font-size: 3em;">🍫</span>
+                <div style="margin-left: 15px;">
+                    <h1>TFM Chocolate Factory</h1>
+                    <p style="color: #666;">Dashboard de Monitoreo en Tiempo Real (Reflex)</p>
+                </div>
+                <button onclick="loadData()">🔄 Actualizar</button>
+            </div>
+            
+            <div id="status" class="status loading">🔄 Conectando...</div>
+            
+            <div class="metrics" id="metrics">
+                <div class="card">
+                    <h3>⚡ Precio Energía</h3>
+                    <div class="metric-value" id="price">-- €/kWh</div>
+                    <small id="price-trend">--</small>
+                </div>
+                
+                <div class="card">
+                    <h3>🌡️ Temperatura</h3>
+                    <div class="metric-value" id="temperature">--°C</div>
+                    <small id="temp-status">--</small>
+                </div>
+                
+                <div class="card">
+                    <h3>💧 Humedad</h3>
+                    <div class="metric-value" id="humidity">--%</div>
+                    <small id="humidity-status">--</small>
+                </div>
+                
+                <div class="card">
+                    <h3>🏭 Producción</h3>
+                    <div class="metric-value" id="production">--</div>
+                    <small id="production-confidence">--</small>
+                </div>
+            </div>
+            
+            <div class="card" id="alerts-section">
+                <h3>🔔 Alertas del Sistema</h3>
+                <div id="alerts">No hay alertas activas</div>
+            </div>
+        </div>
+        
+        <script>
+            async function loadData() {
+                try {
+                    document.getElementById('status').textContent = '🔄 Cargando...';
+                    document.getElementById('status').className = 'status loading';
+                    
+                    const response = await fetch('/dashboard/complete');
+                    const data = await response.json();
+                    
+                    // Actualizar métricas actuales
+                    const currentInfo = data.current_info || {};
+                    
+                    // Precio energía
+                    const energy = currentInfo.energy || {};
+                    document.getElementById('price').textContent = `${(energy.price_eur_kwh || 0).toFixed(3)} €/kWh`;
+                    document.getElementById('price-trend').textContent = energy.trend || '--';
+                    
+                    // Temperatura
+                    const weather = currentInfo.weather || {};
+                    document.getElementById('temperature').textContent = `${weather.temperature || 0}°C`;
+                    document.getElementById('temp-status').textContent = weather.comfort_index || '--';
+                    
+                    // Humedad
+                    document.getElementById('humidity').textContent = `${weather.humidity || 0}%`;
+                    
+                    // Producción
+                    const predictions = data.predictions || {};
+                    const production = predictions.production_recommendation || {};
+                    document.getElementById('production').textContent = production.class || 'Unknown';
+                    document.getElementById('production-confidence').textContent = `Conf: ${(production.confidence || 0).toFixed(1)}%`;
+                    
+                    // Alertas
+                    const alerts = data.alerts || [];
+                    const alertsDiv = document.getElementById('alerts');
+                    if (alerts.length === 0) {
+                        alertsDiv.innerHTML = '✅ No hay alertas activas';
+                    } else {
+                        alertsDiv.innerHTML = alerts.map(alert => 
+                            `<div style="margin: 5px 0; padding: 8px; background: #fed7d7; border-radius: 4px;">
+                                ${alert.type}: ${alert.message}
+                            </div>`
+                        ).join('');
+                    }
+                    
+                    document.getElementById('status').textContent = '✅ Conectado';
+                    document.getElementById('status').className = 'status connected';
+                    
+                } catch (error) {
+                    document.getElementById('status').textContent = `❌ Error: ${error.message}`;
+                    document.getElementById('status').className = 'status';
+                    console.error('Dashboard load error:', error);
+                }
+            }
+            
+            // Cargar datos iniciales
+            loadData();
+            
+            // Auto-actualizar cada 5 minutos
+            setInterval(loadData, 5 * 60 * 1000);
+        </script>
+    </body>
+    </html>
+    """)
 
 
 if __name__ == "__main__":
