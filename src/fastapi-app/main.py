@@ -11,7 +11,6 @@ El Cerebro Autónomo: FastAPI + APScheduler para automatización completa
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -67,7 +66,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configurar CORS para dashboard integrado
+# Configurar CORS para Node-RED dashboard
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # En producción, especificar dominios
@@ -1623,42 +1622,65 @@ async def predict_energy_optimization(request: PredictionRequest):
 async def predict_production_recommendation(request: PredictionRequest):
     """Predecir recomendación de producción de chocolate"""
     try:
-        # Calculate chocolate production index (simplified)
+        # Calculate chocolate production index with energy-smart logic
         optimal_temp_center = 21  # °C
         temp_deviation = abs(request.temperature - optimal_temp_center)
         temperature_comfort_index = max(0, 100 - (temp_deviation * 10))
         
-        energy_cost_index = min(100, max(0, (request.price_eur_kwh - 0.05) / (0.35 - 0.05) * 100))
+        # NEW: Energy BENEFIT index (rewards low prices, penalizes high prices)
+        # Price ranges: < 0.12 (excellent), 0.12-0.20 (good), 0.20-0.30 (expensive), > 0.30 (very expensive)
+        if request.price_eur_kwh < 0.12:  # Very cheap - BIG BONUS
+            energy_benefit_index = 100 + (0.12 - request.price_eur_kwh) * 500  # Extra boost for very cheap
+        elif request.price_eur_kwh < 0.20:  # Reasonable price - BONUS
+            energy_benefit_index = 100 - (request.price_eur_kwh - 0.12) * 200
+        elif request.price_eur_kwh < 0.30:  # Expensive - PENALTY
+            energy_benefit_index = 50 - (request.price_eur_kwh - 0.20) * 200
+        else:  # Very expensive - BIG PENALTY
+            energy_benefit_index = 0
+        
+        energy_benefit_index = max(0, min(150, energy_benefit_index))  # Cap at 150 for very low prices
         
         optimal_humidity_center = 55  # %
         humidity_deviation = abs(request.humidity - optimal_humidity_center)
-        humidity_stress_factor = humidity_deviation / optimal_humidity_center * 100
+        humidity_comfort_index = max(0, 100 - (humidity_deviation * 2))  # Less penalty than before
         
-        # Calculate chocolate production index
-        chocolate_production_index = (
-            temperature_comfort_index - 
-            energy_cost_index * 0.5 - 
-            humidity_stress_factor * 0.3
-        )
+        # NEW FORMULA: Energy benefits have high weight when favorable
+        base_production_index = (temperature_comfort_index + humidity_comfort_index) / 2
+        
+        # Energy factor: high weight (0.8) to prioritize cheap electricity
+        if request.price_eur_kwh < 0.15:  # For cheap electricity, energy dominates
+            chocolate_production_index = base_production_index * 0.3 + energy_benefit_index * 0.7
+        else:  # For expensive electricity, conditions matter more
+            chocolate_production_index = base_production_index * 0.6 + energy_benefit_index * 0.4
+            
         chocolate_production_index = max(0, min(100, chocolate_production_index))
         
-        # Classify production recommendation
-        if chocolate_production_index >= 75:
+        # Classify production recommendation with energy-aware thresholds
+        if chocolate_production_index >= 80:
             recommendation = "Optimal_Production"
-            description = "Condiciones óptimas para producción máxima"
+            description = "Condiciones ideales para maximizar producción"
             urgency = "low"
-        elif chocolate_production_index >= 50:
-            recommendation = "Moderate_Production"
-            description = "Condiciones aceptables, producción reducida recomendada"
-            urgency = "medium"
-        elif chocolate_production_index >= 25:
+        elif chocolate_production_index >= 60:
+            recommendation = "Moderate_Production" 
+            description = "Condiciones favorables, mantener producción estándar"
+            urgency = "low"
+        elif chocolate_production_index >= 35:
             recommendation = "Reduced_Production"
             description = "Condiciones subóptimas, considerar reducir producción"
-            urgency = "high"
+            urgency = "medium"
         else:
             recommendation = "Halt_Production"
             description = "Condiciones críticas, detener producción temporalmente"
-            urgency = "critical"
+            urgency = "high"
+            
+        # Special override for extremely cheap electricity (overrules other factors)
+        if request.price_eur_kwh < 0.10:
+            if recommendation == "Reduced_Production":
+                recommendation = "Moderate_Production"
+                description = "Precio energético excepcional compensa condiciones subóptimas"
+            elif recommendation == "Halt_Production":
+                recommendation = "Reduced_Production" 
+                description = "Solo por precio energético excepcional - mínima producción"
         
         return {
             "🏢": "TFM Chocolate Factory - Production Prediction",
@@ -2064,188 +2086,686 @@ async def _train_classifier_background(ml_models: ChocolateMLModels):
         logger.error(f"❌ Background: Classifier training failed: {e}")
 
 
-# === DASHBOARD REFLEX ENDPOINTS ===
+# === DASHBOARD MEJORADO ===
 
 @app.get("/dashboard", response_class=HTMLResponse, tags=["Dashboard"])
-async def serve_reflex_dashboard():
-    """🎯 Servir dashboard Reflex (reemplaza Node-RED)"""
+async def serve_enhanced_dashboard():
+    """🎯 Dashboard mejorado con información completa del JSON"""
     return HTMLResponse("""
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Chocolate Factory Dashboard</title>
+        <title>TFM Chocolate Factory - Dashboard Avanzado</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
             body {
                 font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-                margin: 0;
-                padding: 20px;
-                background: #f7fafc;
+                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+                min-height: 100vh;
+                color: #2d3748;
             }
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-                background: white;
-                border-radius: 8px;
-                padding: 20px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            }
+            
             .header {
+                background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+                color: white;
+                padding: 2rem;
+                text-align: center;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+                margin-bottom: 0.5rem;
                 display: flex;
                 align-items: center;
-                margin-bottom: 20px;
-                padding-bottom: 20px;
-                border-bottom: 1px solid #e2e8f0;
+                justify-content: center;
+                gap: 1rem;
             }
-            .metrics {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-                gap: 20px;
-                margin-bottom: 20px;
+            
+            .header p {
+                font-size: 1.1rem;
+                opacity: 0.9;
             }
-            .card {
+            
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 2rem;
+            }
+            
+            .status-bar {
                 background: white;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                padding: 20px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                border-radius: 12px;
+                padding: 1rem 2rem;
+                margin-bottom: 2rem;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 1rem;
             }
-            .metric-value {
-                font-size: 2em;
-                font-weight: bold;
-                margin: 10px 0;
+            
+            .status-badge {
+                padding: 0.5rem 1rem;
+                border-radius: 20px;
+                font-size: 0.9rem;
+                font-weight: 600;
             }
-            .status {
-                display: inline-block;
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 0.8em;
-                font-weight: bold;
-            }
-            .status.connected {
+            
+            .status-connected {
                 background: #c6f6d5;
                 color: #22543d;
             }
-            .status.loading {
+            
+            .status-warning {
                 background: #fef5e7;
                 color: #744210;
             }
-            button {
-                background: #3182ce;
+            
+            .grid {
+                display: grid;
+                gap: 2rem;
+                margin-bottom: 2rem;
+            }
+            
+            .grid-2 {
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            }
+            
+            .grid-3 {
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            }
+            
+            .card {
+                background: white;
+                border-radius: 12px;
+                padding: 1.5rem;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+            
+            .card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            }
+            
+            .card-header {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                margin-bottom: 1rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            
+            .card-icon {
+                font-size: 1.5rem;
+            }
+            
+            .card-title {
+                font-size: 1.2rem;
+                font-weight: 700;
+                color: #2d3748;
+            }
+            
+            .metric-value {
+                font-size: 2.5rem;
+                font-weight: 800;
+                margin: 0.5rem 0;
+                line-height: 1.2;
+            }
+            
+            .metric-label {
+                font-size: 0.9rem;
+                color: #718096;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            
+            .metric-trend {
+                font-size: 0.85rem;
+                padding: 0.25rem 0.5rem;
+                border-radius: 12px;
+                margin-top: 0.5rem;
+                display: inline-block;
+            }
+            
+            .trend-stable {
+                background: #e6fffa;
+                color: #234e52;
+            }
+            
+            .trend-rising {
+                background: #fef5e7;
+                color: #744210;
+            }
+            
+            .trend-falling {
+                background: #fed7d7;
+                color: #742a2a;
+            }
+            
+            .ml-prediction {
+                background: linear-gradient(135deg, #059669 0%, #06b6d4 100%);
+                color: white;
+            }
+            
+            .ml-prediction .card-title {
+                color: white;
+            }
+            
+            .confidence-bar {
+                background: rgba(255,255,255,0.2);
+                border-radius: 10px;
+                height: 8px;
+                margin: 0.5rem 0;
+                overflow: hidden;
+            }
+            
+            .confidence-fill {
+                height: 100%;
+                border-radius: 10px;
+                transition: width 0.3s ease;
+            }
+            
+            .confidence-high {
+                background: #48bb78;
+            }
+            
+            .confidence-medium {
+                background: #ed8936;
+            }
+            
+            .confidence-low {
+                background: #f56565;
+            }
+            
+            .recommendations {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+            
+            .recommendations .card-title {
+                color: white;
+            }
+            
+            .rec-list {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .rec-item {
+                background: rgba(255,255,255,0.1);
+                padding: 0.75rem;
+                border-radius: 8px;
+                margin: 0.5rem 0;
+                border-left: 4px solid rgba(255,255,255,0.3);
+            }
+            
+            .alerts {
+                background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+                color: white;
+            }
+            
+            .alerts.no-alerts {
+                background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            }
+            
+            .alerts .card-title {
+                color: white;
+            }
+            
+            .system-status {
+                background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+                color: white;
+            }
+            
+            .system-status .card-title {
+                color: white;
+            }
+            
+            .location-info {
+                background: linear-gradient(135deg, #d69e2e 0%, #ed8936 100%);
+                color: white;
+                margin-bottom: 2rem;
+            }
+            
+            .location-info .card-title {
+                color: white;
+            }
+            
+            .location-detail {
+                margin: 0.5rem 0;
+                font-size: 0.9rem;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            
+            .coordinate {
+                font-family: 'Courier New', monospace;
+                font-size: 0.85rem;
+            }
+            
+            .data-sources-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1rem;
+                margin-top: 1rem;
+            }
+            
+            .data-source-item {
+                background: rgba(255,255,255,0.1);
+                padding: 0.75rem;
+                border-radius: 8px;
+                text-align: center;
+            }
+            
+            .data-source {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+            
+            .data-source:last-child {
+                border-bottom: none;
+            }
+            
+            .refresh-btn {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
+                padding: 0.75rem 1.5rem;
+                border-radius: 25px;
+                font-size: 1rem;
+                font-weight: 600;
                 cursor: pointer;
-                margin-left: 10px;
+                transition: transform 0.2s ease;
+            }
+            
+            .refresh-btn:hover {
+                transform: scale(1.05);
+            }
+            
+            .footer {
+                text-align: center;
+                padding: 2rem;
+                color: #718096;
+                font-size: 0.9rem;
+            }
+            
+            @media (max-width: 768px) {
+                .container {
+                    padding: 1rem;
+                }
+                
+                .header h1 {
+                    font-size: 2rem;
+                }
+                
+                .status-bar {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                
+                .metric-value {
+                    font-size: 2rem;
+                }
             }
         </style>
     </head>
     <body>
+        <div class="header">
+            <h1>
+                <span>🍫</span>
+                TFM Chocolate Factory - Linares, Andalucía
+            </h1>
+            <p>Dashboard Avanzado de Monitoreo y Predicciones ML</p>
+        </div>
+        
         <div class="container">
-            <div class="header">
-                <span style="font-size: 3em;">🍫</span>
-                <div style="margin-left: 15px;">
-                    <h1>TFM Chocolate Factory</h1>
-                    <p style="color: #666;">Dashboard de Monitoreo en Tiempo Real (Reflex)</p>
+            <div class="status-bar">
+                <div>
+                    <span id="status" class="status-badge status-warning">🔄 Conectando...</span>
                 </div>
-                <button onclick="loadData()">🔄 Actualizar</button>
-            </div>
-            
-            <div id="status" class="status loading">🔄 Conectando...</div>
-            
-            <div class="metrics" id="metrics">
-                <div class="card">
-                    <h3>⚡ Precio Energía</h3>
-                    <div class="metric-value" id="price">-- €/kWh</div>
-                    <small id="price-trend">--</small>
+                <div>
+                    <span>Última actualización: <strong id="last-update">--</strong></span>
                 </div>
-                
-                <div class="card">
-                    <h3>🌡️ Temperatura</h3>
-                    <div class="metric-value" id="temperature">--°C</div>
-                    <small id="temp-status">--</small>
-                </div>
-                
-                <div class="card">
-                    <h3>💧 Humedad</h3>
-                    <div class="metric-value" id="humidity">--%</div>
-                    <small id="humidity-status">--</small>
-                </div>
-                
-                <div class="card">
-                    <h3>🏭 Producción</h3>
-                    <div class="metric-value" id="production">--</div>
-                    <small id="production-confidence">--</small>
+                <div>
+                    <button class="refresh-btn" onclick="loadData()">🔄 Actualizar</button>
                 </div>
             </div>
             
-            <div class="card" id="alerts-section">
-                <h3>🔔 Alertas del Sistema</h3>
-                <div id="alerts">No hay alertas activas</div>
+            <!-- Métricas principales -->
+            <div class="grid grid-3">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">⚡</span>
+                        <span class="card-title">Precio Energía</span>
+                    </div>
+                    <div class="metric-value" id="energy-price">--</div>
+                    <div class="metric-label">€/kWh</div>
+                    <div id="energy-trend" class="metric-trend trend-stable">--</div>
+                    <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
+                        <div>MWh: <span id="energy-mwh">--</span></div>
+                        <div>Fecha: <span id="energy-datetime">--</span></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🌡️</span>
+                        <span class="card-title">Condiciones Climáticas</span>
+                    </div>
+                    <div class="metric-value" id="temperature">--</div>
+                    <div class="metric-label">°C</div>
+                    <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                        <div>💧 Humedad: <span id="humidity">--%</span></div>
+                        <div>🌫️ Presión: <span id="pressure">-- hPa</span></div>
+                        <div>🎯 Confort: <span id="comfort-index">--</span></div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🏭</span>
+                        <span class="card-title">Estado Fábrica</span>
+                    </div>
+                    <div class="metric-value" id="production-status">--</div>
+                    <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                        <div>📊 Eficiencia: <span id="factory-efficiency">--%</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Predicciones ML -->
+            <div class="grid grid-2">
+                <div class="card ml-prediction">
+                    <div class="card-header">
+                        <span class="card-icon">🤖</span>
+                        <span class="card-title">Optimización Energética</span>
+                    </div>
+                    <div class="metric-value" id="energy-score">--</div>
+                    <div class="metric-label">Puntuación</div>
+                    <div class="confidence-bar">
+                        <div id="energy-confidence-bar" class="confidence-fill" style="width: 0%"></div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <div>Confianza: <span id="energy-confidence">--</span></div>
+                        <div>Recomendación: <span id="energy-recommendation">--</span></div>
+                    </div>
+                </div>
+                
+                <div class="card ml-prediction">
+                    <div class="card-header">
+                        <span class="card-icon">🎯</span>
+                        <span class="card-title">Recomendación Producción</span>
+                    </div>
+                    <div class="metric-value" id="production-class">--</div>
+                    <div class="metric-label">Estado</div>
+                    <div class="confidence-bar">
+                        <div id="production-confidence-bar" class="confidence-fill" style="width: 0%"></div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <div>Confianza: <span id="production-confidence">--%</span></div>
+                        <div id="production-action" style="margin-top: 0.5rem; font-style: italic;">--</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recomendaciones y Alertas -->
+            <div class="grid grid-2">
+                <div class="card recommendations">
+                    <div class="card-header">
+                        <span class="card-icon">💡</span>
+                        <span class="card-title">Recomendaciones</span>
+                    </div>
+                    <div id="recommendations-content">
+                        <div>Energía: <ul id="energy-recs" class="rec-list"></ul></div>
+                        <div>Producción: <ul id="production-recs" class="rec-list"></ul></div>
+                        <div id="priority-recs-container" style="display: none;">
+                            Prioridad: <ul id="priority-recs" class="rec-list"></ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card alerts no-alerts" id="alerts-card">
+                    <div class="card-header">
+                        <span class="card-icon">🔔</span>
+                        <span class="card-title">Alertas del Sistema</span>
+                    </div>
+                    <div id="alerts-content">
+                        <div style="text-align: center; padding: 2rem;">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                            <div>No hay alertas activas</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Información de Localización -->
+            <div class="card location-info">
+                <div class="card-header">
+                    <span class="card-icon">📍</span>
+                    <span class="card-title">Localización de la Fábrica</span>
+                </div>
+                <div class="location-detail">
+                    <span><strong>🏭 Ubicación:</strong></span>
+                    <span>Linares, Andalucía, España</span>
+                </div>
+                <div class="location-detail">
+                    <span><strong>🌍 Coordenadas:</strong></span>
+                    <span class="coordinate" id="coordinates">38,151107°N, -3,629453°W</span>
+                </div>
+                <div class="location-detail">
+                    <span><strong>⛰️ Altitud:</strong></span>
+                    <span>515 m s.n.m.</span>
+                </div>
+                <div class="location-detail">
+                    <span><strong>🕐 Zona horaria:</strong></span>
+                    <span>Europe/Madrid (CET/CEST)</span>
+                </div>
+                
+                <div style="margin-top: 1.5rem;">
+                    <div style="font-weight: bold; margin-bottom: 1rem;">📊 Fuentes de Datos:</div>
+                    <div class="data-sources-grid">
+                        <div class="data-source-item">
+                            <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">⚡</div>
+                            <div style="font-size: 0.85rem; font-weight: bold;">REE</div>
+                            <div style="font-size: 0.75rem;">Precios electricidad España</div>
+                        </div>
+                        <div class="data-source-item">
+                            <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">🌡️</div>
+                            <div style="font-size: 0.85rem; font-weight: bold;">AEMET</div>
+                            <div style="font-size: 0.75rem;">Estación 5279X (00:00-07:00)</div>
+                        </div>
+                        <div class="data-source-item">
+                            <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">☁️</div>
+                            <div style="font-size: 0.85rem; font-weight: bold;">OpenWeatherMap</div>
+                            <div style="font-size: 0.75rem;">Tiempo real (08:00-23:00)</div>
+                        </div>
+                        <div class="data-source-item">
+                            <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">🤖</div>
+                            <div style="font-size: 0.85rem; font-weight: bold;">MLflow</div>
+                            <div style="font-size: 0.75rem;">Modelos específicos Jaén</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Estado del Sistema -->
+            <div class="card system-status">
+                <div class="card-header">
+                    <span class="card-icon">⚙️</span>
+                    <span class="card-title">Estado del Sistema</span>
+                </div>
+                <div id="system-sources">
+                    <div class="data-source">
+                        <span>REE (Precios)</span>
+                        <span id="ree-status">--</span>
+                    </div>
+                    <div class="data-source">
+                        <span>Weather (Clima)</span>
+                        <span id="weather-status">--</span>
+                    </div>
+                    <div class="data-source">
+                        <span>MLflow (ML)</span>
+                        <span id="mlflow-status">--</span>
+                    </div>
+                </div>
             </div>
         </div>
         
+        <div class="footer">
+            TFM Chocolate Factory - Linares, Andalucía | Dashboard v0.9.0 | 
+            Powered by FastAPI + ML Predictions
+        </div>
+        
         <script>
+            // Función para formato español (coma decimal)
+            function formatSpanishNumber(number, decimals = 2) {
+                if (typeof number !== 'number' || isNaN(number)) return '--';
+                return number.toFixed(decimals).replace('.', ',');
+            }
+            
+            // Función para formato de coordenadas españolas
+            function formatSpanishCoordinate(number, decimals = 6) {
+                if (typeof number !== 'number' || isNaN(number)) return '--';
+                return number.toFixed(decimals).replace('.', ',');
+            }
+            
             async function loadData() {
                 try {
                     document.getElementById('status').textContent = '🔄 Cargando...';
-                    document.getElementById('status').className = 'status loading';
+                    document.getElementById('status').className = 'status-badge status-warning';
                     
                     const response = await fetch('/dashboard/complete');
                     const data = await response.json();
                     
-                    // Actualizar métricas actuales
-                    const currentInfo = data.current_info || {};
+                    // Estado conexión
+                    document.getElementById('status').textContent = '✅ Conectado';
+                    document.getElementById('status').className = 'status-badge status-connected';
+                    document.getElementById('last-update').textContent = new Date(data.timestamp).toLocaleTimeString();
                     
-                    // Precio energía
-                    const energy = currentInfo.energy || {};
-                    document.getElementById('price').textContent = `${(energy.price_eur_kwh || 0).toFixed(3)} €/kWh`;
-                    document.getElementById('price-trend').textContent = energy.trend || '--';
+                    // Energía (formato español)
+                    const energy = data.current_info.energy || {};
+                    document.getElementById('energy-price').textContent = formatSpanishNumber(energy.price_eur_kwh || 0, 4);
+                    document.getElementById('energy-mwh').textContent = formatSpanishNumber(energy.price_eur_mwh || 0, 2) + ' €/MWh';
+                    document.getElementById('energy-datetime').textContent = new Date(energy.datetime).toLocaleString();
                     
-                    // Temperatura
-                    const weather = currentInfo.weather || {};
-                    document.getElementById('temperature').textContent = `${weather.temperature || 0}°C`;
-                    document.getElementById('temp-status').textContent = weather.comfort_index || '--';
+                    const trendElement = document.getElementById('energy-trend');
+                    trendElement.textContent = '📈 ' + (energy.trend || 'stable');
+                    trendElement.className = `metric-trend trend-${energy.trend || 'stable'}`;
                     
-                    // Humedad
-                    document.getElementById('humidity').textContent = `${weather.humidity || 0}%`;
+                    // Clima (formato español)
+                    const weather = data.current_info.weather || {};
+                    document.getElementById('temperature').textContent = formatSpanishNumber(weather.temperature || 0, 1);
+                    document.getElementById('humidity').textContent = formatSpanishNumber(weather.humidity || 0, 0) + '%';
+                    document.getElementById('pressure').textContent = formatSpanishNumber(weather.pressure || 0, 0) + ' hPa';
+                    document.getElementById('comfort-index').textContent = weather.comfort_index || '--';
                     
-                    // Producción
+                    // Producción (formato español)
+                    document.getElementById('production-status').textContent = data.current_info.production_status || '--';
+                    document.getElementById('factory-efficiency').textContent = formatSpanishNumber(data.current_info.factory_efficiency || 0, 1) + '%';
+                    
+                    // ML Predictions (formato español)
                     const predictions = data.predictions || {};
-                    const production = predictions.production_recommendation || {};
-                    document.getElementById('production').textContent = production.class || 'Unknown';
-                    document.getElementById('production-confidence').textContent = `Conf: ${(production.confidence || 0).toFixed(1)}%`;
+                    
+                    // Energía ML
+                    const energyOpt = predictions.energy_optimization || {};
+                    document.getElementById('energy-score').textContent = formatSpanishNumber(energyOpt.score || 0, 1);
+                    document.getElementById('energy-confidence').textContent = energyOpt.confidence || '--';
+                    document.getElementById('energy-recommendation').textContent = energyOpt.recommendation || '--';
+                    
+                    const energyConfBar = document.getElementById('energy-confidence-bar');
+                    const energyConfWidth = energyOpt.confidence === 'high' ? 90 : energyOpt.confidence === 'medium' ? 60 : 30;
+                    energyConfBar.style.width = energyConfWidth + '%';
+                    energyConfBar.className = `confidence-fill confidence-${energyOpt.confidence || 'low'}`;
+                    
+                    // Producción ML (formato español)
+                    const prodRec = predictions.production_recommendation || {};
+                    document.getElementById('production-class').textContent = (prodRec.class || 'Unknown').replace('_', ' ');
+                    document.getElementById('production-confidence').textContent = formatSpanishNumber(prodRec.confidence || 0, 1) + '%';
+                    document.getElementById('production-action').textContent = prodRec.action || '--';
+                    
+                    const prodConfBar = document.getElementById('production-confidence-bar');
+                    const prodConfWidth = prodRec.confidence || 0;
+                    prodConfBar.style.width = prodConfWidth + '%';
+                    prodConfBar.className = `confidence-fill confidence-${prodConfWidth > 70 ? 'high' : prodConfWidth > 40 ? 'medium' : 'low'}`;
+                    
+                    // Recomendaciones
+                    const recs = data.recommendations || {};
+                    
+                    const energyRecsList = document.getElementById('energy-recs');
+                    energyRecsList.innerHTML = (recs.energy || []).map(rec => `<li class="rec-item">${rec}</li>`).join('');
+                    
+                    const productionRecsList = document.getElementById('production-recs');
+                    productionRecsList.innerHTML = (recs.production || []).map(rec => `<li class="rec-item">${rec}</li>`).join('');
+                    
+                    const priorityRecsContainer = document.getElementById('priority-recs-container');
+                    const priorityRecsList = document.getElementById('priority-recs');
+                    if (recs.priority && recs.priority.length > 0) {
+                        priorityRecsContainer.style.display = 'block';
+                        priorityRecsList.innerHTML = recs.priority.map(rec => `<li class="rec-item">${rec}</li>`).join('');
+                    } else {
+                        priorityRecsContainer.style.display = 'none';
+                    }
                     
                     // Alertas
                     const alerts = data.alerts || [];
-                    const alertsDiv = document.getElementById('alerts');
+                    const alertsCard = document.getElementById('alerts-card');
+                    const alertsContent = document.getElementById('alerts-content');
+                    
                     if (alerts.length === 0) {
-                        alertsDiv.innerHTML = '✅ No hay alertas activas';
+                        alertsCard.className = 'card alerts no-alerts';
+                        alertsContent.innerHTML = `
+                            <div style="text-align: center; padding: 2rem;">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                                <div>No hay alertas activas</div>
+                            </div>
+                        `;
                     } else {
-                        alertsDiv.innerHTML = alerts.map(alert => 
-                            `<div style="margin: 5px 0; padding: 8px; background: #fed7d7; border-radius: 4px;">
-                                ${alert.type}: ${alert.message}
-                            </div>`
-                        ).join('');
+                        alertsCard.className = 'card alerts';
+                        alertsContent.innerHTML = alerts.map(alert => `
+                            <div style="margin: 0.5rem 0; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                                <div style="font-weight: bold;">${alert.type}: ${alert.level}</div>
+                                <div>${alert.message}</div>
+                                <div style="font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;">${alert.action || ''}</div>
+                            </div>
+                        `).join('');
                     }
                     
-                    document.getElementById('status').textContent = '✅ Conectado';
-                    document.getElementById('status').className = 'status connected';
+                    // Estado sistema
+                    const systemStatus = data.system_status || {};
+                    const sources = systemStatus.data_sources || {};
+                    
+                    document.getElementById('ree-status').textContent = sources.ree || '--';
+                    document.getElementById('weather-status').textContent = sources.weather || '--';
+                    document.getElementById('mlflow-status').textContent = sources.mlflow || '--';
                     
                 } catch (error) {
-                    document.getElementById('status').textContent = `❌ Error: ${error.message}`;
-                    document.getElementById('status').className = 'status';
-                    console.error('Dashboard load error:', error);
+                    document.getElementById('status').textContent = '❌ Error de conexión';
+                    document.getElementById('status').className = 'status-badge';
+                    console.error('Dashboard error:', error);
                 }
             }
             
-            // Cargar datos iniciales
+            // Cargar datos al inicializar
             loadData();
             
-            // Auto-actualizar cada 5 minutos
-            setInterval(loadData, 5 * 60 * 1000);
+            // Auto-refresh cada 2 minutos
+            setInterval(loadData, 2 * 60 * 1000);
         </script>
     </body>
     </html>

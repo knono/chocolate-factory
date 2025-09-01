@@ -190,39 +190,77 @@ class DashboardService:
         }
         
         try:
-            # Recomendaciones energéticas con turnos
-            if predictions.get("energy_optimization"):
-                score = predictions["energy_optimization"]["score"]
-                if score > 80:
-                    recommendations["energy"].append("🟢 Momento óptimo para producción intensiva")
-                elif score > 60:
-                    recommendations["energy"].append("🟡 Producción normal recomendada")
-                else:
-                    recommendations["energy"].append("🔴 Considerar reducir producción por costos energéticos")
-            
-            # Recomendaciones de turnos basadas en precio de luz
+            # Recomendaciones energéticas unificadas (precio tiene prioridad sobre ML score)
             if current_info.get("energy"):
                 price = current_info["energy"]["price_eur_kwh"]
-                if price > 0.25:  # Luz cara
-                    recommendations["energy"].append("💡 PRECIO ALTO: Programar producción en turno de noche (22:00-06:00)")
+                ml_score = predictions.get("energy_optimization", {}).get("score", 50)
+                
+                # PRIORIDAD 1: Precio de electricidad (factor más crítico)
+                if price > 0.25:  # Luz muy cara
+                    recommendations["energy"].append("🔴 PRECIO MUY ALTO ({:.3f} €/kWh): Reducir producción inmediatamente".format(price))
+                    recommendations["energy"].append("💡 Programar producción en turno de noche (22:00-06:00)")
                     recommendations["energy"].append("⏰ Considerar turno de madrugada (00:00-07:00) para máximo ahorro")
-                elif price > 0.20:  # Precio medio-alto
-                    recommendations["energy"].append("⚠️ PRECIO ELEVADO: Evaluar turno de noche para operaciones no críticas")
+                elif price > 0.20:  # Precio alto
+                    recommendations["energy"].append("⚠️ PRECIO ELEVADO ({:.3f} €/kWh): Evaluar reducir operaciones no críticas".format(price))
+                    recommendations["energy"].append("🌙 Turno de noche recomendado para procesos intensivos")
+                elif price > 0.15:  # Precio medio
+                    recommendations["energy"].append("🟡 PRECIO MEDIO ({:.3f} €/kWh): Producción normal, monitorear evolución".format(price))
                 elif price < 0.12:  # Luz barata
-                    recommendations["energy"].append("💚 PRECIO BAJO: Momento ideal para producción de mañana (06:00-14:00)")
-                    recommendations["energy"].append("🚀 Aprovechar para procesos energéticamente intensivos")
+                    recommendations["energy"].append("💚 PRECIO BAJO ({:.3f} €/kWh): MAXIMIZAR PRODUCCIÓN".format(price))
+                    recommendations["energy"].append("🚀 Momento ideal para procesos energéticamente intensivos")
+                    recommendations["energy"].append("⚡ Aprovechar para producción de reservas y stock")
+                else:  # Precio normal-bajo (0.12-0.15)
+                    recommendations["energy"].append("🟢 PRECIO FAVORABLE ({:.3f} €/kWh): Producción intensiva recomendada".format(price))
+                    recommendations["energy"].append("📈 Condiciones buenas para incrementar volumen")
+                
+                # PRIORIDAD 2: Validación con ML score (solo si no contradice el precio)
+                if price < 0.15:  # Solo para precios favorables
+                    if ml_score > 80:
+                        recommendations["energy"].append("🤖 ML: Score excelente ({:.0f}/100) confirma momento óptimo".format(ml_score))
+                    elif ml_score < 40 and price > 0.12:  # Solo advertir si precio no es muy barato
+                        recommendations["energy"].append("🤖 ML: Score bajo ({:.0f}/100) - revisar condiciones".format(ml_score))
             
-            # Recomendaciones de producción
+            # Recomendaciones de producción (coherentes con precio energético)
             if predictions.get("production_recommendation"):
                 prod_class = predictions["production_recommendation"]["class"]
-                if prod_class == "Optimal":
-                    recommendations["production"].append("🚀 Condiciones óptimas - Maximizar producción")
-                elif prod_class == "Moderate":
-                    recommendations["production"].append("⚖️ Mantener producción estándar")
-                elif prod_class == "Reduced":
-                    recommendations["production"].append("📉 Reducir producción - Condiciones subóptimas")
-                else:
-                    recommendations["production"].append("⛔ Considerar parar producción")
+                confidence = predictions["production_recommendation"].get("confidence", 0)
+                price = current_info.get("energy", {}).get("price_eur_kwh", 0.15)
+                
+                # Normalizar nombre de clase (remover sufijos)
+                prod_class_clean = prod_class.replace("_Production", "")
+                
+                # Ajustar recomendación de producción según precio energético
+                if price < 0.12:  # Precio muy bajo - priorizar producción
+                    if prod_class_clean == "Optimal":
+                        recommendations["production"].append("🚀 CONDICIONES IDEALES: Maximizar producción (precio energético favorable)")
+                    elif prod_class_clean == "Moderate":
+                        recommendations["production"].append("📈 INCREMENTAR producción - Precio energético muy favorable compensa condiciones")
+                    elif prod_class_clean == "Reduced":
+                        recommendations["production"].append("⚖️ Mantener producción estándar - Precio energético compensa condiciones subóptimas")
+                    else:  # Halt
+                        recommendations["production"].append("⚠️ Evaluar producción mínima - Solo por precio energético excepcional")
+                elif price > 0.20:  # Precio alto - ser conservador
+                    if prod_class_clean == "Optimal":
+                        recommendations["production"].append("⚖️ Producción estándar - Precio energético alto limita expansión")
+                    elif prod_class_clean == "Moderate":
+                        recommendations["production"].append("📉 Reducir producción - Precio energético alto + condiciones moderadas")
+                    else:
+                        recommendations["production"].append("⛔ REDUCIR/PARAR producción - Costos energéticos prohibitivos")
+                else:  # Precio normal (0.12-0.20)
+                    if prod_class_clean == "Optimal":
+                        recommendations["production"].append("🚀 Condiciones óptimas - Maximizar producción")
+                    elif prod_class_clean == "Moderate":
+                        recommendations["production"].append("⚖️ Mantener producción estándar")
+                    elif prod_class_clean == "Reduced":
+                        recommendations["production"].append("📉 Reducir producción - Condiciones subóptimas")
+                    else:
+                        recommendations["production"].append("⛔ Considerar parar producción")
+                
+                # Agregar confianza del modelo
+                if confidence > 80:
+                    recommendations["production"].append("🎯 Alta confianza ML ({:.0f}%) en recomendación".format(confidence))
+                elif confidence < 50:
+                    recommendations["production"].append("🤔 Baja confianza ML ({:.0f}%) - Validar con operador".format(confidence))
             
             # Recomendaciones de clima
             if current_info.get("weather"):
