@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# TFM CHOCOLATE FACTORY - TAILSCALE SIDECAR STARTUP SCRIPT
+# CHOCOLATE FACTORY - TAILSCALE SIDECAR STARTUP SCRIPT
 # =============================================================================
 # Inicia Tailscale daemon + nginx en el mismo contenedor
 # Se une a la tailnet como 'factory-chocolate'
@@ -8,7 +8,7 @@
 
 set -e
 
-echo "🍫 TFM Chocolate Factory - Tailscale Sidecar Starting..."
+echo "🍫 Chocolate Factory - Tailscale Sidecar Starting..."
 echo "📍 Hostname: ${TAILSCALE_HOSTNAME:-factory-chocolate}"
 
 # Función para logging
@@ -88,6 +88,11 @@ else
     log "❌ ERROR: Failed to obtain SSL certificates"
     exit 1
 fi
+
+# Esperar a que nginx puede arrancar sin problemas
+# (FastAPI estará disponible debido a las dependencias de docker-compose)
+log "⏳ Waiting a moment for all services to settle..."
+sleep 10
 
 # Verificar configuración nginx
 log "🔧 Testing nginx configuration..."

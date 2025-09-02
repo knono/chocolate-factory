@@ -1,6 +1,6 @@
 """
-TFM Chocolate Factory - Dashboard Service
-========================================
+Chocolate Factory - Dashboard Service
+====================================
 
 Servicio para consolidar información del dashboard Node-RED:
 - Información actual (precios, clima, producción)
@@ -57,7 +57,7 @@ class DashboardService:
             alerts = self._generate_alerts(current_info, predictions)
             
             dashboard_data = {
-                "🏢": "TFM Chocolate Factory - Dashboard Completo",
+                "🏢": "Chocolate Factory - Dashboard Completo",
                 "📊": "El Monitor - Información, Predicción y Recomendaciones",
                 "current_info": current_info,
                 "predictions": predictions,
