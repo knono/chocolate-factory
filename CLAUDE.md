@@ -26,13 +26,39 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain, 
 ## Project Structure
 
 ```
-├── src/fastapi-app/        # Main FastAPI application
-├── docker/                 # Docker configuration files (to be implemented)
-├── src/configs/           # Configuration files
-├── data/raw/              # Raw data storage
-├── data/processed/        # Processed data storage
-├── notebooks/             # Jupyter notebooks for analysis
-└── docs/                  # Project documentation
+├── src/fastapi-app/            # Main FastAPI application
+│   ├── main.py                # FastAPI entry point with all endpoints
+│   ├── pyproject.toml         # Python dependencies and configuration
+│   ├── dashboard/             # Integrated dashboard components
+│   └── services/              # Service layer modules
+│       ├── initialization/    # System initialization services
+│       ├── datosclima_etl.py # Weather data ETL from datosclima.es
+│       └── [other services]   # REE API, AEMET, MLflow, backfill, etc.
+├── docker/                    # Docker infrastructure (✅ IMPLEMENTED)
+│   ├── docker-compose.yml     # Main container orchestration
+│   ├── docker-compose.override.yml # Tailscale sidecar configuration
+│   ├── fastapi.Dockerfile     # FastAPI brain container
+│   ├── tailscale-sidecar.Dockerfile # Secure remote access
+│   └── services/              # Service-specific configurations
+│       ├── fastapi/           # FastAPI logs and configs
+│       ├── influxdb/          # InfluxDB data persistence (bind mount)
+│       ├── postgres/          # PostgreSQL MLflow backend
+│       ├── mlflow/            # MLflow artifacts storage
+│       └── nginx/             # Nginx proxy configurations
+├── src/configs/               # Configuration files
+│   └── influxdb_schemas.py    # InfluxDB database schemas
+├── data/                      # Data storage
+│   ├── raw/                   # Raw data storage
+│   └── processed/             # Processed data storage
+├── docs/                      # Comprehensive project documentation (25+ docs)
+│   ├── MLFLOW_IMPLEMENTATION.md        # Complete ML pipeline docs
+│   ├── AUTOMATIC_BACKFILL_SYSTEM.md   # Gap detection and recovery
+│   ├── DATOSCLIMA_ETL_SOLUTION.md     # Historical weather data ETL
+│   ├── SYSTEM_ARCHITECTURE.md         # Complete system design
+│   └── [20+ other technical docs]     # APIs, troubleshooting, guides
+├── ssl/                       # SSL certificates (Tailscale ACME)
+└── logs/                      # Application logs
+    └── sidecar/nginx/         # Nginx proxy logs
 ```
 
 ## Development Setup
@@ -42,19 +68,36 @@ The project uses Python 3.11+ with the main application in `src/fastapi-app/`.
 ### FastAPI Application
 - Entry point: `src/fastapi-app/main.py`
 - Project configuration: `src/fastapi-app/pyproject.toml`
-- Currently in early development stage with basic skeleton
+- **Production-ready system** with comprehensive feature set
 
-### Development Status
-The project has evolved beyond the initial setup phase with complete infrastructure implemented:
-- ✅ **3-container architecture** (FastAPI, InfluxDB, MLflow+PostgreSQL)
-- ✅ REE API integration with real Spanish electricity prices (every hour)
-- ✅ AEMET API integration with Spanish weather data (Linares, Jaén)
-- ✅ APScheduler automation (10+ scheduled jobs including ML predictions)
-- ✅ InfluxDB schemas and data ingestion pipelines
-- ✅ **MLflow ML pipeline fully implemented and operational**
-- ✅ **Machine Learning models with 90% accuracy and R² = 0.8876**
-- ✅ **ML prediction endpoints and automated optimization**
-- ✅ **Dashboard integrado** (Node-RED migrated to FastAPI)
+### Development Status ✅ PRODUCTION SYSTEM
+The project is a **fully operational production system** with complete infrastructure:
+
+#### Core Infrastructure (4-Container Architecture)
+- ✅ **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + ML predictions
+- ✅ **InfluxDB Storage** (chocolate_factory_storage) - Time series database
+- ✅ **MLflow MLOps** (chocolate_factory_mlops) - ML models + PostgreSQL backend
+- ✅ **Tailscale Sidecar** (chocolate-factory) - Secure HTTPS remote access
+
+#### Data Integration (Real-time + Historical)
+- ✅ **REE API**: Real Spanish electricity prices (every 5 minutes)
+- ✅ **Hybrid Weather**: AEMET + OpenWeatherMap integration (24/7 coverage)
+- ✅ **Historical Data**: 1,095+ weather records via datosclima.es ETL
+- ✅ **Automatic Backfill**: Gap detection and smart recovery system
+
+#### Machine Learning Pipeline
+- ✅ **MLflow Tracking**: Complete experiment management with PostgreSQL backend
+- ✅ **2 Production Models**: Energy Optimization (R² = 0.8876) + Production Classifier (90% accuracy)
+- ✅ **Real-time Predictions**: Energy optimization and production recommendations
+- ✅ **Feature Engineering**: 13 engineered features from REE + Weather data
+- ✅ **Automated ML**: Model retraining and prediction scheduling (every 30 min)
+
+#### Operations & Monitoring
+- ✅ **APScheduler**: 10+ automated jobs (ingestion, ML, backfill, health checks)
+- ✅ **Integrated Dashboard**: Node-RED migrated to FastAPI (`/dashboard/complete`)
+- ✅ **Remote Access**: Tailscale HTTPS with SSL certificates and security isolation
+- ✅ **Self-healing**: Automatic gap detection and recovery every 2 hours
+- ✅ **Production Monitoring**: Health checks, token management, system alerts
 
 ## Key Design Principles
 
@@ -929,6 +972,7 @@ curl -I https://chocolate-factory.azules-elver.ts.net/dashboard
 ✅ **Local development access preserved (complete API)**  
 ✅ **Ultra-lightweight sidecar: 52.4MB Alpine container**  
 ✅ **Zero-config deployment with persistent state**
+✅ **Security Update: Tailscale 1.86.2** - Updated Sept 2025 to address security vulnerabilities
 
 ## Future Enhancements
 - **Advanced ML models**: Hybrid feature engineering for production optimization  

@@ -89,6 +89,11 @@ else
     exit 1
 fi
 
+# Esperar a que nginx puede arrancar sin problemas
+# (FastAPI estará disponible debido a las dependencias de docker-compose)
+log "⏳ Waiting a moment for all services to settle..."
+sleep 10
+
 # Verificar configuración nginx
 log "🔧 Testing nginx configuration..."
 nginx -t
