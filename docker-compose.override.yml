@@ -1,5 +1,5 @@
 # =============================================================================
-# TFM CHOCOLATE FACTORY - TAILSCALE SIDECAR OVERRIDE
+# CHOCOLATE FACTORY - TAILSCALE SIDECAR OVERRIDE
 # =============================================================================
 # Configuración para sidecar real que se une a tailnet como 'factory-chocolate'
 # Solo expone /dashboard - sin puertos al host

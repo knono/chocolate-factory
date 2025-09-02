@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# TFM CHOCOLATE FACTORY - TAILSCALE SIDECAR STARTUP SCRIPT
+# CHOCOLATE FACTORY - TAILSCALE SIDECAR STARTUP SCRIPT
 # =============================================================================
 # Inicia Tailscale daemon + nginx en el mismo contenedor
 # Se une a la tailnet como 'factory-chocolate'
@@ -8,7 +8,7 @@
 
 set -e
 
-echo "🍫 TFM Chocolate Factory - Tailscale Sidecar Starting..."
+echo "🍫 Chocolate Factory - Tailscale Sidecar Starting..."
 echo "📍 Hostname: ${TAILSCALE_HOSTNAME:-factory-chocolate}"
 
 # Función para logging

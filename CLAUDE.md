@@ -4,15 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a TFM (Master's Thesis) project for a chocolate factory simulation and monitoring system. The project implements a streamlined containerized architecture with 3 main production containers working together for automated data ingestion, ML prediction, and monitoring.
+This is a chocolate factory simulation and monitoring system. The project implements a streamlined containerized architecture with 4 main production containers working together for automated data ingestion, ML prediction, monitoring, and secure remote access.
 
 ## Architecture
 
-The system follows a **3-container production architecture** (migrated from Node-RED to integrated dashboard):
+The system follows a **4-container production architecture** (evolved from Node-RED to integrated dashboard + Tailscale sidecar):
 
 1. **API Unificada** ("El Cerebro Autónomo") - FastAPI with APScheduler for automation + **Dashboard integrado**
 2. **Almacén de Series** ("El Almacén Principal") - InfluxDB for time series storage  
 3. **Unidad MLOps** ("Cuartel General ML") - MLflow Server + PostgreSQL
+4. **Tailscale Sidecar** ("Portal Seguro") - Alpine proxy + SSL para acceso remoto cifrado
 
 **✅ Dashboard Migration Completed (Sept 2025):** Node-RED eliminated and replaced with integrated dashboard served directly from FastAPI at `/dashboard/complete`.
 
@@ -756,6 +757,178 @@ curl http://localhost:8000/dashboard/complete | jq '.system_status'
 ✅ **Stack tecnológico unificado (100% Python)**  
 ✅ **Datos dashboard funcionales y actualizados**  
 ✅ **Arquitectura productiva simplificada**
+
+## Tailscale Sidecar Integration ✅ COMPLETADO
+
+### Overview
+**Septiembre 2025**: Implementación exitosa de sidecar Tailscale para **exposición externa segura del dashboard**, expandiendo la arquitectura a **4 contenedores especializados** con acceso remoto cifrado.
+
+### ✅ Achievements
+- **Sidecar Tailscale**: Contenedor Alpine 52.4MB ultra-ligero
+- **SSL Automático**: Certificados Tailscale ACME con renovación automática
+- **Acceso Seguro**: Solo `/dashboard` expuesto externamente
+- **Dual Access**: Externo (limitado) + Local (completo) para desarrollo
+- **Zero Configuration**: Setup automático con auth key
+
+### Arquitectura Final - 4 Contenedores + Sidecar
+
+```
+🔐 chocolate-factory (Tailscale Sidecar)
+├── Alpine Linux 52.4MB
+├── Nginx proxy + SSL automático
+├── URL: https://chocolate-factory.azules-elver.ts.net/dashboard
+└── Solo /dashboard expuesto + bloqueos de seguridad
+
+🧠 chocolate_factory_brain (FastAPI)
+├── Puerto: 8000 (local development)
+├── API endpoints: /predict, /ingest-now, /scheduler  
+├── Dashboard integrado: /dashboard/complete
+└── APScheduler: 10+ jobs automatizados
+
+💾 chocolate_factory_storage (InfluxDB)
+├── Puerto: 8086 (local admin)
+├── Time series database
+└── Datos: REE prices + Weather + ML features
+
+🤖 chocolate_factory_mlops (MLflow + PostgreSQL)
+├── Puerto: 5000 (local development) 
+├── ML models + experiments tracking
+└── PostgreSQL backend para metadata
+```
+
+### Configuración Tailscale Sidecar
+
+#### Docker Configuration
+```yaml
+# docker-compose.override.yml
+chocolate-factory:
+  build:
+    dockerfile: docker/tailscale-sidecar.Dockerfile
+  container_name: chocolate-factory
+  hostname: chocolate-factory
+  privileged: true  # Requerido para Tailscale
+  cap_add: [NET_ADMIN, SYS_MODULE]
+  devices: [/dev/net/tun]
+  environment:
+    - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY}
+    - TAILSCALE_HOSTNAME=chocolate-factory
+  volumes:
+    - tailscale_state:/var/lib/tailscale  # Estado persistente
+```
+
+#### Nginx Security Configuration
+```nginx
+# Solo /dashboard permitido
+location /dashboard { 
+    proxy_pass http://chocolate_factory_brain:8000; 
+}
+
+# Endpoints bloqueados con páginas HTML personalizadas
+location ~ ^/(docs|redoc|openapi\.json|predict|mlflow) { 
+    return 403; 
+}
+```
+
+#### SSL Certificates
+- **Automáticos**: `tailscale cert chocolate-factory.azules-elver.ts.net`
+- **Renovación**: Automática vía Tailscale ACME
+- **Configuración**: TLS 1.2/1.3 con ciphers modernos
+- **Redirección**: HTTP → HTTPS (301 Permanent)
+
+### URLs de Acceso
+
+#### Acceso Externo (Tailscale - Seguro)
+```bash
+# Dashboard principal (único endpoint expuesto)
+https://chocolate-factory.azules-elver.ts.net/dashboard
+
+# IP directa Tailscale  
+https://100.127.58.34/dashboard
+
+# APIs bloqueadas externamente (403 Forbidden)
+https://chocolate-factory.azules-elver.ts.net/docs      # ❌
+https://chocolate-factory.azules-elver.ts.net/predict   # ❌
+```
+
+#### Acceso Local (Desarrollo - Completo)
+```bash
+# FastAPI completo para desarrollo
+http://localhost:8000/docs        # ✅ Swagger UI
+http://localhost:8000/predict     # ✅ ML predictions  
+http://localhost:8000/dashboard   # ✅ Dashboard data
+
+# Servicios administrativos
+http://localhost:8086             # ✅ InfluxDB UI
+http://localhost:5000             # ✅ MLflow UI
+```
+
+### Variables de Entorno Requeridas
+
+#### .env Configuration
+```bash
+# Tailscale Auth Key (generar en panel Tailscale)
+TAILSCALE_AUTHKEY=tskey-auth-XXXXXXXXXXXXXXXXXXXXXXXXX
+TAILSCALE_HOSTNAME=chocolate-factory
+
+# APIs y servicios principales
+OPENWEATHERMAP_API_KEY=xxx
+AEMET_API_KEY=xxx  
+INFLUXDB_TOKEN=xxx
+# ... resto de variables existentes
+```
+
+### Setup Instructions
+```bash
+# 1. Generar auth key en https://login.tailscale.com/admin/settings/keys
+# 2. Agregar variables Tailscale a .env principal
+# 3. Build y deploy
+docker compose build chocolate-factory
+docker compose up -d
+
+# 4. Verificar conexión
+curl https://chocolate-factory.azules-elver.ts.net/dashboard
+```
+
+### Network Architecture
+- **MTU Optimizado**: 1280 bytes para evitar fragmentación Tailscale
+- **Subnet Docker**: 192.168.100.0/24 con gateway .1
+- **Persistent State**: Volumen `tailscale_state` para reconexiones
+- **Health Checks**: Verificación automática cada 60s
+
+### Security Features
+- **Endpoint Isolation**: Solo `/dashboard` accesible externamente  
+- **Custom Error Pages**: HTML responses elegantes para 403/404
+- **SSL Enforcement**: Redirección automática HTTP→HTTPS
+- **Container Privileges**: Mínimos necesarios (NET_ADMIN, SYS_MODULE)
+- **State Persistence**: Reconexión automática tras reinicios
+
+### Benefits
+- **Remote Access**: Dashboard accesible desde cualquier dispositivo en tailnet
+- **Zero Configuration**: Setup automático sin configuración manual de SSL
+- **Development Friendly**: Acceso local completo preservado
+- **Ultra Lightweight**: Container 52.4MB vs alternativas ~200-500MB  
+- **Enterprise Security**: Cifrado WireGuard + certificados válidos
+- **Fail Safe**: Fallback local siempre disponible
+
+### Monitoring
+```bash
+# Estado Tailscale
+docker exec chocolate-factory tailscale status
+
+# Logs sidecar
+docker logs chocolate-factory
+
+# Verificar certificados SSL
+curl -I https://chocolate-factory.azules-elver.ts.net/dashboard
+```
+
+### Resultado Tailscale Integration
+✅ **Dashboard remotely accessible via HTTPS**  
+✅ **SSL certificates auto-provisioned and renewed**  
+✅ **Security isolation: only dashboard exposed externally**  
+✅ **Local development access preserved (complete API)**  
+✅ **Ultra-lightweight sidecar: 52.4MB Alpine container**  
+✅ **Zero-config deployment with persistent state**
 
 ## Future Enhancements
 - **Advanced ML models**: Hybrid feature engineering for production optimization  

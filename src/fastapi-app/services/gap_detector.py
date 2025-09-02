@@ -1,5 +1,5 @@
 """
-Gap Detection Service - TFM Chocolate Factory
+Gap Detection Service - Chocolate Factory
 ============================================
 
 Servicio para detectar gaps (huecos) en los datos de InfluxDB

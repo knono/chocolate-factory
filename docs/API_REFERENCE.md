@@ -1,4 +1,4 @@
-# API Reference - TFM Chocolate Factory
+# API Reference - Chocolate Factory
 
 ## Índice
 1. [Overview](#overview)
@@ -11,7 +11,7 @@
 
 ## Overview
 
-El sistema TFM Chocolate Factory expone **19 endpoints funcionales** distribuidos en diferentes categorías para manejo completo de la infraestructura de datos y ML.
+El sistema Chocolate Factory expone **19 endpoints funcionales** distribuidos en diferentes categorías para manejo completo de la infraestructura de datos y ML.
 
 **Base URL**: `http://localhost:8000`
 
@@ -53,7 +53,7 @@ El sistema TFM Chocolate Factory expone **19 endpoints funcionales** distribuido
 **Respuesta**:
 ```json
 {
-  "service": "TFM Chocolate Factory API",
+  "service": "Chocolate Factory API",
   "version": "1.0",
   "status": "running",
   "total_endpoints": 19,

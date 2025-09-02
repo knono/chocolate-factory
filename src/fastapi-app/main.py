@@ -1,6 +1,6 @@
 """
-TFM Chocolate Factory - FastAPI Main Application
-=================================================
+Chocolate Factory - FastAPI Main Application
+=============================================
 
 El Cerebro Autónomo: FastAPI + APScheduler para automatización completa
 - Endpoints: /predict y /ingest-now
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
 
 # Crear la aplicación FastAPI
 app = FastAPI(
-    title="TFM Chocolate Factory - El Cerebro Autónomo",
+    title="Chocolate Factory - El Cerebro Autónomo",
     description="Sistema autónomo de ingestión, predicción y monitoreo para fábrica de chocolate",
     version="0.1.0",
     lifespan=lifespan
@@ -101,7 +101,7 @@ class PredictionRequest(BaseModel):
 async def root():
     """Endpoint raíz - Estado del sistema"""
     return {
-        "service": "TFM Chocolate Factory Brain",
+        "service": "Chocolate Factory Brain",
         "status": "🧠 El Cerebro Autónomo está funcionando",
         "version": "0.1.0",
         "endpoints": {
@@ -217,7 +217,7 @@ async def predict(hours_ahead: int = 24, include_features: bool = True):
             chocolate_optimization_score = 100 - (avg_price_24h * 2) - max(0, avg_temp_24h - 25) * 3
             
             prediction_response = {
-                "🏭": "TFM Chocolate Factory - Predicción ML",
+                "🏭": "Chocolate Factory - Predicción ML",
                 "status": "✅ Datos reales InfluxDB procesados",
                 "prediction_horizon": f"{hours_ahead} horas",
                 "model_status": "🚧 MLflow integration pendiente",
@@ -424,7 +424,7 @@ async def get_openweather_linares():
                 
                 if current_weather:
                     return {
-                        "🏭": "TFM Chocolate Factory - OpenWeatherMap",
+                        "🏭": "Chocolate Factory - OpenWeatherMap",
                         "📍": "Linares, Jaén (38.151107°N, -3.629453°W)",
                         "🌡️": f"{current_weather.temperature}°C",
                         "💧": f"{current_weather.humidity}%",
@@ -446,7 +446,7 @@ async def get_openweather_linares():
             else:
                 # API key not active yet
                 return {
-                    "🏭": "TFM Chocolate Factory - OpenWeatherMap",
+                    "🏭": "Chocolate Factory - OpenWeatherMap",
                     "📍": "Linares, Jaén",
                     "status": "⏳ API key pending activation",
                     "message": "OpenWeatherMap API keys can take up to 2 hours to activate",
@@ -488,7 +488,7 @@ async def get_openweather_forecast(hours: int = 24):
                         })
                     
                     return {
-                        "🏭": "TFM Chocolate Factory - OpenWeatherMap Forecast",
+                        "🏭": "Chocolate Factory - OpenWeatherMap Forecast",
                         "📍": "Linares, Jaén (38.151107°N, -3.629453°W)",
                         "status": "✅ Pronóstico disponible",
                         "hours_requested": hours,
@@ -504,7 +504,7 @@ async def get_openweather_forecast(hours: int = 24):
                     }
             else:
                 return {
-                    "🏭": "TFM Chocolate Factory - OpenWeatherMap Forecast",
+                    "🏭": "Chocolate Factory - OpenWeatherMap Forecast",
                     "📍": "Linares, Jaén",
                     "status": "⏳ API key pending activation",
                     "message": "OpenWeatherMap API keys can take up to 2 hours to activate",
@@ -528,7 +528,7 @@ async def get_openweather_status():
             status = await client.get_api_status()
             
             return {
-                "🏭": "TFM Chocolate Factory - OpenWeatherMap API Status",
+                "🏭": "Chocolate Factory - OpenWeatherMap API Status",
                 "timestamp": datetime.now().isoformat(),
                 "api_status": status,
                 "integration_status": "✅ Cliente implementado y configurado",
@@ -559,7 +559,7 @@ async def get_hybrid_weather(force_openweathermap: bool = False):
                     aemet_data = await service.ingest_aemet_weather()
                     if aemet_data.successful_writes > 0:
                         return {
-                            "🏭": "TFM Chocolate Factory - Estrategia Híbrida",
+                            "🏭": "Chocolate Factory - Estrategia Híbrida",
                             "📍": "Linares, Jaén",
                             "⚡": "AEMET (datos oficiales)",
                             "🕐": f"Hora {current_hour:02d}:xx - Ventana de observación oficial",
@@ -576,7 +576,7 @@ async def get_hybrid_weather(force_openweathermap: bool = False):
             source_reason = "ventana tiempo real" if not use_aemet else "fallback por fallo AEMET"
             
             return {
-                "🏭": "TFM Chocolate Factory - Estrategia Híbrida", 
+                "🏭": "Chocolate Factory - Estrategia Híbrida", 
                 "📍": "Linares, Jaén",
                 "⚡": "OpenWeatherMap (tiempo real)",
                 "🕐": f"Hora {current_hour:02d}:xx - {source_reason}",
@@ -665,7 +665,7 @@ async def get_weather_comparison(hours: int = 24):
                 temp_diff = abs(aemet_data["temperature"] - openweather_data["temperature"])
             
             return {
-                "🏭": "TFM Chocolate Factory - Comparación Datos Reales InfluxDB",
+                "🏭": "Chocolate Factory - Comparación Datos Reales InfluxDB",
                 "location": "Linares, Jaén, Andalucía",
                 "query_period": f"Últimas {hours} horas",
                 "comparison": {
@@ -727,7 +727,7 @@ async def get_aemet_weather(station_ids: Optional[str] = None):
                             
                             # Create beautiful response with real data
                             weather_data.append({
-                                "🏭": "TFM Chocolate Factory - Datos Reales",
+                                "🏭": "Chocolate Factory - Datos Reales",
                                 "📍": f"Linares, Jaén ({station_id})",
                                 "🌡️": f"{latest.get('ta', 'N/A')}°C" if latest.get('ta') else "N/A",
                                 "💧": f"{latest.get('hr', 'N/A')}%" if latest.get('hr') else "N/A", 
@@ -884,7 +884,7 @@ async def verify_influxdb_data(hours: int = 6):
                     })
             
             return {
-                "🏭": "TFM Chocolate Factory - InfluxDB Verification",
+                "🏭": "Chocolate Factory - InfluxDB Verification",
                 "status": "✅ InfluxDB funcionando correctamente",
                 "health": health.status,
                 "bucket": service.config.bucket,
@@ -983,7 +983,7 @@ async def count_influxdb_records(years: int = 5):
                     total_count += record.get_value()
             
             return {
-                "🏭": "TFM Chocolate Factory - InfluxDB Record Count",
+                "🏭": "Chocolate Factory - InfluxDB Record Count",
                 "status": "✅ Conteo completado",
                 "health": health.status,
                 "bucket": service.config.bucket,
@@ -1101,7 +1101,7 @@ async def get_initialization_status():
             status = await service.get_initialization_status()
         
         return {
-            "🏭": "TFM Chocolate Factory - Initialization Status",
+            "🏭": "Chocolate Factory - Initialization Status",
             "timestamp": datetime.now().isoformat(),
             "status": status,
             "actions": {
@@ -1128,7 +1128,7 @@ async def initialize_historical_data(background_tasks: BackgroundTasks):
         background_tasks.add_task(run_historical_init)
         
         return {
-            "🏭": "TFM Chocolate Factory - Historical Data Initialization",
+            "🏭": "Chocolate Factory - Historical Data Initialization",
             "status": "started",
             "message": "📊 Carga histórica REE (2022-2024) iniciada en background",
             "expected_records": "~17,520 registros (2 años post-COVID)",
@@ -1159,7 +1159,7 @@ async def initialize_all_systems(background_tasks: BackgroundTasks):
         background_tasks.add_task(run_full_init)
         
         return {
-            "🏭": "TFM Chocolate Factory - Complete System Initialization",
+            "🏭": "Chocolate Factory - Complete System Initialization",
             "status": "started",
             "message": "🚀 Inicialización completa iniciada en background",
             "components": {
@@ -1202,7 +1202,7 @@ async def init_datosclima_etl(station_id: str = "5279X", years: int = 5):
         stats = await etl.download_and_process_station(station_id, years)
         
         return {
-            "🏭": "TFM Chocolate Factory - DatosClima ETL",
+            "🏭": "Chocolate Factory - DatosClima ETL",
             "status": "✅ ETL Completed",
             "data_source": "datosclima.es",
             "station": f"{station_id} - Linares, Jaén",
@@ -1242,7 +1242,7 @@ async def get_mlflow_status():
             connectivity = await mlflow_service.check_connectivity()
             
             return {
-                "🏢": "TFM Chocolate Factory - Unidad MLOps",
+                "🏢": "Chocolate Factory - Unidad MLOps",
                 "🏗️": "Cuartel General ML",
                 "status": "✅ MLflow Service Active" if connectivity["status"] == "connected" else "❌ MLflow Service Failed",
                 "infrastructure": {
@@ -1270,7 +1270,7 @@ async def get_mlflow_status():
     except Exception as e:
         logger.error(f"MLflow status check failed: {e}")
         return {
-            "🏢": "TFM Chocolate Factory - Unidad MLOps",
+            "🏢": "Chocolate Factory - Unidad MLOps",
             "🏗️": "Cuartel General ML", 
             "status": "❌ MLflow Service Error",
             "error": str(e),
@@ -1294,7 +1294,7 @@ async def mlflow_web_interface_check():
             response = await client.get("http://mlflow:5000")
             
             return {
-                "🏢": "TFM Chocolate Factory - MLflow Web Interface Check",
+                "🏢": "Chocolate Factory - MLflow Web Interface Check",
                 "web_interface": {
                     "status_code": response.status_code,
                     "content_type": response.headers.get("content-type", "unknown"),
@@ -1320,7 +1320,7 @@ async def mlflow_web_interface_check():
             }
     except Exception as e:
         return {
-            "🏢": "TFM Chocolate Factory - MLflow Web Interface Check",
+            "🏢": "Chocolate Factory - MLflow Web Interface Check",
             "status": "❌ Error checking web interface",
             "error": str(e),
             "manual_check": "Verificar manualmente: http://localhost:5000"
@@ -1338,7 +1338,7 @@ async def generate_chocolate_features(hours_back: int = 24):
         
         if not feature_sets:
             return {
-                "🏢": "TFM Chocolate Factory - Feature Engineering",
+                "🏢": "Chocolate Factory - Feature Engineering",
                 "status": "⚠️ No data available for feature generation",
                 "hours_requested": hours_back,
                 "recommendations": {
@@ -1354,7 +1354,7 @@ async def generate_chocolate_features(hours_back: int = 24):
         latest_features = feature_sets[-1]
         
         return {
-            "🏢": "TFM Chocolate Factory - Feature Engineering",
+            "🏢": "Chocolate Factory - Feature Engineering",
             "⚙️": "Chocolate Production Features Generated",
             "status": "✅ Features Ready for ML Models",
             "data_summary": {
@@ -1407,7 +1407,7 @@ async def generate_chocolate_features(hours_back: int = 24):
     except Exception as e:
         logger.error(f"Feature engineering failed: {e}")
         return {
-            "🏢": "TFM Chocolate Factory - Feature Engineering",
+            "🏢": "Chocolate Factory - Feature Engineering",
             "status": "❌ Feature generation failed",
             "error": str(e),
             "troubleshooting": {
@@ -1431,7 +1431,7 @@ async def train_chocolate_models(
             if model_type == "all":
                 background_tasks.add_task(_train_all_models_background, ml_models)
                 return {
-                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🏢": "Chocolate Factory - ML Training",
                     "🤖": "Cuartel General ML - Training Started",
                     "status": "🚀 Training initiated in background",
                     "models_to_train": ["energy_optimization", "production_classifier"],
@@ -1446,7 +1446,7 @@ async def train_chocolate_models(
             elif model_type == "energy":
                 background_tasks.add_task(_train_energy_model_background, ml_models)
                 return {
-                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🏢": "Chocolate Factory - ML Training",
                     "🤖": "Energy Optimization Model Training Started",
                     "status": "🚀 Training initiated in background",
                     "model": "energy_optimization",
@@ -1460,7 +1460,7 @@ async def train_chocolate_models(
             elif model_type == "classifier":
                 background_tasks.add_task(_train_classifier_background, ml_models)
                 return {
-                    "🏢": "TFM Chocolate Factory - ML Training", 
+                    "🏢": "Chocolate Factory - ML Training", 
                     "🤖": "Production Classifier Training Started",
                     "status": "🚀 Training initiated in background",
                     "model": "production_classifier",
@@ -1476,7 +1476,7 @@ async def train_chocolate_models(
             if model_type == "energy":
                 metrics = await ml_models.train_energy_optimization_model()
                 return {
-                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🏢": "Chocolate Factory - ML Training",
                     "🤖": "Energy Optimization Model",
                     "status": "✅ Training completed",
                     "metrics": {
@@ -1496,7 +1496,7 @@ async def train_chocolate_models(
             elif model_type == "classifier":
                 metrics = await ml_models.train_production_classifier()
                 return {
-                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🏢": "Chocolate Factory - ML Training",
                     "🤖": "Production Classifier",
                     "status": "✅ Training completed",
                     "metrics": {
@@ -1517,7 +1517,7 @@ async def train_chocolate_models(
             else:  # model_type == "all"
                 all_metrics = await ml_models.train_all_models()
                 return {
-                    "🏢": "TFM Chocolate Factory - ML Training",
+                    "🏢": "Chocolate Factory - ML Training",
                     "🤖": "All Models Training Complete",
                     "status": "✅ All models trained successfully",
                     "models": {
@@ -1546,7 +1546,7 @@ async def train_chocolate_models(
     except Exception as e:
         logger.error(f"ML training failed: {e}")
         return {
-            "🏢": "TFM Chocolate Factory - ML Training",
+            "🏢": "Chocolate Factory - ML Training",
             "status": "❌ Training failed",
             "error": str(e),
             "troubleshooting": {
@@ -1594,7 +1594,7 @@ async def predict_energy_optimization(request: PredictionRequest):
         energy_optimization_score = max(0, min(100, energy_optimization_score))
         
         response = {
-            "🏢": "TFM Chocolate Factory - Energy Prediction",
+            "🏢": "Chocolate Factory - Energy Prediction",
             "🤖": "Energy Optimization Model",
             "prediction": {
                 "energy_optimization_score": round(energy_optimization_score, 2),
@@ -1683,7 +1683,7 @@ async def predict_production_recommendation(request: PredictionRequest):
                 description = "Solo por precio energético excepcional - mínima producción"
         
         return {
-            "🏢": "TFM Chocolate Factory - Production Prediction",
+            "🏢": "Chocolate Factory - Production Prediction",
             "🍫": "Production Recommendation Model",
             "prediction": {
                 "production_recommendation": recommendation,
@@ -1717,7 +1717,7 @@ async def get_models_status():
             connectivity = await mlflow_service.check_connectivity()
             
             return {
-                "🏢": "TFM Chocolate Factory - Models Status",
+                "🏢": "Chocolate Factory - Models Status",
                 "🤖": "ML Models Health Check",
                 "mlflow_connection": {
                     "status": connectivity.get("status", "unknown"),
@@ -1760,7 +1760,7 @@ async def get_models_status():
     except Exception as e:
         logger.error(f"Models status check failed: {e}")
         return {
-            "🏢": "TFM Chocolate Factory - Models Status",
+            "🏢": "Chocolate Factory - Models Status",
             "status": "❌ Error checking models",
             "error": str(e),
             "timestamp": datetime.now().isoformat()
@@ -1802,7 +1802,7 @@ async def detect_data_gaps(days_back: int = 7):
             })
         
         return {
-            "🏭": "TFM Chocolate Factory - Gap Analysis",
+            "🏭": "Chocolate Factory - Gap Analysis",
             "🔍": "Análisis de Huecos en Datos",
             "analysis_period": f"Últimos {days_back} días",
             "timestamp": analysis.analysis_timestamp.isoformat(),
@@ -1862,7 +1862,7 @@ async def get_data_summary():
                 weather_status = f"🚨 {int(weather_gap_hours // 24)}d atrasado"
         
         return {
-            "🏭": "TFM Chocolate Factory - Data Summary",
+            "🏭": "Chocolate Factory - Data Summary",
             "📊": "Estado Actual de Datos",
             "timestamp": now.isoformat(),
             "ree_prices": {
@@ -1904,7 +1904,7 @@ async def execute_backfill(
             )
             
             return {
-                "🏭": "TFM Chocolate Factory - Backfill Started",
+                "🏭": "Chocolate Factory - Backfill Started",
                 "🔄": "Proceso de Backfill Iniciado",
                 "status": "🚀 Executing in background",
                 "days_processing": days_back,
@@ -1919,7 +1919,7 @@ async def execute_backfill(
             # Ejecutar síncronamente para pruebas
             result = await backfill_service.execute_intelligent_backfill(days_back)
             return {
-                "🏭": "TFM Chocolate Factory - Backfill Completed",
+                "🏭": "Chocolate Factory - Backfill Completed",
                 "🔄": "Proceso de Backfill Terminado",
                 **result
             }
@@ -1938,7 +1938,7 @@ async def execute_auto_backfill(max_gap_hours: float = 6.0):
         result = await backfill_service.check_and_execute_auto_backfill(max_gap_hours)
         
         return {
-            "🏭": "TFM Chocolate Factory - Auto Backfill",
+            "🏭": "Chocolate Factory - Auto Backfill",
             "🤖": "Backfill Automático Inteligente", 
             **result,
             "timestamp": datetime.now().isoformat()
@@ -1985,7 +1985,7 @@ async def get_dashboard_summary():
         predictions = full_data.get("predictions", {})
         
         summary = {
-            "🏢": "TFM Chocolate Factory - Dashboard Summary",
+            "🏢": "Chocolate Factory - Dashboard Summary",
             "current": {
                 "energy_price": current_info.get("energy", {}).get("price_eur_kwh", 0) if current_info.get("energy") else 0,
                 "temperature": current_info.get("weather", {}).get("temperature", 0) if current_info.get("weather") else 0,
@@ -2016,7 +2016,7 @@ async def get_dashboard_alerts():
         full_data = await dashboard_service.get_complete_dashboard_data()
         
         return {
-            "🏢": "TFM Chocolate Factory - Alertas Activas",
+            "🏢": "Chocolate Factory - Alertas Activas",
             "alerts": full_data["alerts"],
             "alert_counts": {
                 "critical": len([a for a in full_data["alerts"] if a.get("level") == "critical"]),
@@ -2040,7 +2040,7 @@ async def get_dashboard_recommendations():
         full_data = await dashboard_service.get_complete_dashboard_data()
         
         return {
-            "🏢": "TFM Chocolate Factory - Recomendaciones Operativas",
+            "🏢": "Chocolate Factory - Recomendaciones Operativas",
             "recommendations": full_data["recommendations"],
             "priority_count": len(full_data["recommendations"]["priority"]),
             "total_recommendations": sum(len(v) for v in full_data["recommendations"].values() if isinstance(v, list)),
@@ -2095,7 +2095,7 @@ async def serve_enhanced_dashboard():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>TFM Chocolate Factory - Dashboard Avanzado</title>
+        <title>Chocolate Factory - Dashboard Avanzado</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
@@ -2429,7 +2429,7 @@ async def serve_enhanced_dashboard():
         <div class="header">
             <h1>
                 <span>🍫</span>
-                TFM Chocolate Factory - Linares, Andalucía
+                Chocolate Factory - Linares, Andalucía
             </h1>
             <p>Dashboard Avanzado de Monitoreo y Predicciones ML</p>
         </div>
@@ -2628,7 +2628,7 @@ async def serve_enhanced_dashboard():
         </div>
         
         <div class="footer">
-            TFM Chocolate Factory - Linares, Andalucía | Dashboard v0.9.0 | 
+            Chocolate Factory - Linares, Andalucía | Dashboard v0.9.0 | 
             Powered by FastAPI + ML Predictions
         </div>
         
