@@ -1,21 +1,137 @@
-.env
-__pycache__/
-*.pyc
-.pytest_cache/
+# =============================================================================
+# CHOCOLATE FACTORY - GITIGNORE SECURITY
+# =============================================================================
+# CRÍTICO: Protege información sensible antes de subir a GitHub
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 🚨 ARCHIVOS CON SECRETOS Y TOKENS (CRÍTICO - NO SUBIR)
+# -----------------------------------------------------------------------------
+.env*
+!.env.example
+*.key
+*.pem  
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# Tailscale auth keys
+.env.tailscale*
+!.env.tailscale.example
+tskey-*
+tailscale_*.key
+
+# API tokens y secretos
+*secret*
+*token*
+*api-key*
+*password*
+
+# -----------------------------------------------------------------------------
+# 🔐 SSL/TLS CERTIFICATES (CRÍTICO)
+# -----------------------------------------------------------------------------
+ssl/
+certs/
+certificates/
+*.azules-elver.ts.net.*
+
+# -----------------------------------------------------------------------------
+# 💾 DOCKER DATA VOLUMES (CRÍTICO - CONTIENEN DATOS SENSIBLES)
+# -----------------------------------------------------------------------------
+docker/services/*/data/
+docker/services/influxdb/data/
+docker/services/postgres/data/
+docker/services/mlflow/artifacts/
+docker/volumes/
+
+# -----------------------------------------------------------------------------
+# 📊 DATOS SENSIBLES
+# -----------------------------------------------------------------------------
 data/raw/*
 !data/raw/.gitkeep
-venv/
-.vscode/settings.json
-docker/volumes/
+data/processed/*
+!data/processed/.gitkeep
+logs/
 *.log
+*.db
+*.sqlite
+*.sqlite3
 
-# Docker volumes
-docker/services/*/data/
-docker/volumes/
+# -----------------------------------------------------------------------------
+# 🐍 PYTHON
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Ignorar artefactos y datos generados por MLflow
-docker/services/mlflow/
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
 
-# Scripts y directorios de empaquetado
+# Pytest
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+
+# -----------------------------------------------------------------------------
+# 🔨 DEVELOPMENT TOOLS
+# -----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# 📦 DOCKER & DEPLOYMENT
+# -----------------------------------------------------------------------------
+.docker/
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# Scripts de empaquetado
 package-for-windows.sh
 chocolate-factory-package/
+
+# -----------------------------------------------------------------------------
+# 📋 TEMPORARY FILES
+# -----------------------------------------------------------------------------
+*.tmp
+*.temp
+*.bak
+*.backup
+*.cache

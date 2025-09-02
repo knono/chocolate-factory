@@ -981,3 +981,4 @@ curl -I https://chocolate-factory.azules-elver.ts.net/dashboard
 - **A/B Testing**: Compare model versions in production
 - **Enhanced backfill**: Priorización inteligente por criticidad de datos
 - Procura que esté actualizados los datos de las api externas(REE y AEMET) usando los dos enfoques, cuando ha pasado un mes y mes actual. Además recuer openWeahter
+- el backfill debes siempre comprobarlo una vez iniciado el contenedor ya que no siempre está encendido el equipo.
