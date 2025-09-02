@@ -13,14 +13,21 @@ ENV TAILSCALE_USE_WIP_CODE=1
 # Instalar dependencias base
 RUN apk add --no-cache \
     curl \
+    wget \
     nginx \
     ca-certificates \
     iptables \
     bash \
     procps
 
-# Instalar Tailscale directamente desde Alpine repos
-RUN apk add --no-cache tailscale
+# Instalar Tailscale versión 1.86.2 (latest with security fixes)
+# Using official Tailscale packages from pkgs.tailscale.com
+RUN wget -O /tmp/tailscale.tgz https://pkgs.tailscale.com/stable/tailscale_1.86.2_amd64.tgz && \
+    tar -xzf /tmp/tailscale.tgz -C /tmp && \
+    cp /tmp/tailscale_1.86.2_amd64/tailscale /usr/local/bin/ && \
+    cp /tmp/tailscale_1.86.2_amd64/tailscaled /usr/local/bin/ && \
+    chmod +x /usr/local/bin/tailscale /usr/local/bin/tailscaled && \
+    rm -rf /tmp/tailscale.tgz /tmp/tailscale_1.86.2_amd64
 
 # Crear directorios necesarios
 RUN mkdir -p /var/lib/tailscale /var/run/tailscale /etc/nginx/conf.d /var/log/nginx

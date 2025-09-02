@@ -1,5 +1,5 @@
 """
-APScheduler Service for TFM Chocolate Factory
+APScheduler Service for Chocolate Factory
 ===========================================
 
 Automated scheduling service for periodic data ingestion and optimization tasks.

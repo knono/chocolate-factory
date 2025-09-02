@@ -1,4 +1,4 @@
-# System Architecture - TFM Chocolate Factory
+# System Architecture - Chocolate Factory
 
 ## Índice
 1. [Overview](#overview)
@@ -12,7 +12,7 @@
 
 ## Overview
 
-El TFM Chocolate Factory implementa una **arquitectura de 4 contenedores** completamente autónoma con capacidades de **auto-recuperación** y **optimización ML continua**.
+El Chocolate Factory implementa una **arquitectura de 4 contenedores** completamente autónoma con capacidades de **auto-recuperación** y **optimización ML continua**.
 
 ### Core Design Principles
 
