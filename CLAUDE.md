@@ -982,3 +982,5 @@ curl -I https://chocolate-factory.azules-elver.ts.net/dashboard
 - **Enhanced backfill**: Priorización inteligente por criticidad de datos
 - Procura que esté actualizados los datos de las api externas(REE y AEMET) usando los dos enfoques, cuando ha pasado un mes y mes actual. Además recuer openWeahter
 - el backfill debes siempre comprobarlo una vez iniciado el contenedor ya que no siempre está encendido el equipo.
+- procura tener actualizado los datos, usa backfill cuando sea necesario
+- estate pendiente cuando haya datos suficientes para lanzar mlflow
