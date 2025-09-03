@@ -56,47 +56,72 @@ class ChocolateFeatureEngine:
             async with DataIngestionService() as service:
                 query_api = service.client.query_api()
                 
-                # Separar queries para REE y Weather, luego hacer join en pandas
-                # Query REE Energy Data
+                # Calculate UTC timestamps for proper timezone handling
+                from datetime import datetime, timezone, timedelta
+                # Add 1 hour buffer to end_time to catch recent data
+                end_time = datetime.now(timezone.utc) + timedelta(hours=1)
+                start_time = end_time - timedelta(hours=hours_back + 1)
+                
+                # Format timestamps for InfluxDB (RFC3339)
+                start_rfc3339 = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+                end_rfc3339 = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+                
+                logger.info(f"🔍 Querying InfluxDB data from {start_rfc3339} to {end_rfc3339} ({hours_back}h)")
+                
+                # Query REE Energy Data with explicit UTC timestamps and tag filters
                 energy_query = f'''
                 from(bucket: "{service.config.bucket}")
-                |> range(start: -{hours_back}h)
+                |> range(start: {start_rfc3339}, stop: {end_rfc3339})
                 |> filter(fn: (r) => r._measurement == "energy_prices")
                 |> filter(fn: (r) => r._field == "price_eur_kwh")
+                |> filter(fn: (r) => r.provider == "ree" or r.data_source == "ree_historical")
                 |> sort(columns: ["_time"], desc: false)
                 '''
                 
-                # Query Weather Temperature
+                # Query Weather Temperature with explicit UTC timestamps and tag filters
                 temp_query = f'''
                 from(bucket: "{service.config.bucket}")
-                |> range(start: -{hours_back}h)
+                |> range(start: {start_rfc3339}, stop: {end_rfc3339})
                 |> filter(fn: (r) => r._measurement == "weather_data")
                 |> filter(fn: (r) => r._field == "temperature")
+                |> filter(fn: (r) => r.data_source == "openweathermap" or r.station_id == "openweathermap_linares")
                 |> sort(columns: ["_time"], desc: false)
                 '''
                 
-                # Query Weather Humidity
+                # Query Weather Humidity with explicit UTC timestamps and tag filters
                 humidity_query = f'''
                 from(bucket: "{service.config.bucket}")
-                |> range(start: -{hours_back}h)
+                |> range(start: {start_rfc3339}, stop: {end_rfc3339})
                 |> filter(fn: (r) => r._measurement == "weather_data")
                 |> filter(fn: (r) => r._field == "humidity")
+                |> filter(fn: (r) => r.data_source == "openweathermap" or r.station_id == "openweathermap_linares")
                 |> sort(columns: ["_time"], desc: false)
                 '''
                 
-                # Execute queries
+                # Execute queries with debug logging
+                logger.info(f"🔍 Executing energy query...")
                 energy_results = query_api.query(energy_query)
+                
+                logger.info(f"🔍 Executing temperature query...")
                 temp_results = query_api.query(temp_query)
+                
+                logger.info(f"🔍 Executing humidity query...")
                 humidity_results = query_api.query(humidity_query)
                 
                 # Process energy data
                 energy_data = []
+                energy_table_count = 0
                 for table in energy_results:
+                    energy_table_count += 1
+                    record_count = 0
                     for record in table.records:
+                        record_count += 1
                         energy_data.append({
                             'timestamp': record.get_time(),
                             'price_eur_kwh': record.get_value()
                         })
+                    logger.info(f"🔋 Energy table {energy_table_count}: {record_count} records")
+                logger.info(f"🔋 Total energy tables: {energy_table_count}, total records: {len(energy_data)}")
                 
                 # Process temperature data
                 temp_data = []
