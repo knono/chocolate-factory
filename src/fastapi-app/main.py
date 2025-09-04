@@ -24,10 +24,12 @@ from services.aemet_client import AEMETClient
 from services.openweathermap_client import OpenWeatherMapClient
 from services.initialization import InitializationService
 from services.initialization.historical_ingestion import HistoricalDataIngestion
-from services.mlflow_client import MLflowService, get_mlflow_service
-from services.feature_engineering import ChocolateFeatureEngine
-from services.ml_models import ChocolateMLModels
+from services.direct_ml import DirectMLService
 from services.dashboard import DashboardService
+
+# Global service instances (initialized once, shared across the app)
+global_direct_ml = None
+global_dashboard_service = None
 
 # Configurar logging
 logging.basicConfig(
@@ -38,10 +40,35 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def get_global_direct_ml():
+    """Get the global Direct ML service instance"""
+    global global_direct_ml
+    if global_direct_ml is None:
+        global_direct_ml = DirectMLService()
+    return global_direct_ml
+
+
+def get_global_dashboard_service():
+    """Get the global dashboard service instance"""
+    global global_dashboard_service
+    if global_dashboard_service is None:
+        raise RuntimeError("Global dashboard service not initialized")
+    return global_dashboard_service
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gestión del ciclo de vida de la aplicación"""
     logger.info("🧠 Iniciando El Cerebro Autónomo - Chocolate Factory Brain")
+    
+    # Initialize global services (simplified)
+    global global_direct_ml, global_dashboard_service
+    try:
+        global_direct_ml = DirectMLService()
+        global_dashboard_service = DashboardService()
+        logger.info("🤖 Global direct ML services initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize global services: {e}")
     
     try:
         # Iniciar el scheduler automático
@@ -143,6 +170,72 @@ async def health_check():
         "service": "chocolate_factory_brain",
         "message": "🧠 Sistema operativo"
     }
+
+
+@app.get("/debug/raw-ml-data")
+async def debug_raw_ml_data_access():
+    """🔬 DEBUG: Test raw ML data access using EXACT same code as /influxdb/verify"""
+    try:
+        async with DataIngestionService() as service:
+            query_api = service.client.query_api()
+            
+            # Use EXACT same query as /influxdb/verify (known working)
+            energy_query = f'''
+                from(bucket: "{service.config.bucket}")
+                |> range(start: -3h)
+                |> filter(fn: (r) => r._measurement == "energy_prices")
+                |> filter(fn: (r) => r._field == "price_eur_kwh")
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 10)
+            '''
+            
+            weather_query = f'''
+                from(bucket: "{service.config.bucket}")
+                |> range(start: -3h)
+                |> filter(fn: (r) => r._measurement == "weather_data")
+                |> filter(fn: (r) => r._field == "temperature")
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 10)
+            '''
+            
+            energy_results = query_api.query(energy_query)
+            weather_results = query_api.query(weather_query)
+            
+            # Process results exactly like /influxdb/verify does
+            energy_data = []
+            for table in energy_results:
+                for record in table.records:
+                    energy_data.append({
+                        'timestamp': record.get_time(),
+                        'price_eur_kwh': record.get_value()
+                    })
+                    
+            weather_data = []
+            for table in weather_results:
+                for record in table.records:
+                    weather_data.append({
+                        'timestamp': record.get_time(),
+                        'temperature': record.get_value()
+                    })
+            
+            return {
+                "🔬": "DEBUG: Raw ML Data Access Test",
+                "status": "✅ SUCCESS - Data accessible",
+                "energy_records": len(energy_data),
+                "weather_records": len(weather_data),
+                "energy_sample": energy_data[:3] if energy_data else [],
+                "weather_sample": weather_data[:3] if weather_data else [],
+                "bucket": service.config.bucket,
+                "can_create_ml_features": len(energy_data) > 0 and len(weather_data) > 0
+            }
+            
+    except Exception as e:
+        return {
+            "🔬": "DEBUG: Raw ML Data Access Test", 
+            "status": "❌ FAILED",
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
 
 
 @app.get("/predict")
@@ -1331,7 +1424,13 @@ async def mlflow_web_interface_check():
 async def generate_chocolate_features(hours_back: int = 24):
     """⚙️ Feature Engineering - Generar features para modelos de chocolate"""
     try:
-        feature_engine = ChocolateFeatureEngine()
+        # feature_engine = get_global_feature_engine()  # TODO: Update to DirectML
+        return {
+            "🏢": "Chocolate Factory - Feature Engineering",
+            "status": "⚠️ Feature endpoint temporarily disabled during MLflow migration",
+            "alternative": "Use GET /models/data-debug for data analysis",
+            "hours_requested": hours_back
+        }
         
         # Generate feature sets
         feature_sets = await feature_engine.generate_feature_set(hours_back)
@@ -1424,7 +1523,7 @@ async def train_chocolate_models(
 ):
     """🤖 Entrenar modelos ML para optimización de chocolate (Cuartel General ML)"""
     try:
-        ml_models = ChocolateMLModels()
+        ml_models = get_global_ml_models()
         
         if background_tasks:
             # Run training in background for all models
@@ -1562,56 +1661,37 @@ async def train_chocolate_models(
 
 @app.post("/predict/energy-optimization")
 async def predict_energy_optimization(request: PredictionRequest):
-    """Predecir score de optimización energética"""
+    """🔮 Predecir score de optimización energética usando ML directo"""
     try:
-        # Create feature engineering instance
-        feature_engine = ChocolateFeatureEngine()
+        direct_ml = get_global_direct_ml()
         
-        # Calculate derived features
-        features = {
-            'price_eur_kwh': request.price_eur_kwh,
-            'temperature': request.temperature,
-            'humidity': request.humidity
-        }
+        # Log prediction request
+        logger.info(f"🔮 Energy optimization prediction: price={request.price_eur_kwh}, temp={request.temperature}, humidity={request.humidity}")
         
-        # Calculate energy features (simplified for prediction)
-        energy_cost_index = min(100, max(0, (request.price_eur_kwh - 0.05) / (0.35 - 0.05) * 100))
-        
-        # Calculate weather features
-        optimal_temp_center = 21  # °C
-        temp_deviation = abs(request.temperature - optimal_temp_center)
-        temperature_comfort_index = max(0, 100 - (temp_deviation * 10))
-        
-        optimal_humidity_center = 55  # %
-        humidity_deviation = abs(request.humidity - optimal_humidity_center)
-        humidity_stress_factor = humidity_deviation / optimal_humidity_center * 100
-        
-        # Calculate energy optimization score (simplified)
-        energy_optimization_score = (
-            (100 - energy_cost_index) * 0.7 + 
-            temperature_comfort_index * 0.3
+        # Make prediction using direct ML service
+        prediction_result = direct_ml.predict_energy_optimization(
+            price_eur_kwh=request.price_eur_kwh,
+            temperature=request.temperature,
+            humidity=request.humidity
         )
-        energy_optimization_score = max(0, min(100, energy_optimization_score))
         
-        response = {
-            "🏢": "Chocolate Factory - Energy Prediction",
-            "🤖": "Energy Optimization Model",
-            "prediction": {
-                "energy_optimization_score": round(energy_optimization_score, 2),
-                "confidence": "high" if abs(request.temperature - 21) < 3 else "medium",
-                "recommendation": "optimal" if energy_optimization_score >= 75 else "suboptimal"
+        return {
+            "🏢": "Chocolate Factory - Energy Optimization",
+            "🔮": "Direct ML Prediction Service", 
+            "status": "✅ Prediction completed",
+            "prediction": prediction_result,
+            "input_features": {
+                "price_eur_kwh": request.price_eur_kwh,
+                "temperature": request.temperature,
+                "humidity": request.humidity
             },
-            "input_features": features
+            "model_info": {
+                "type": "direct_ml_sklearn", 
+                "version": "2.0",
+                "backend": "RandomForestRegressor"
+            },
+            "timestamp": datetime.now().isoformat()
         }
-        
-        if request.include_features:
-            response["engineered_features"] = {
-                "energy_cost_index": round(energy_cost_index, 2),
-                "temperature_comfort_index": round(temperature_comfort_index, 2),
-                "humidity_stress_factor": round(humidity_stress_factor, 2)
-            }
-        
-        return response
         
     except Exception as e:
         logger.error(f"Energy prediction failed: {e}")
@@ -1713,49 +1793,18 @@ async def predict_production_recommendation(request: PredictionRequest):
 async def get_models_status():
     """Estado y métricas de los modelos ML"""
     try:
-        async with get_mlflow_service() as mlflow_service:
-            connectivity = await mlflow_service.check_connectivity()
-            
-            return {
-                "🏢": "Chocolate Factory - Models Status",
-                "🤖": "ML Models Health Check",
-                "mlflow_connection": {
-                    "status": connectivity.get("status", "unknown"),
-                    "experiments_count": connectivity.get("experiments_count", 0),
-                    "tracking_uri": connectivity.get("tracking_uri", "unknown")
-                },
-                "models": {
-                    "energy_optimization": {
-                        "name": "chocolate_energy_optimizer",
-                        "type": "RandomForestRegressor",
-                        "status": "trained",
-                        "last_r2_score": "0.8876",
-                        "features": 8,
-                        "target": "energy_optimization_score"
-                    },
-                    "production_classifier": {
-                        "name": "chocolate_production_classifier", 
-                        "type": "RandomForestClassifier",
-                        "status": "trained",
-                        "last_accuracy": "0.9000",
-                        "features": 8,
-                        "classes": ["Optimal_Production", "Moderate_Production", "Reduced_Production", "Halt_Production"]
-                    }
-                },
-                "data_pipeline": {
-                    "real_samples": 11,
-                    "synthetic_samples": 39,
-                    "total_samples": 50,
-                    "feature_engineering": "operational"
-                },
-                "endpoints": {
-                    "energy_prediction": "POST /predict/energy-optimization",
-                    "production_prediction": "POST /predict/production-recommendation",
-                    "model_training": "POST /mlflow/train",
-                    "mlflow_ui": "http://localhost:5000"
-                },
-                "timestamp": datetime.now().isoformat()
-            }
+        direct_ml = get_global_direct_ml()
+        
+        # Get models status
+        models_status = direct_ml.get_models_status()
+        
+        return {
+            "🏢": "Chocolate Factory - Models Status",
+            "🤖": "Direct ML Service",
+            "status": "✅ Models status retrieved",
+            "models": models_status,
+            "timestamp": datetime.now().isoformat()
+        }
             
     except Exception as e:
         logger.error(f"Models status check failed: {e}")
@@ -1966,7 +2015,7 @@ async def _execute_backfill_background(backfill_service, days_back: int):
 async def get_complete_dashboard():
     """🎯 Dashboard completo con información, predicciones y recomendaciones"""
     try:
-        dashboard_service = DashboardService()
+        dashboard_service = get_global_dashboard_service()
         return await dashboard_service.get_complete_dashboard_data()
     except Exception as e:
         logger.error(f"Complete dashboard failed: {e}")
@@ -1977,7 +2026,7 @@ async def get_complete_dashboard():
 async def get_dashboard_summary():
     """📊 Resumen rápido para el dashboard Node-RED"""
     try:
-        dashboard_service = DashboardService()
+        dashboard_service = get_global_dashboard_service()
         full_data = await dashboard_service.get_complete_dashboard_data()
         
         # Extraer solo la información esencial para Node-RED
@@ -2012,7 +2061,7 @@ async def get_dashboard_summary():
 async def get_dashboard_alerts():
     """🚨 Alertas activas del sistema"""
     try:
-        dashboard_service = DashboardService()
+        dashboard_service = get_global_dashboard_service()
         full_data = await dashboard_service.get_complete_dashboard_data()
         
         return {
@@ -2036,7 +2085,7 @@ async def get_dashboard_alerts():
 async def get_dashboard_recommendations():
     """💡 Recomendaciones operativas actuales"""
     try:
-        dashboard_service = DashboardService()
+        dashboard_service = get_global_dashboard_service()
         full_data = await dashboard_service.get_complete_dashboard_data()
         
         return {
@@ -2054,36 +2103,6 @@ async def get_dashboard_recommendations():
 
 # === BACKGROUND TASKS ===
 
-async def _train_all_models_background(ml_models: ChocolateMLModels):
-    """Background task para entrenar todos los modelos"""
-    try:
-        logger.info("🚀 Background: Starting all models training")
-        all_metrics = await ml_models.train_all_models()
-        logger.info(f"✅ Background: All models trained successfully")
-        logger.info(f"📊 Energy R2: {all_metrics['energy_optimization'].r2:.4f}")
-        logger.info(f"📊 Classifier Accuracy: {all_metrics['production_classifier'].accuracy:.4f}")
-    except Exception as e:
-        logger.error(f"❌ Background: All models training failed: {e}")
-
-
-async def _train_energy_model_background(ml_models: ChocolateMLModels):
-    """Background task para entrenar modelo energético"""
-    try:
-        logger.info("🚀 Background: Starting energy optimization model training")
-        metrics = await ml_models.train_energy_optimization_model()
-        logger.info(f"✅ Background: Energy optimization model trained (R2: {metrics.r2:.4f})")
-    except Exception as e:
-        logger.error(f"❌ Background: Energy model training failed: {e}")
-
-
-async def _train_classifier_background(ml_models: ChocolateMLModels):
-    """Background task para entrenar clasificador"""
-    try:
-        logger.info("🚀 Background: Starting production classifier training")
-        metrics = await ml_models.train_production_classifier()
-        logger.info(f"✅ Background: Production classifier trained (Accuracy: {metrics.accuracy:.4f})")
-    except Exception as e:
-        logger.error(f"❌ Background: Classifier training failed: {e}")
 
 
 # === DASHBOARD MEJORADO ===
@@ -2770,6 +2789,137 @@ async def serve_enhanced_dashboard():
     </body>
     </html>
     """)
+
+
+# =============================================================================
+# DIRECT ML ENDPOINTS (No MLflow dependency)
+# =============================================================================
+
+@app.post("/models/train")
+async def train_chocolate_models_direct(
+    background_tasks: BackgroundTasks = None
+):
+    """🤖 Entrenar modelos ML directamente sin MLflow"""
+    try:
+        if background_tasks:
+            logger.info("🚀 Iniciando entrenamiento directo en background...")
+            background_tasks.add_task(_run_direct_training_background)
+            return {
+                "status": "training_started",
+                "message": "🚀 Entrenamiento ML directo iniciado en background",
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # Direct training (synchronous)
+        logger.info("🤖 Entrenando modelos ML directamente...")
+        
+        direct_ml = get_global_direct_ml()
+        
+        # Train models using direct approach
+        training_results = await direct_ml.train_models()
+        
+        if not training_results.get("success"):
+            return {
+                "status": "training_failed",
+                "error": training_results.get("error", "Unknown error"),
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        return {
+            "status": "success",
+            "message": "✅ Modelos entrenados exitosamente con enfoque directo",
+            "results": training_results,
+            "timestamp": datetime.now().isoformat(),
+            "next_actions": {
+                "verify_models": "GET /models/status",
+                "test_predictions": "POST /predict/energy-optimization"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Direct model training failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Direct model training failed: {str(e)}")
+
+
+async def _run_direct_training_background():
+    """Background task for direct ML training"""
+    try:
+        logger.info("🔄 Background direct ML training started...")
+        
+        direct_ml = get_global_direct_ml()
+        
+        # Train models
+        training_results = await direct_ml.train_models()
+        
+        if training_results.get("success"):
+            logger.info(f"✅ Background direct ML training completed: {training_results}")
+        else:
+            logger.error(f"❌ Background direct ML training failed: {training_results}")
+        
+    except Exception as e:
+        logger.error(f"Background direct ML training failed: {e}")
+
+
+@app.get("/models/status-direct")
+async def get_direct_models_status():
+    """📊 Estado de los modelos ML directos"""
+    try:
+        direct_ml = get_global_direct_ml()
+        
+        # Get models status
+        models_status = direct_ml.get_models_status()
+        
+        return {
+            "🏢": "Chocolate Factory - Direct ML Models Status", 
+            "🤖": "Direct ML Service",
+            "status": "✅ Models status retrieved",
+            "models": models_status,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get models status: {e}")
+        raise HTTPException(status_code=500, detail=f"Models status failed: {str(e)}")
+
+
+@app.get("/models/data-debug")
+async def debug_training_data():
+    """🔍 Debug: Verificar datos disponibles para entrenamiento"""
+    try:
+        direct_ml = get_global_direct_ml()
+        
+        # Extract data to see what's available
+        df = await direct_ml.extract_data_from_influxdb(hours_back=168)
+        
+        if df.empty:
+            return {
+                "status": "❌ No data available",
+                "data_summary": "No merged data found",
+                "recommendation": "Check InfluxDB data and timestamps alignment"
+            }
+        
+        return {
+            "🔍": "Training Data Debug",
+            "status": "✅ Data analysis completed",
+            "data_summary": {
+                "total_records": len(df),
+                "columns": list(df.columns),
+                "sample_data": df.head(3).to_dict(orient='records') if len(df) > 0 else [],
+                "timestamp_range": {
+                    "earliest": df['timestamp'].min().isoformat() if 'timestamp' in df.columns else None,
+                    "latest": df['timestamp'].max().isoformat() if 'timestamp' in df.columns else None
+                }
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to debug training data: {e}")
+        return {
+            "status": "❌ Debug failed", 
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
 
 
 if __name__ == "__main__":

@@ -46,7 +46,7 @@ docker/services/mlflow/artifacts/
 docker/volumes/
 
 # -----------------------------------------------------------------------------
-# 📊 DATOS SENSIBLES
+# 📊 DATOS SENSIBLES Y MODELOS ML
 # -----------------------------------------------------------------------------
 data/raw/*
 !data/raw/.gitkeep
@@ -57,6 +57,13 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+
+# Modelos ML entrenados (contienen datos sensibles del entrenamiento)
+models/
+!models/.gitkeep
+*.pkl
+*.joblib
+*.model
 
 # -----------------------------------------------------------------------------
 # 🐍 PYTHON

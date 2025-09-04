@@ -35,11 +35,20 @@ class DashboardData:
 class DashboardService:
     """Servicio principal del dashboard completo"""
     
-    def __init__(self):
+    def __init__(self, ml_models=None, feature_engine=None):
         self.ree_client = REEClient()
         self.weather_client = OpenWeatherMapClient()
-        self.ml_models = ChocolateMLModels()
-        self.feature_engine = ChocolateFeatureEngine()
+        
+        # Use provided instances or create new ones (backward compatibility)
+        if ml_models is not None:
+            self.ml_models = ml_models
+        else:
+            self.ml_models = ChocolateMLModels()
+            
+        if feature_engine is not None:
+            self.feature_engine = feature_engine
+        else:
+            self.feature_engine = ChocolateFeatureEngine()
         
     async def get_complete_dashboard_data(self) -> Dict[str, Any]:
         """Obtiene todos los datos consolidados para el dashboard"""

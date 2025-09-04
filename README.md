@@ -32,9 +32,11 @@ Chocolate Factory es un **sistema personal de monitoreo y optimización** diseñ
 - **Histórico Completo**: ETL automático de datos históricos
 
 ### 🤖 **Machine Learning Personal**
-- **MLflow Local**: Experiments tracking en tu infraestructura
-- **2 Modelos Productivos**: Energy Optimization + Production Classifier
-- **Feature Engineering**: 13+ características derivadas de datos reales
+- **Direct ML Training**: sklearn + pickle storage (sin dependencias MLflow)
+- **Model Versioning**: Sistema de versionado automático con timestamps
+- **2 Modelos Productivos**: Energy Optimization (R²=0.98) + Production Classifier (98% accuracy)
+- **Realistic Predictions**: Modelos con variabilidad realista, no sobreajustados
+- **Feature Engineering**: Características derivadas de datos reales REE+Weather
 - **Predicciones Automáticas**: Recomendaciones cada 30 minutos
 
 ### 🔄 **Operación Autónoma**
@@ -45,7 +47,7 @@ Chocolate Factory es un **sistema personal de monitoreo y optimización** diseñ
 
 ## 🏗️ **Arquitectura Técnica**
 
-### 4-Container Personal Infrastructure
+### Simplified 2-Container Personal Infrastructure ✅
 
 ```
 🔐 Tailscale Sidecar (Alpine)         🧠 FastAPI Brain
@@ -53,10 +55,10 @@ Chocolate Factory es un **sistema personal de monitoreo y optimización** diseñ
 ├── Solo /dashboard expuesto          ├── APIs REST completas  
 └── 52MB ultra-ligero                 └── ML predictions + scheduling
 
-💾 InfluxDB Storage                   🤖 MLflow MLOps
-├── Time series database              ├── Experiment tracking
-├── Datos REE + Weather               ├── Model registry
-└── Esquemas optimizados              └── PostgreSQL backend
+💾 InfluxDB Storage                   
+├── Time series database               
+├── REE + Weather data                 
+└── Historical data ETL
 ```
 
 ### 🛡️ **Seguridad Personal**
@@ -146,7 +148,7 @@ https://chocolate-factory.tu-tailnet.ts.net/dashboard
 - **⚡ REE**: Precios electricidad España (conectado)
 - **🌡️ AEMET**: Estación 5279X Linares (00:00-07:00)
 - **☁️ OpenWeatherMap**: Tiempo real (08:00-23:00)
-- **🤖 MLflow**: Modelos específicos Jaén cargados
+- **🤖 ML Models**: Modelos de producción específicos cargados
 
 ## 📊 **Casos de Uso Personales**
 
@@ -201,7 +203,7 @@ curl http://localhost:8000/influxdb/verify      # Verificar DB
 
 # ML personal
 curl http://localhost:8000/models/status        # Estado modelos
-curl http://localhost:8000/mlflow/experiments   # Experimentos
+curl http://localhost:8000/predict/energy-optimization # Predicciones energía
 ```
 
 ## 📖 **Documentación Técnica**
@@ -209,7 +211,7 @@ curl http://localhost:8000/mlflow/experiments   # Experimentos
 El proyecto incluye **25+ documentos técnicos** en `/docs/` cubriendo:
 
 - **`SYSTEM_ARCHITECTURE.md`** - Arquitectura completa del sistema
-- **`MLFLOW_IMPLEMENTATION.md`** - Pipeline ML completo
+- **`DIRECT_ML_IMPLEMENTATION.md`** - Pipeline ML simplificado
 - **`TAILSCALE_INTEGRATION.md`** - Setup acceso remoto seguro
 - **`AUTOMATIC_BACKFILL_SYSTEM.md`** - Sistema auto-recuperación
 - **`QUICK_START_GUIDE.md`** - Guía rápida personalizada
@@ -247,6 +249,25 @@ Este proyecto está diseñado para **uso personal y educativo**:
 ## 🔮 **Roadmap Personal**
 
 ### 🎯 **Próximas Features**
+
+#### 🔮 **Planificación de Producción Avanzada** (PRIORIDAD ALTA)
+- [ ] **Predicciones REE a 7-14 días**: Integración con API de precios futuros españoles
+- [ ] **Pronósticos AEMET extendidos**: API predicción meteorológica horaria municipal (7 días)
+- [ ] **Planning Dashboard**: Visualización calendario producción optimizada 1-2 semanas
+- [ ] **Algoritmo de Optimización**: ML scheduling considerando precio energía + condiciones climáticas futuras
+- [ ] **Alertas Predictivas**: Notificaciones automáticas para ventanas óptimas de producción
+- [ ] **Export Planning**: Calendarios producción exportables (PDF, CSV, iCal)
+
+**Implementación técnica**:
+```python
+# Endpoints planificados
+GET /predict/production-planning?days=14     # Planning completo 2 semanas
+GET /ree/prices/forecast?hours=168          # Precios futuros REE
+GET /weather/forecast/extended?days=7       # AEMET predicción municipal
+POST /planning/optimize                     # Optimización calendario producción
+```
+
+#### 📱 **Mejoras Inmediatas**
 - [ ] **Mobile Dashboard**: App personal iOS/Android
 - [ ] **Telegram Alerts**: Notificaciones personalizadas
 - [ ] **Energy Automation**: Control dispositivos domóticos

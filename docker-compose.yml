@@ -27,7 +27,6 @@ services:
       - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
       # Conexiones internas Docker
       - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
-      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI_DOCKER}
       - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
       - INFLUXDB_ORG=${INFLUXDB_ORG}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
@@ -35,10 +34,9 @@ services:
       - ./data:/app/data
       - ./src/configs:/app/configs
       - ./docker/services/fastapi/logs:/app/logs
-      - ./docker/services/mlflow/artifacts:/mlflow/artifacts
+      - ./models:/app/models
     depends_on:
       - influxdb
-      - mlflow
     networks:
       - backend
     restart: unless-stopped
@@ -75,57 +73,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # ---------------------------------------------------------------------------
-  # 3. CUARTEL GENERAL ML - PostgreSQL (para MLflow)
-  # ---------------------------------------------------------------------------
-  postgres:
-    image: postgres:15
-    container_name: chocolate_factory_postgres
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    volumes:
-      - ./docker/services/postgres/data:/var/lib/postgresql/data
-    networks:
-      - backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ---------------------------------------------------------------------------
-  # 4. CUARTEL GENERAL ML - MLflow Server
-  # ---------------------------------------------------------------------------
-  mlflow:
-    image: python:3.11-slim
-    container_name: chocolate_factory_mlops
-    ports:
-      - "${MLFLOW_PORT:-5000}:5000"
-    environment:
-      - MLFLOW_BACKEND_STORE_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
-    volumes:
-      - ./docker/services/mlflow/artifacts:/mlflow/artifacts
-    depends_on:
-      - postgres
-    networks:
-      - backend
-    restart: unless-stopped
-    command: >
-      sh -c "pip install mlflow==2.8.1 psycopg2-binary &&
-      mlflow server
-      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      --default-artifact-root /mlflow/artifacts
-      --host 0.0.0.0
-      --port 5000"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/version')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # ---------------------------------------------------------------------------
   # 5. EL MONITOR - Dashboard integrado en FastAPI (Reflex reemplaza Node-RED)
