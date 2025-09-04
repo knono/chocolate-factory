@@ -67,7 +67,7 @@ class DashboardService:
             
             dashboard_data = {
                 "🏢": "Chocolate Factory - Dashboard Completo",
-                "📊": "El Monitor - Información, Predicción y Recomendaciones",
+                "📊": "El Monitor - Información, Predicción y Recomendaciones (Direct ML)",
                 "current_info": current_info,
                 "predictions": predictions,
                 "recommendations": recommendations,
@@ -78,7 +78,7 @@ class DashboardService:
                     "data_sources": {
                         "ree": "✅ Conectado",
                         "weather": "✅ Conectado", 
-                        "mlflow": "✅ Modelos cargados"
+                        "ml_models": "✅ Modelos cargados (Direct ML)"
                     }
                 },
                 "timestamp": datetime.now().isoformat()
@@ -172,7 +172,7 @@ class DashboardService:
                 predictions = {
                     "energy_optimization": {
                         "score": energy_pred.get("prediction", {}).get("energy_optimization_score", 0),
-                        "confidence": energy_pred.get("prediction", {}).get("confidence", "unknown"),
+                        # Removed confidence field as it's always "unknown"
                         "recommendation": energy_pred.get("prediction", {}).get("recommendation", "unknown")
                     },
                     "production_recommendation": {

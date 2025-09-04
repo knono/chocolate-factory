@@ -2616,8 +2616,8 @@ async def serve_enhanced_dashboard():
                         </div>
                         <div class="data-source-item">
                             <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">🤖</div>
-                            <div style="font-size: 0.85rem; font-weight: bold;">MLflow</div>
-                            <div style="font-size: 0.75rem;">Modelos específicos Jaén</div>
+                            <div style="font-size: 0.85rem; font-weight: bold;">Direct ML</div>
+                            <div style="font-size: 0.75rem;">Modelos sklearn locales</div>
                         </div>
                     </div>
                 </div>
@@ -2639,8 +2639,8 @@ async def serve_enhanced_dashboard():
                         <span id="weather-status">--</span>
                     </div>
                     <div class="data-source">
-                        <span>MLflow (ML)</span>
-                        <span id="mlflow-status">--</span>
+                        <span>Direct ML</span>
+                        <span id="ml-models-status">--</span>
                     </div>
                 </div>
             </div>
@@ -2771,7 +2771,7 @@ async def serve_enhanced_dashboard():
                     
                     document.getElementById('ree-status').textContent = sources.ree || '--';
                     document.getElementById('weather-status').textContent = sources.weather || '--';
-                    document.getElementById('mlflow-status').textContent = sources.mlflow || '--';
+                    document.getElementById('ml-models-status').textContent = sources.ml_models || '--';
                     
                 } catch (error) {
                     document.getElementById('status').textContent = '❌ Error de conexión';
