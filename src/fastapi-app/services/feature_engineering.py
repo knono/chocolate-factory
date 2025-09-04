@@ -67,35 +67,37 @@ class ChocolateFeatureEngine:
                 end_rfc3339 = end_time.strftime('%Y-%m-%dT%H:%M:%SZ')
                 
                 logger.info(f"🔍 Querying InfluxDB data from {start_rfc3339} to {end_rfc3339} ({hours_back}h)")
+                logger.debug(f"🔍 Start time: {start_time}")
+                logger.debug(f"🔍 End time: {end_time}")
+                logger.debug(f"🔍 Current UTC time: {datetime.now(timezone.utc)}")
                 
-                # Query REE Energy Data with explicit UTC timestamps and tag filters
+                # Use the SAME query pattern that works in /influxdb/verify
                 energy_query = f'''
                 from(bucket: "{service.config.bucket}")
-                |> range(start: {start_rfc3339}, stop: {end_rfc3339})
+                |> range(start: -{hours_back}h)
                 |> filter(fn: (r) => r._measurement == "energy_prices")
                 |> filter(fn: (r) => r._field == "price_eur_kwh")
-                |> filter(fn: (r) => r.provider == "ree" or r.data_source == "ree_historical")
-                |> sort(columns: ["_time"], desc: false)
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 168)
                 '''
                 
-                # Query Weather Temperature with explicit UTC timestamps and tag filters
+                # Use the SAME query pattern for weather that works in /influxdb/verify
                 temp_query = f'''
                 from(bucket: "{service.config.bucket}")
-                |> range(start: {start_rfc3339}, stop: {end_rfc3339})
+                |> range(start: -{hours_back}h)
                 |> filter(fn: (r) => r._measurement == "weather_data")
                 |> filter(fn: (r) => r._field == "temperature")
-                |> filter(fn: (r) => r.data_source == "openweathermap" or r.station_id == "openweathermap_linares")
-                |> sort(columns: ["_time"], desc: false)
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 300)
                 '''
                 
-                # Query Weather Humidity with explicit UTC timestamps and tag filters
                 humidity_query = f'''
                 from(bucket: "{service.config.bucket}")
-                |> range(start: {start_rfc3339}, stop: {end_rfc3339})
+                |> range(start: -{hours_back}h)
                 |> filter(fn: (r) => r._measurement == "weather_data")
                 |> filter(fn: (r) => r._field == "humidity")
-                |> filter(fn: (r) => r.data_source == "openweathermap" or r.station_id == "openweathermap_linares")
-                |> sort(columns: ["_time"], desc: false)
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 300)
                 '''
                 
                 # Execute queries with debug logging
@@ -122,6 +124,8 @@ class ChocolateFeatureEngine:
                         })
                     logger.info(f"🔋 Energy table {energy_table_count}: {record_count} records")
                 logger.info(f"🔋 Total energy tables: {energy_table_count}, total records: {len(energy_data)}")
+                if len(energy_data) > 0:
+                    logger.info(f"🔋 Energy sample: {energy_data[0]}")
                 
                 # Process temperature data
                 temp_data = []
@@ -131,6 +135,10 @@ class ChocolateFeatureEngine:
                             'timestamp': record.get_time(),
                             'temperature': record.get_value()
                         })
+                
+                logger.info(f"🌡️ Total temperature records: {len(temp_data)}")
+                if len(temp_data) > 0:
+                    logger.info(f"🌡️ Temperature sample: {temp_data[0]}")
                 
                 # Process humidity data
                 humidity_data = []
@@ -171,6 +179,10 @@ class ChocolateFeatureEngine:
                 
         except Exception as e:
             logger.error(f"Failed to extract raw data: {e}")
+            logger.error(f"Error type: {type(e)}")
+            logger.error(f"Energy query: {energy_query}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return pd.DataFrame()
     
     def calculate_energy_features(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -278,12 +290,20 @@ class ChocolateFeatureEngine:
     
     async def generate_feature_set(self, hours_back: int = 48, include_synthetic: bool = False) -> List[FeatureSet]:
         """Generar conjunto completo de features"""
+        logger.info(f"🔍 generate_feature_set called with hours_back={hours_back}, include_synthetic={include_synthetic}")
         try:
             # Extract raw data
             df = await self.extract_raw_data(hours_back)
             if df.empty:
                 logger.warning("No raw data available for feature engineering")
-                return []
+                if not include_synthetic:
+                    logger.info("🚫 Synthetic data disabled, returning empty list")
+                    return []
+                else:
+                    logger.info("🔄 Generating synthetic data since no real data available")
+                    # Generate synthetic base data
+                    df = self._generate_synthetic_base_data(target_samples=50)
+                    logger.info(f"🔄 Synthetic base data generated: {len(df)} rows")
             
             # Calculate all features
             df = self.calculate_energy_features(df)
@@ -353,6 +373,63 @@ class ChocolateFeatureEngine:
             })
         
         return pd.DataFrame(data)
+    
+    def _generate_synthetic_base_data(self, target_samples: int = 50) -> pd.DataFrame:
+        """Generar datos sintéticos base cuando no hay datos reales"""
+        synthetic_data = []
+        current_time = pd.Timestamp.now()
+        
+        # Definir rangos realistas para España
+        price_ranges = {
+            'low': (0.05, 0.15),      # Valle nocturno
+            'medium': (0.15, 0.25),   # Llano
+            'high': (0.25, 0.35)      # Punta
+        }
+        
+        temp_ranges = {
+            'cold': (5, 15),          # Invierno
+            'optimal': (18, 24),      # Óptimo chocolate
+            'warm': (25, 30),         # Verano
+            'hot': (31, 40)           # Ola calor
+        }
+        
+        humidity_ranges = {
+            'low': (30, 45),          # Seco
+            'optimal': (45, 65),      # Óptimo chocolate
+            'high': (65, 85)          # Húmedo
+        }
+        
+        # Generar combinaciones diversas
+        scenarios = [
+            ('low', 'optimal', 'optimal'),     # Optimal production
+            ('medium', 'optimal', 'optimal'),  # Moderate production
+            ('high', 'warm', 'high'),          # Reduced production
+            ('high', 'hot', 'high'),           # Halt production
+        ]
+        
+        for i in range(target_samples):
+            # Seleccionar escenario (rotando para diversidad)
+            scenario = scenarios[i % len(scenarios)]
+            price_cat, temp_cat, humidity_cat = scenario
+            
+            # Generar valores dentro de rangos
+            price = np.random.uniform(*price_ranges[price_cat])
+            temperature = np.random.uniform(*temp_ranges[temp_cat])
+            humidity = np.random.uniform(*humidity_ranges[humidity_cat])
+            
+            # Generar timestamp (últimas 72 horas)
+            hours_ago = np.random.randint(0, 72)
+            timestamp = current_time - pd.Timedelta(hours=hours_ago)
+            
+            synthetic_data.append({
+                'timestamp': timestamp,
+                'price_eur_kwh': price,
+                'temperature': temperature,
+                'humidity': humidity
+            })
+        
+        logger.info(f"🔄 Generated {len(synthetic_data)} synthetic base samples")
+        return pd.DataFrame(synthetic_data)
     
     def _generate_synthetic_data(self, base_df: pd.DataFrame, target_samples: int = 50) -> pd.DataFrame:
         """Generar datos sintéticos para aumentar diversidad de clases"""

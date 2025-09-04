@@ -61,10 +61,6 @@ services:
     ports:
       - "${INFLUXDB_PORT:-8086}:8086"   # Mantener para administración
     
-  # MLflow: Mantener puerto para desarrollo
-  mlflow:
-    ports:
-      - "${MLFLOW_PORT:-5000}:5000"     # Mantener para desarrollo
 
 # =============================================================================
 # VOLÚMENES PERSISTENTES

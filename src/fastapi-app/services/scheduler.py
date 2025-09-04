@@ -597,53 +597,52 @@ class SchedulerService:
             )
     
     async def _ml_training_job(self):
-        """Scheduled job for ML model training/retraining"""
+        """Scheduled job for direct ML model training (no MLflow)"""
         job_start = datetime.now()
         
         try:
-            logger.info("🤖 Starting scheduled ML model training job")
+            logger.info("🤖 Starting scheduled direct ML training job")
             
-            # Import MLflow training models
-            from services.ml_models import ChocolateMLModels
+            # Import direct ML service
+            from services.direct_ml import DirectMLService
             
-            # Initialize ML models service
-            ml_models = ChocolateMLModels()
+            # Initialize direct ML service
+            direct_ml = DirectMLService()
             
-            # Check if we have enough data for training
-            # Prepare training data to validate sample count
-            try:
-                X, targets = await ml_models.prepare_training_data()
-                sample_count = len(X)
-                
-                if sample_count < 10:
-                    logger.warning(f"⚠️ ML training skipped - insufficient data: {sample_count} samples (need ≥10)")
-                    return
-                
-                logger.info(f"📊 Training with {sample_count} samples")
-                
-            except Exception as data_error:
-                logger.warning(f"⚠️ ML training skipped - data preparation failed: {data_error}")
+            # Train models using direct approach
+            training_results = await direct_ml.train_models()
+            
+            if not training_results.get("success"):
+                logger.error(f"❌ ML training failed: {training_results.get('error', 'Unknown error')}")
                 return
             
-            # Train all models (both energy optimization and production classifier)
-            training_results = await ml_models.train_all_models()
-            
             # Log training results
-            logger.info("🎯 ML Training Results:")
-            for model_name, metrics in training_results.items():
-                if model_name == "energy_optimization":
-                    logger.info(f"   🔋 Energy Model: R² = {metrics.r2:.4f}, MAE = {metrics.mae:.4f}")
-                elif model_name == "production_classifier":
-                    logger.info(f"   🍫 Production Model: Accuracy = {metrics.accuracy:.4f}")
-                
-                logger.info(f"   ⏱️  {model_name}: {metrics.training_time_seconds:.1f}s, {metrics.training_samples} samples")
+            logger.info("🎯 Direct ML Training Results:")
+            
+            # Energy model results
+            if "energy_model" in training_results:
+                energy_metrics = training_results["energy_model"]
+                logger.info(f"   🔋 Energy Model: R² = {energy_metrics.get('r2_score', 0):.4f}")
+                logger.info(f"   📊 Training samples: {energy_metrics.get('training_samples', 0)}")
+                logger.info(f"   ✅ Model saved: {energy_metrics.get('saved', False)}")
+            
+            # Production model results  
+            if "production_model" in training_results:
+                prod_metrics = training_results["production_model"]
+                logger.info(f"   🍫 Production Model: Accuracy = {prod_metrics.get('accuracy', 0):.4f}")
+                logger.info(f"   📊 Training samples: {prod_metrics.get('training_samples', 0)}")
+                logger.info(f"   🎯 Classes: {prod_metrics.get('classes', [])}")
+                logger.info(f"   ✅ Model saved: {prod_metrics.get('saved', False)}")
+            
+            logger.info(f"   📈 Total samples used: {training_results.get('total_samples', 0)}")
+            logger.info(f"   🔧 Features: {training_results.get('features_used', [])}")
             
             # Send success alert for significant training improvements
-            energy_metrics = training_results.get("energy_optimization")
-            if energy_metrics and energy_metrics.r2 > 0.85:
+            energy_metrics = training_results.get("energy_model")
+            if energy_metrics and energy_metrics.get("r2_score", 0) > 0.85:
                 await self._send_alert(
                     "🎯 ML Training Success",
-                    f"High-performance models trained - Energy R²: {energy_metrics.r2:.3f}"
+                    f"High-performance models trained - Energy R²: {energy_metrics.get('r2_score'):.3f}"
                 )
             
             job_duration = (datetime.now() - job_start).total_seconds()
