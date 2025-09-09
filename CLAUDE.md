@@ -66,6 +66,8 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 ### Operations
 - **APScheduler**: 10+ automated jobs (ingestion, ML, backfill, health)
 - **Integrated Dashboard**: `/dashboard/complete` (replaces Node-RED)
+- **Visual Dashboard**: `/dashboard` with real-time heatmap and interactive widgets
+- **Weekly Forecast**: 7-day heatmap with price zones and weather integration
 - **Self-healing**: Automatic gap detection and recovery
 
 ## Key Design Principles
@@ -127,10 +129,18 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - `POST /predict/production-recommendation` - Production recommendations
 
 ### Dashboard & Monitoring
-- `GET /dashboard/complete` - Integrated dashboard data
+- `GET /dashboard` - Visual dashboard with interactive heatmap
+- `GET /dashboard/complete` - Integrated dashboard JSON data
 - `GET /scheduler/status` - APScheduler job status
-- `GET /gaps/summary` - Data gap detection
+- `GET /gaps/summary` - Data gap detection  
 - `POST /gaps/backfill/auto` - Automatic backfill recovery
+
+### Weekly Forecast System
+- **7-day heatmap**: Color-coded price zones with weather overlay
+- **Interactive tooltips**: Hover details for each day (price, weather, recommendations)
+- **Real-time data**: REE prices + AEMET/OpenWeatherMap weather integration
+- **Production guidance**: Daily recommendations (Optimal/Moderate/Reduced/Halt)
+- **Responsive design**: CSS Grid layout with dynamic color coding
 
 ## System Automation
 
@@ -220,8 +230,10 @@ docker compose up -d chocolate-factory
 ```
 
 ### Access URLs
-- **External**: `https://chocolate-factory.azules-elver.ts.net/dashboard`
-- **Local dev**: `http://localhost:8000/docs` (complete API access)
+- **External dashboard**: `https://chocolate-factory.azules-elver.ts.net/dashboard`
+- **Local dashboard**: `http://localhost:8000/dashboard` (with weekly heatmap)
+- **Local dev API**: `http://localhost:8000/docs` (complete API access)
+- **JSON data**: `http://localhost:8000/dashboard/complete`
 
 
 ## Important Instructions

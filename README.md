@@ -33,10 +33,8 @@ Chocolate Factory es un **sistema personal de monitoreo y optimización** diseñ
 
 ### 🤖 **Machine Learning Personal**
 - **Direct ML Training**: sklearn + pickle storage (sin dependencias MLflow)
-- **Model Versioning**: Sistema de versionado automático con timestamps
-- **2 Modelos Productivos**: Energy Optimization (R²=0.98) + Production Classifier (98% accuracy)
-- **Realistic Predictions**: Modelos con variabilidad realista, no sobreajustados
-- **Feature Engineering**: Características derivadas de datos reales REE+Weather
+- **2 Modelos Productivos**: Energy Optimization (R²=0.89) + Production Classifier (90% accuracy)
+- **Feature Engineering**: 13 características derivadas de datos reales REE+Weather
 - **Predicciones Automáticas**: Recomendaciones cada 30 minutos
 
 ### 🔄 **Operación Autónoma**
@@ -121,8 +119,11 @@ docker compose logs -f
 
 ### 4. **Acceder a Tu Dashboard Personal**
 ```bash
-# Local (desarrollo)
+# Local (desarrollo) - Dashboard visual con heatmap semanal
 http://localhost:8000/dashboard
+
+# Datos JSON para desarrollo
+http://localhost:8000/dashboard/complete
 
 # Remoto seguro (desde cualquier lugar)
 https://chocolate-factory.tu-tailnet.ts.net/dashboard
@@ -130,15 +131,17 @@ https://chocolate-factory.tu-tailnet.ts.net/dashboard
 
 ## 📱 **Dashboard en Acción**
 
-### 🎯 **Vista Principal - Monitoreo en Tiempo Real**
+### 🎯 **Vista Principal - Dashboard Visual con Heatmap Semanal**
 ![Dashboard Principal](docs/images/dashboard-main.png)
 *Dashboard completo con datos reales de REE, AEMET y predicciones ML para Linares, Andalucía*
 
 **Características destacadas:**
-- **⚡ Precio Energía**: 0,3006 €/kWh con tendencia en tiempo real
-- **🌡️ Condiciones Climáticas**: 22,0°C, 20% humedad, condiciones óptimas
-- **🏭 Estado Fábrica**: Operativo con 85,2% eficiencia
-- **🤖 ML Predictions**: Optimización energética (38,6) y recomendación de producción
+- **📅 Heatmap Semanal**: Calendario visual 7 días con zonas de precios color-coded
+- **⚡ Precio Energía**: Tiempo real con tendencia y predicción
+- **🌡️ Condiciones Climáticas**: AEMET + OpenWeatherMap (cobertura 24/7)
+- **🏭 Estado Fábrica**: Operativo con métricas en tiempo real
+- **🤖 ML Predictions**: Optimización energética y recomendaciones producción
+- **🎯 Interactive Tooltips**: Hover sobre cada día para detalles completos
 
 ### 📍 **Información Detallada del Sistema**
 ![Dashboard Detalle](docs/images/dashboard-detail.png)
@@ -219,10 +222,10 @@ El proyecto incluye **25+ documentos técnicos** en `/docs/` cubriendo:
 ## ⚡ **Rendimiento Personal**
 
 ### 📊 **Métricas del Sistema**
-- **Modelos ML**: 90% accuracy, R² = 0.8876
+- **Modelos ML**: Energy R² = 0.89, Production accuracy = 90%
 - **Cobertura Datos**: 24/7 con self-healing automático
+- **Dashboard**: Heatmap interactivo con datos en tiempo real
 - **Latencia**: <100ms respuesta API local
-- **Almacenamiento**: ~500MB datos/año (3 años proyectado)
 - **Recursos**: 4GB RAM, 2 CPU cores recomendados
 
 ### 🏃 **Optimizado para Personal**
@@ -250,21 +253,26 @@ Este proyecto está diseñado para **uso personal y educativo**:
 
 ### 🎯 **Próximas Features**
 
-#### 🔮 **Planificación de Producción Avanzada** (PRIORIDAD ALTA)
-- [ ] **Predicciones REE a 7-14 días**: Integración con API de precios futuros españoles
-- [ ] **Pronósticos AEMET extendidos**: API predicción meteorológica horaria municipal (7 días)
-- [ ] **Planning Dashboard**: Visualización calendario producción optimizada 1-2 semanas
-- [ ] **Algoritmo de Optimización**: ML scheduling considerando precio energía + condiciones climáticas futuras
-- [ ] **Alertas Predictivas**: Notificaciones automáticas para ventanas óptimas de producción
+#### 🔮 **Planificación de Producción Avanzada** (IMPLEMENTADO ✅)
+- [x] **Dashboard Heatmap Semanal**: Calendario visual 7 días con precios REE + weather
+- [x] **Integración Híbrida Weather**: AEMET + OpenWeatherMap para cobertura 24/7
+- [x] **Interactive Tooltips**: Detalles completos hover por día (precio, clima, recomendación)
+- [x] **Color-coded Price Zones**: Sistema visual de zonas de precio optimizado
 - [ ] **Export Planning**: Calendarios producción exportables (PDF, CSV, iCal)
+- [ ] **Extended Forecasts**: Ampliar a 14 días con precios futuros REE
 
 **Implementación técnica**:
 ```python
-# Endpoints planificados
-GET /predict/production-planning?days=14     # Planning completo 2 semanas
-GET /ree/prices/forecast?hours=168          # Precios futuros REE
-GET /weather/forecast/extended?days=7       # AEMET predicción municipal
-POST /planning/optimize                     # Optimización calendario producción
+# Endpoints actuales (✅ implementados)
+GET /dashboard                              # Dashboard visual con heatmap semanal
+GET /dashboard/complete                     # JSON completo datos dashboard
+GET /weather/hybrid                         # Weather híbrido AEMET+OpenWeatherMap
+GET /predict/energy-optimization            # Predicciones optimización energética
+GET /predict/production-recommendation      # Recomendaciones producción inteligente
+
+# Endpoints futuros
+GET /predict/production-planning?days=14    # Planning extendido 2 semanas  
+POST /planning/export?format=pdf           # Export calendarios producción
 ```
 
 #### 📱 **Mejoras Inmediatas**

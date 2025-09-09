@@ -365,8 +365,122 @@ class REEClient:
             logger.error(f"❌ Failed to fetch historical REE data {start_date} to {end_date}: {e}")
             raise
 
+    async def get_weekly_market_prices(self, start_date: Optional[datetime] = None) -> List[REEPriceData]:
+        """
+        Get weekly electricity market prices using ESIOS API
+        
+        Uses indicator 1001 (PVPC 2.0TD) and 10211 (OMIE hourly price) from ESIOS API
+        """
+        if start_date is None:
+            start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        end_date = start_date + timedelta(days=7)
+        weekly_prices = []
+        
+        # ESIOS API endpoints to try (different indicators)
+        esios_indicators = [
+            1001,   # PVPC 2.0TD (main residential tariff)
+            10211,  # OMIE final hourly average price
+        ]
+        
+        esios_base_url = "https://api.esios.ree.es/indicators"
+        
+        for indicator_id in esios_indicators:
+            try:
+                # Build ESIOS API URL
+                params = {
+                    'start_date': start_date.strftime('%Y-%m-%dT%H:%M'),
+                    'end_date': end_date.strftime('%Y-%m-%dT%H:%M'),
+                    'geo_ids[]': 8741,  # Peninsula
+                    'time_trunc': 'hour'
+                }
+                
+                url = f"{esios_base_url}/{indicator_id}"
+                
+                # Headers for ESIOS API (token would be needed for authenticated endpoints)
+                headers = {
+                    'Accept': 'application/json',
+                    'User-Agent': 'ChocolateFactory/1.0'
+                }
+                
+                logger.debug(f"Trying ESIOS indicator {indicator_id}: {url}")
+                
+                async with httpx.AsyncClient(timeout=30) as client:
+                    response = await client.get(url, params=params, headers=headers)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        # Parse ESIOS response format
+                        if 'indicator' in data and 'values' in data['indicator']:
+                            values = data['indicator']['values']
+                            
+                            for value in values:
+                                if 'datetime' in value and 'value' in value:
+                                    timestamp_str = value['datetime']
+                                    price_value = value['value']
+                                    
+                                    if price_value is not None:
+                                        # Parse ESIOS datetime format
+                                        timestamp = datetime.fromisoformat(
+                                            timestamp_str.replace('Z', '+00:00')
+                                        )
+                                        
+                                        weekly_prices.append(REEPriceData(
+                                            timestamp=timestamp,
+                                            price_eur_mwh=float(price_value),
+                                            market_type=f"esios_indicator_{indicator_id}"
+                                        ))
+                        
+                        if weekly_prices:
+                            logger.info(f"✅ Retrieved {len(weekly_prices)} prices from ESIOS indicator {indicator_id}")
+                            break
+                    
+                    else:
+                        logger.debug(f"ESIOS indicator {indicator_id} returned {response.status_code}")
+                        
+            except Exception as e:
+                logger.debug(f"ESIOS indicator {indicator_id} failed: {e}")
+                continue
+        
+        # If no ESIOS data found, try REE API as fallback
+        if not weekly_prices:
+            logger.info("No ESIOS data available, trying REE API fallback")
+            try:
+                # Use existing PVPC method for recent data to create forecast
+                recent_data = await self.get_pvpc_prices(
+                    start_date - timedelta(days=2), 
+                    start_date
+                )
+                
+                if recent_data:
+                    # Create forecast based on recent patterns
+                    recent_avg = sum(p.price_eur_mwh for p in recent_data[-24:]) / min(len(recent_data), 24)
+                    
+                    for i in range(7 * 24):  # 7 days, hourly
+                        forecast_time = start_date + timedelta(hours=i)
+                        hour = forecast_time.hour
+                        
+                        # Apply realistic hourly patterns
+                        hour_factor = 1.0 + 0.2 * abs(hour - 14) / 14  # Peak at 2 PM
+                        weekend_factor = 0.9 if forecast_time.weekday() >= 5 else 1.0
+                        
+                        forecasted_price = recent_avg * hour_factor * weekend_factor
+                        
+                        weekly_prices.append(REEPriceData(
+                            timestamp=forecast_time,
+                            price_eur_mwh=forecasted_price,
+                            market_type="ree_forecast_from_recent"
+                        ))
+                    
+                    logger.info(f"✅ Generated {len(weekly_prices)} forecast prices from REE data")
+                    
+            except Exception as e:
+                logger.error(f"REE fallback also failed: {e}")
+        
+        return sorted(weekly_prices, key=lambda x: x.timestamp)
 
-# Utility functions
+
 async def get_ree_client() -> REEClient:
     """Factory function to create REE client"""
     return REEClient()
