@@ -2894,6 +2894,16 @@ async def serve_enhanced_dashboard():
                 color: rgba(255, 255, 255, 0.8);
             }
             
+            /* Mejorar contraste en tarjeta azul inteligente */
+            .smart-insights .card-title {
+                color: white !important;
+            }
+            
+            .smart-insights .metric-label {
+                color: rgba(255, 255, 255, 0.95) !important;
+                font-weight: 500;
+            }
+            
             .analytics-metric .metric-value {
                 font-weight: bold;
                 font-size: 1rem;
@@ -2968,6 +2978,51 @@ async def serve_enhanced_dashboard():
             @keyframes pulse-soft {
                 0%, 100% { transform: scale(1); opacity: 1; }
                 50% { transform: scale(1.02); opacity: 0.95; }
+            }
+            
+            /* Tarjetas compactas minimalistas */
+            .location-info-compact, .system-status-compact {
+                background: linear-gradient(135deg, #4A90E2 0%, #7B68EE 100%);
+                color: white;
+                padding: 1rem;
+                border-radius: 8px;
+            }
+            
+            .sources-compact {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 1rem;
+                border-radius: 8px;
+            }
+            
+            .compact-info, .compact-status {
+                margin-top: 0.75rem;
+            }
+            
+            .info-line, .status-line {
+                margin: 0.4rem 0;
+                font-size: 0.9rem;
+                line-height: 1.4;
+            }
+            
+            .sources-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+                margin-top: 0.75rem;
+            }
+            
+            .source-item {
+                font-size: 0.85rem;
+                padding: 0.4rem 0.6rem;
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 4px;
+                text-align: center;
+            }
+            
+            .location-info-compact .card-title, .system-status-compact .card-title, .sources-compact .card-title {
+                color: white;
+                font-size: 1rem;
             }
             
             .location-detail {
@@ -3288,75 +3343,46 @@ async def serve_enhanced_dashboard():
                 </div>
             </div>
             
-            <!-- Información de Localización -->
-            <div class="card location-info">
-                <div class="card-header">
-                    <span class="card-icon">📍</span>
-                    <span class="card-title">Localización de la Fábrica</span>
+            <!-- Información Compacta -->
+            <div class="grid grid-2" style="gap: 1rem;">
+                <!-- Localización Minimalista -->
+                <div class="card location-info-compact">
+                    <div class="card-header">
+                        <span class="card-icon">📍</span>
+                        <span class="card-title">Fábrica</span>
+                    </div>
+                    <div class="compact-info">
+                        <div class="info-line">🏭 Linares, Andalucía</div>
+                        <div class="info-line">⛰️ 515m • 🕐 CET</div>
+                        <div class="info-line" style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">38.151°N, -3.629°W</div>
+                    </div>
                 </div>
-                <div class="location-detail">
-                    <span><strong>🏭 Ubicación:</strong></span>
-                    <span>Linares, Andalucía, España</span>
-                </div>
-                <div class="location-detail">
-                    <span><strong>🌍 Coordenadas:</strong></span>
-                    <span class="coordinate" id="coordinates">38,151107°N, -3,629453°W</span>
-                </div>
-                <div class="location-detail">
-                    <span><strong>⛰️ Altitud:</strong></span>
-                    <span>515 m s.n.m.</span>
-                </div>
-                <div class="location-detail">
-                    <span><strong>🕐 Zona horaria:</strong></span>
-                    <span>Europe/Madrid (CET/CEST)</span>
-                </div>
-                
-                <div style="margin-top: 1.5rem;">
-                    <div style="font-weight: bold; margin-bottom: 1rem;">📊 Fuentes de Datos:</div>
-                    <div class="data-sources-grid">
-                        <div class="data-source-item">
-                            <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">⚡</div>
-                            <div style="font-size: 0.85rem; font-weight: bold;">REE</div>
-                            <div style="font-size: 0.75rem;">Precios electricidad España</div>
-                        </div>
-                        <div class="data-source-item">
-                            <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">🌡️</div>
-                            <div style="font-size: 0.85rem; font-weight: bold;">AEMET</div>
-                            <div style="font-size: 0.75rem;">Estación 5279X (00:00-07:00)</div>
-                        </div>
-                        <div class="data-source-item">
-                            <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">☁️</div>
-                            <div style="font-size: 0.85rem; font-weight: bold;">OpenWeatherMap</div>
-                            <div style="font-size: 0.75rem;">Tiempo real (08:00-23:00)</div>
-                        </div>
-                        <div class="data-source-item">
-                            <div style="font-size: 1.2rem; margin-bottom: 0.25rem;">🤖</div>
-                            <div style="font-size: 0.85rem; font-weight: bold;">Direct ML</div>
-                            <div style="font-size: 0.75rem;">Modelos sklearn locales</div>
-                        </div>
+
+                <!-- Estado del Sistema Minimalista -->
+                <div class="card system-status-compact">
+                    <div class="card-header">
+                        <span class="card-icon">⚙️</span>
+                        <span class="card-title">Sistema</span>
+                    </div>
+                    <div class="compact-status">
+                        <div class="status-line">⚡ <span id="ree-status">--</span></div>
+                        <div class="status-line">🌡️ <span id="weather-status">--</span></div>
+                        <div class="status-line">🤖 <span id="ml-models-status">--</span></div>
                     </div>
                 </div>
             </div>
-            
-            <!-- Estado del Sistema -->
-            <div class="card system-status">
+
+            <!-- Fuentes de Datos Compacto -->
+            <div class="card sources-compact" style="margin-top: 1rem;">
                 <div class="card-header">
-                    <span class="card-icon">⚙️</span>
-                    <span class="card-title">Estado del Sistema</span>
+                    <span class="card-icon">📊</span>
+                    <span class="card-title">Fuentes de Datos</span>
                 </div>
-                <div id="system-sources">
-                    <div class="data-source">
-                        <span>REE (Precios)</span>
-                        <span id="ree-status">--</span>
-                    </div>
-                    <div class="data-source">
-                        <span>Weather (Clima)</span>
-                        <span id="weather-status">--</span>
-                    </div>
-                    <div class="data-source">
-                        <span>Direct ML</span>
-                        <span id="ml-models-status">--</span>
-                    </div>
+                <div class="sources-grid">
+                    <div class="source-item">⚡ REE (Precios)</div>
+                    <div class="source-item">🌡️ AEMET (00-07h)</div>
+                    <div class="source-item">☁️ OpenWeather (08-23h)</div>
+                    <div class="source-item">🤖 ML Direct</div>
                 </div>
             </div>
         </div>
