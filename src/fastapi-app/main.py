@@ -2909,6 +2909,22 @@ async def serve_enhanced_dashboard():
                 font-size: 1rem;
             }
             
+            /* Tamaños específicos para la tarjeta de inteligencia */
+            .savings-insight .metric-value,
+            .process-analysis .metric-value {
+                font-size: 1.2rem !important;
+                font-weight: 700;
+                line-height: 1.2;
+            }
+            
+            /* Valores específicos que se salen de la tarjeta */
+            #current-savings-potential,
+            #recommended-process,
+            #process-cost {
+                font-size: 0.9rem !important;
+                font-weight: 600;
+            }
+            
             #optimization-recommendations .recommendation-item {
                 margin-bottom: 0.5rem;
                 padding: 0.5rem;
@@ -2932,7 +2948,7 @@ async def serve_enhanced_dashboard():
                 backdrop-filter: blur(10px);
             }
             
-            .current-status, .savings-insight {
+            .current-status, .savings-insight, .process-analysis {
                 display: flex;
                 flex-direction: column;
                 gap: 0.75rem;
@@ -2950,7 +2966,7 @@ async def serve_enhanced_dashboard():
                 font-size: 1.2rem;
             }
             
-            .status-detail, .savings-metric {
+            .status-detail, .savings-metric, .process-metric {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -2958,11 +2974,11 @@ async def serve_enhanced_dashboard():
                 border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             }
             
-            .status-detail:last-child, .savings-metric:last-child {
+            .status-detail:last-child, .savings-metric:last-child, .process-metric:last-child {
                 border-bottom: none;
             }
             
-            .status-action, .savings-action {
+            .status-action, .savings-action, .process-action {
                 padding: 0.75rem;
                 background: rgba(255, 255, 255, 0.1);
                 border-radius: 6px;
@@ -3177,7 +3193,7 @@ async def serve_enhanced_dashboard():
                     <span class="card-icon">🧠</span>
                     <span class="card-title">Inteligencia de Fábrica - Análisis REE en Tiempo Real</span>
                 </div>
-                <div class="grid grid-2" style="gap: 1.5rem; margin-top: 1.5rem;">
+                <div class="grid grid-3" style="gap: 1.5rem; margin-top: 1.5rem;">
                     <!-- Momento Óptimo Actual -->
                     <div class="insights-section">
                         <h4 style="color: #4FC3F7; margin-bottom: 1rem; font-size: 1rem;">⚡ Momento Energético Actual</h4>
@@ -3209,6 +3225,24 @@ async def serve_enhanced_dashboard():
                             </div>
                             <div class="savings-action" id="savings-action">
                                 Analizando oportunidades...
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Análisis por Procesos -->
+                    <div class="insights-section">
+                        <h4 style="color: #FF9800; margin-bottom: 1rem; font-size: 1rem;">🏭 Análisis por Procesos</h4>
+                        <div class="process-analysis">
+                            <div class="process-metric">
+                                <span class="metric-label">Proceso Recomendado:</span>
+                                <span class="metric-value" id="recommended-process">--</span>
+                            </div>
+                            <div class="process-metric">
+                                <span class="metric-label">Costo Proceso/hora:</span>
+                                <span class="metric-value" id="process-cost">-- €/h</span>
+                            </div>
+                            <div class="process-action" id="process-action">
+                                Calculando procesos...
                             </div>
                         </div>
                     </div>
@@ -3380,7 +3414,7 @@ async def serve_enhanced_dashboard():
                 </div>
                 <div class="sources-grid">
                     <div class="source-item">⚡ REE (Precios)</div>
-                    <div class="source-item">🌡️ AEMET (00-07h)</div>
+                    <div class="source-item">🌡️ AEMET 5279X (00-07h)</div>
                     <div class="source-item">☁️ OpenWeather (08-23h)</div>
                     <div class="source-item">🤖 ML Direct</div>
                 </div>
@@ -3388,7 +3422,7 @@ async def serve_enhanced_dashboard():
         </div>
         
         <div class="footer">
-            Chocolate Factory - Linares, Andalucía | Dashboard v0.9.0 | 
+            Chocolate Factory - Linares, Andalucía | Dashboard v0.19.0 | 
             Powered by FastAPI + ML Predictions
         </div>
         
@@ -3579,6 +3613,53 @@ Recomendación: ${day.production_recommendation}`;
                     }
                 }
                 
+                // Análisis por procesos de fábrica
+                const processes = {
+                    'Conchado': 48,    // kW - Proceso más intensivo
+                    'Rolado': 42,      // kW - Refinado del chocolate
+                    'Templado': 36,    // kW - Control de temperatura
+                    'Mezcla': 30       // kW - Proceso básico
+                };
+                
+                // Calcular costo por proceso en el precio actual
+                const processCosts = Object.entries(processes).map(([name, kw]) => ({
+                    name,
+                    kw,
+                    costPerHour: currentPrice * kw,
+                    savingsVsAvg: (avgPrice - currentPrice) * kw
+                }));
+                
+                // Recomendar proceso basado en precio actual
+                const recommendedProcessEl = document.getElementById('recommended-process');
+                const processCostEl = document.getElementById('process-cost');
+                const processActionEl = document.getElementById('process-action');
+                
+                if (pricePosition <= 0.25) {
+                    // Precio muy bajo - recomendar proceso más intensivo
+                    const bestProcess = processCosts[0]; // Conchado (48kW)
+                    if (recommendedProcessEl) recommendedProcessEl.textContent = '🍫 Conchado';
+                    if (processCostEl) processCostEl.textContent = formatSpanishNumber(bestProcess.costPerHour, 2) + ' €/h';
+                    if (processActionEl) processActionEl.textContent = `🚀 Momento óptimo para procesos intensivos (+${formatSpanishNumber(bestProcess.savingsVsAvg, 2)}€/h vs promedio)`;
+                } else if (pricePosition <= 0.4) {
+                    // Precio bajo-medio - recomendar proceso intermedio
+                    const goodProcess = processCosts[1]; // Rolado (42kW)
+                    if (recommendedProcessEl) recommendedProcessEl.textContent = '🔄 Rolado';
+                    if (processCostEl) processCostEl.textContent = formatSpanishNumber(goodProcess.costPerHour, 2) + ' €/h';
+                    if (processActionEl) processActionEl.textContent = `✅ Condiciones favorables para refinado (+${formatSpanishNumber(goodProcess.savingsVsAvg, 2)}€/h)`;
+                } else if (pricePosition <= 0.6) {
+                    // Precio medio - recomendar proceso estándar
+                    const stdProcess = processCosts[2]; // Templado (36kW)
+                    if (recommendedProcessEl) recommendedProcessEl.textContent = '🌡️ Templado';
+                    if (processCostEl) processCostEl.textContent = formatSpanishNumber(stdProcess.costPerHour, 2) + ' €/h';
+                    if (processActionEl) processActionEl.textContent = `⚖️ Proceso estándar recomendado (${formatSpanishNumber(Math.abs(stdProcess.savingsVsAvg), 2)}€/h vs promedio)`;
+                } else {
+                    // Precio alto - recomendar proceso de menor consumo
+                    const lowProcess = processCosts[3]; // Mezcla (30kW)
+                    if (recommendedProcessEl) recommendedProcessEl.textContent = '🥄 Mezcla';
+                    if (processCostEl) processCostEl.textContent = formatSpanishNumber(lowProcess.costPerHour, 2) + ' €/h';
+                    if (processActionEl) processActionEl.textContent = `⚠️ Solo procesos básicos recomendados (sobrecosto: +${formatSpanishNumber(Math.abs(lowProcess.savingsVsAvg), 2)}€/h)`;
+                }
+                
                 // Recomendación principal inteligente
                 const recIconEl = document.getElementById('recommendation-icon');
                 const recTitleEl = document.getElementById('recommendation-title');
@@ -3587,23 +3668,23 @@ Recomendación: ${day.production_recommendation}`;
                 if (pricePosition <= 0.25) {
                     if (recIconEl) recIconEl.textContent = '🚀';
                     if (recTitleEl) recTitleEl.textContent = 'PRODUCIR AHORA - Oportunidad Excepcional';
-                    if (recDetailEl) recDetailEl.textContent = `Precio actual (${formatSpanishNumber(currentPrice, 4)} €/kWh) está en el 25% más bajo del histórico. Ahorro potencial: ${formatSpanishNumber(savingsPerHour, 2)} €/hora vs promedio. Momento ideal para maximizar producción y aprovechar costos energéticos reducidos.`;
+                    if (recDetailEl) recDetailEl.textContent = `🍫 CONCHADO RECOMENDADO: Precio actual (${formatSpanishNumber(currentPrice, 4)} €/kWh) en el 25% más bajo del histórico. Momento óptimo para procesos intensivos (48kW). Ahorro vs promedio: ${formatSpanishNumber((avgPrice - currentPrice) * 48, 2)} €/hora en Conchado.`;
                 } else if (pricePosition <= 0.4) {
                     if (recIconEl) recIconEl.textContent = '✅';
-                    if (recTitleEl) recTitleEl.textContent = 'PRODUCIR - Condiciones Favorables';
-                    if (recDetailEl) recDetailEl.textContent = `Precio energético favorable para producción. Costo actual ${formatSpanishNumber(((currentPrice - minPrice) / (maxPrice - minPrice)) * 100, 1)}% por encima del mínimo histórico. Recomendado proceder con planificación normal.`;
+                    if (recTitleEl) recTitleEl.textContent = 'PRODUCIR - Rolado Recomendado';
+                    if (recDetailEl) recDetailEl.textContent = `🔄 ROLADO FAVORABLE: Condiciones buenas para refinado (42kW). Costo actual: ${formatSpanishNumber(currentPrice * 42, 2)} €/hora. Ahorro vs promedio: +${formatSpanishNumber((avgPrice - currentPrice) * 42, 2)} €/hora.`;
                 } else if (pricePosition <= 0.6) {
                     if (recIconEl) recIconEl.textContent = '⚖️';
-                    if (recTitleEl) recTitleEl.textContent = 'EVALUAR - Precio Medio';
-                    if (recDetailEl) recDetailEl.textContent = `Precio en rango medio del histórico. Evaluar urgencia vs costo. Si no es urgente, considerar esperar a precios más favorables. Diferencia vs óptimo: +${formatSpanishNumber((currentPrice - minPrice) * hourlyConsumption, 2)} €/hora.`;
+                    if (recTitleEl) recTitleEl.textContent = 'EVALUAR - Templado Estándar';
+                    if (recDetailEl) recDetailEl.textContent = `🌡️ TEMPLADO RECOMENDADO: Precio medio, ideal para procesos estándar (36kW). Costo: ${formatSpanishNumber(currentPrice * 36, 2)} €/hora. Evaluar urgencia vs esperar mejores condiciones para procesos intensivos.`;
                 } else if (pricePosition <= 0.8) {
                     if (recIconEl) recIconEl.textContent = '⚠️';
-                    if (recTitleEl) recTitleEl.textContent = 'DIFERIR - Precio Elevado';
-                    if (recDetailEl) recDetailEl.textContent = `Precio en el 20% superior del rango histórico. Recomendado diferir producción no urgente. Costo adicional vs momento óptimo: +${formatSpanishNumber((currentPrice - minPrice) * hourlyConsumption, 2)} €/hora.`;
+                    if (recTitleEl) recTitleEl.textContent = 'DIFERIR - Solo Procesos Básicos';
+                    if (recDetailEl) recDetailEl.textContent = `🥄 SOLO MEZCLA: Precio elevado, limitarse a procesos básicos (30kW). Costo Mezcla: ${formatSpanishNumber(currentPrice * 30, 2)} €/hora. Diferir Conchado y Rolado hasta mejores condiciones.`;
                 } else {
                     if (recIconEl) recIconEl.textContent = '🛑';
-                    if (recTitleEl) recTitleEl.textContent = 'SUSPENDER - Precio Muy Alto';
-                    if (recDetailEl) recDetailEl.textContent = `⚠️ ALERTA: Precio en el 20% más alto del histórico (${formatSpanishNumber(currentPrice, 4)} €/kWh). Suspender producción no crítica. Esperar mejores condiciones. Sobrecosto vs óptimo: +${formatSpanishNumber((currentPrice - minPrice) * hourlyConsumption, 2)} €/hora.`;
+                    if (recTitleEl) recTitleEl.textContent = 'SUSPENDER - Precio Crítico';
+                    if (recDetailEl) recDetailEl.textContent = `⚠️ ALERTA CRÍTICA: Precio en máximos históricos (${formatSpanishNumber(currentPrice, 4)} €/kWh). Incluso Mezcla cuesta ${formatSpanishNumber(currentPrice * 30, 2)} €/h. Suspender toda producción no crítica hasta mejores condiciones.`;
                 }
             }
             
