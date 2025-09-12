@@ -579,6 +579,80 @@ async def get_ree_prices(hours: int = 24):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/analytics/historical/debug")
+async def debug_influxdb_data():
+    """🔧 Debug: Ver qué datos hay en InfluxDB"""
+    try:
+        from influxdb_client import InfluxDBClient
+        import os
+        
+        bucket = os.getenv("INFLUXDB_BUCKET", "energy-data")
+        
+        client = InfluxDBClient(
+            url=os.getenv("INFLUXDB_URL", "http://influxdb:8086"),
+            token=os.getenv("INFLUXDB_TOKEN", ""),
+            org=os.getenv("INFLUXDB_ORG", "chocolate-factory")
+        )
+        
+        query_api = client.query_api()
+        
+        # Ver todos los measurements disponibles
+        measurements_query = f'''
+            import "influxdata/influxdb/schema"
+            schema.measurements(bucket: "{bucket}")
+        '''
+        
+        measurements_result = query_api.query(measurements_query)
+        measurements = []
+        for table in measurements_result:
+            for record in table.records:
+                measurements.append(record.get_value())
+        
+        # Ver datos energy_prices recientes
+        energy_query = f'''
+            from(bucket: "{bucket}")
+            |> range(start: -30d)
+            |> filter(fn: (r) => r["_measurement"] == "energy_prices")
+            |> limit(n: 10)
+        '''
+        
+        energy_result = query_api.query(energy_query)
+        energy_data = []
+        for table in energy_result:
+            for record in table.records:
+                energy_data.append({
+                    "time": record.get_time().isoformat(),
+                    "measurement": record.get_measurement(),
+                    "field": record.get_field(),
+                    "value": record.get_value(),
+                    "tags": {key: value for key, value in record.values.items() if key not in ['_time', '_measurement', '_field', '_value']}
+                })
+        
+        return {
+            "bucket": bucket,
+            "measurements": measurements,
+            "energy_data_sample": energy_data[:5],
+            "total_energy_records": len(energy_data)
+        }
+        
+    except Exception as e:
+        logger.error(f"Debug error: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/analytics/historical")
+async def get_historical_analytics(days_back: int = 220):
+    """📊 Analytics históricos de precios REE y optimización de fábrica"""
+    try:
+        from services.historical_analytics import HistoricalAnalyticsService
+        analytics_service = HistoricalAnalyticsService()
+        analytics = await analytics_service.get_historical_analytics(days_back)
+        return analytics.model_dump()
+    except Exception as e:
+        logger.error(f"Historical analytics error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/scheduler/status")
 async def get_scheduler_status():
     """Obtener estado del scheduler y trabajos programados"""
@@ -2178,6 +2252,19 @@ async def get_complete_dashboard():
                 "message": f"Heatmap generation failed: {str(e)}"
             }
         
+        # Añadir analytics históricos
+        try:
+            from services.historical_analytics import HistoricalAnalyticsService
+            analytics_service = HistoricalAnalyticsService()
+            historical_analytics = await analytics_service.get_historical_analytics()
+            dashboard_data["historical_analytics"] = historical_analytics.model_dump()
+        except Exception as e:
+            logger.warning(f"Failed to add historical analytics: {e}")
+            dashboard_data["historical_analytics"] = {
+                "status": "error",
+                "message": f"Historical analytics failed: {str(e)}"
+            }
+        
         return dashboard_data
         
     except Exception as e:
@@ -2780,6 +2867,46 @@ async def serve_enhanced_dashboard():
                 color: white;
             }
             
+            /* Analytics Históricos */
+            .analytics-section {
+                padding: 1rem;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                border-left: 4px solid #66BB6A;
+            }
+            
+            .analytics-metric {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.75rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            
+            .analytics-metric:last-child {
+                border-bottom: none;
+                margin-bottom: 0;
+            }
+            
+            .analytics-metric .metric-label {
+                font-size: 0.9rem;
+                color: rgba(255, 255, 255, 0.8);
+            }
+            
+            .analytics-metric .metric-value {
+                font-weight: bold;
+                font-size: 1rem;
+            }
+            
+            #optimization-recommendations .recommendation-item {
+                margin-bottom: 0.5rem;
+                padding: 0.5rem;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+                border-left: 3px solid #9C27B0;
+            }
+            
             .location-detail {
                 margin: 0.5rem 0;
                 font-size: 0.9rem;
@@ -3032,6 +3159,82 @@ async def serve_enhanced_dashboard():
                 </div>
             </div>
             
+            <!-- Analytics Históricos -->
+            <div class="card ml-prediction" style="margin-top: 2rem;">
+                <div class="card-header">
+                    <span class="card-icon">📊</span>
+                    <span class="card-title">Analytics Históricos - Datos REE 2024</span>
+                </div>
+                <div class="grid grid-3" style="gap: 1.5rem; margin-top: 1.5rem;">
+                    <!-- Métricas de Fábrica -->
+                    <div class="analytics-section">
+                        <h4 style="color: #66BB6A; margin-bottom: 1rem; font-size: 1rem;">🏭 Métricas de Consumo</h4>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Consumo Total:</span>
+                            <span class="metric-value" style="color: white;" id="total-consumption">-- kWh</span>
+                        </div>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Costo Diario Promedio:</span>
+                            <span class="metric-value" style="color: white;" id="avg-daily-cost">-- €</span>
+                        </div>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Pico de Demanda:</span>
+                            <span class="metric-value" style="color: white;" id="peak-consumption">-- kW</span>
+                        </div>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Costo Total:</span>
+                            <span class="metric-value" style="color: white;" id="total-cost">-- €</span>
+                        </div>
+                    </div>
+
+                    <!-- Análisis de Precios -->
+                    <div class="analytics-section">
+                        <h4 style="color: #FF9800; margin-bottom: 1rem; font-size: 1rem;">⚡ Análisis de Precios</h4>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Precio Mínimo:</span>
+                            <span class="metric-value" style="color: white;" id="min-price">-- €/kWh</span>
+                        </div>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Precio Máximo:</span>
+                            <span class="metric-value" style="color: white;" id="max-price">-- €/kWh</span>
+                        </div>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Precio Promedio:</span>
+                            <span class="metric-value" style="color: white;" id="avg-price">-- €/kWh</span>
+                        </div>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Volatilidad:</span>
+                            <span class="metric-value" style="color: white;" id="price-volatility">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Potencial de Optimización -->
+                    <div class="analytics-section">
+                        <h4 style="color: #2196F3; margin-bottom: 1rem; font-size: 1rem;">🎯 Potencial de Ahorro</h4>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Ahorro Potencial:</span>
+                            <span class="metric-value" style="color: white;" id="savings-potential">-- €</span>
+                        </div>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Horas Óptimas:</span>
+                            <span class="metric-value" style="color: white;" id="optimal-hours">--</span>
+                        </div>
+                        <div class="analytics-metric">
+                            <span class="metric-label">Proyección Anual:</span>
+                            <span class="metric-value" style="color: white;" id="annual-projection">-- €</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recomendaciones -->
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="color: #9C27B0; margin-bottom: 1rem; font-size: 1rem;">💡 Recomendaciones de Optimización</h4>
+                    <div id="optimization-recommendations" style="font-size: 0.9rem; line-height: 1.6;">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
+            </div>
+            
             <!-- Información de Localización -->
             <div class="card location-info">
                 <div class="card-header">
@@ -3175,6 +3378,50 @@ Recomendación: ${day.production_recommendation}`;
                 }
             }
             
+            function renderHistoricalAnalytics(data) {
+                const analytics = data.historical_analytics;
+                if (!analytics) return;
+                
+                // Métricas principales
+                const totalConsumptionEl = document.getElementById('total-consumption');
+                const avgDailyCostEl = document.getElementById('avg-daily-cost');
+                const peakConsumptionEl = document.getElementById('peak-consumption');
+                const totalCostEl = document.getElementById('total-cost');
+                
+                if (totalConsumptionEl) totalConsumptionEl.textContent = formatSpanishNumber(analytics.factory_metrics.total_kwh, 0) + ' kWh';
+                if (avgDailyCostEl) avgDailyCostEl.textContent = formatSpanishNumber(analytics.factory_metrics.avg_daily_cost, 2) + ' €';
+                if (peakConsumptionEl) peakConsumptionEl.textContent = formatSpanishNumber(analytics.factory_metrics.peak_consumption, 0) + ' kW';
+                if (totalCostEl) totalCostEl.textContent = formatSpanishNumber(analytics.factory_metrics.total_cost, 2) + ' €';
+                
+                // Análisis de precios
+                const minPriceEl = document.getElementById('min-price');
+                const maxPriceEl = document.getElementById('max-price');
+                const avgPriceEl = document.getElementById('avg-price');
+                const volatilityEl = document.getElementById('price-volatility');
+                
+                if (minPriceEl) minPriceEl.textContent = formatSpanishNumber(analytics.price_analysis.min_price_eur_kwh, 4) + ' €/kWh';
+                if (maxPriceEl) maxPriceEl.textContent = formatSpanishNumber(analytics.price_analysis.max_price_eur_kwh, 4) + ' €/kWh';
+                if (avgPriceEl) avgPriceEl.textContent = formatSpanishNumber(analytics.price_analysis.avg_price_eur_kwh, 4) + ' €/kWh';
+                if (volatilityEl) volatilityEl.textContent = formatSpanishNumber(analytics.price_analysis.volatility_coefficient, 2);
+                
+                // Potencial de optimización
+                const savingsPotentialEl = document.getElementById('savings-potential');
+                const optimalHoursEl = document.getElementById('optimal-hours');
+                const annualProjectionEl = document.getElementById('annual-projection');
+                
+                if (savingsPotentialEl) savingsPotentialEl.textContent = formatSpanishNumber(analytics.optimization_potential.total_savings_eur, 0) + ' €';
+                if (optimalHoursEl) optimalHoursEl.textContent = analytics.optimization_potential.optimal_production_hours;
+                if (annualProjectionEl) annualProjectionEl.textContent = formatSpanishNumber(analytics.optimization_potential.annual_savings_projection, 0) + ' €';
+                
+                // Recomendaciones
+                const recommendationsContainer = document.getElementById('optimization-recommendations');
+                if (recommendationsContainer && analytics.recommendations) {
+                    recommendationsContainer.innerHTML = analytics.recommendations
+                        .map(rec => `<div class="recommendation-item">• ${rec}</div>`)
+                        .join('');
+                }
+            }
+            
             async function loadData() {
                 try {
                     document.getElementById('status').textContent = '🔄 Cargando...';
@@ -3280,14 +3527,21 @@ Recomendación: ${day.production_recommendation}`;
                     const systemStatus = data.system_status || {};
                     const sources = systemStatus.data_sources || {};
                     
-                    document.getElementById('ree-status').textContent = sources.ree || '--';
-                    document.getElementById('weather-status').textContent = sources.weather || '--';
-                    document.getElementById('ml-models-status').textContent = sources.ml_models || '--';
+                    const reeStatusEl = document.getElementById('ree-status');
+                    const weatherStatusEl = document.getElementById('weather-status');
+                    const mlModelsStatusEl = document.getElementById('ml-models-status');
+                    
+                    if (reeStatusEl) reeStatusEl.textContent = sources.ree || '--';
+                    if (weatherStatusEl) weatherStatusEl.textContent = sources.weather || '--';
+                    if (mlModelsStatusEl) mlModelsStatusEl.textContent = sources.ml_models || '--';
                     
                     // Renderizar heatmap semanal
                     if (data.weekly_forecast) {
                         renderHeatmap(data.weekly_forecast);
                     }
+                    
+                    // Renderizar analytics históricos
+                    renderHistoricalAnalytics(data);
                     
                 } catch (error) {
                     document.getElementById('status').textContent = '❌ Error de conexión';
