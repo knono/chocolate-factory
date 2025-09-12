@@ -2907,6 +2907,69 @@ async def serve_enhanced_dashboard():
                 border-left: 3px solid #9C27B0;
             }
             
+            /* Nueva Tarjeta Inteligente */
+            .smart-insights {
+                background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+                color: white;
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            }
+            
+            .insights-section {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                padding: 1.25rem;
+                backdrop-filter: blur(10px);
+            }
+            
+            .current-status, .savings-insight {
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .status-indicator {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 1.1rem;
+                font-weight: bold;
+            }
+            
+            .status-icon {
+                font-size: 1.2rem;
+            }
+            
+            .status-detail, .savings-metric {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            
+            .status-detail:last-child, .savings-metric:last-child {
+                border-bottom: none;
+            }
+            
+            .status-action, .savings-action {
+                padding: 0.75rem;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                font-style: italic;
+                text-align: center;
+                font-size: 0.9rem;
+            }
+            
+            .main-recommendation {
+                animation: pulse-soft 3s ease-in-out infinite;
+            }
+            
+            @keyframes pulse-soft {
+                0%, 100% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.02); opacity: 0.95; }
+            }
+            
             .location-detail {
                 margin: 0.5rem 0;
                 font-size: 0.9rem;
@@ -3053,67 +3116,57 @@ async def serve_enhanced_dashboard():
                 </div>
             </div>
             
-            <!-- Predicciones ML -->
-            <div class="grid grid-2">
-                <div class="card ml-prediction">
-                    <div class="card-header">
-                        <span class="card-icon">🤖</span>
-                        <span class="card-title">Optimización Energética</span>
-                    </div>
-                    <div class="metric-value" id="energy-score">--</div>
-                    <div class="metric-label">Puntuación</div>
-                    <div class="confidence-bar">
-                        <div id="energy-confidence-bar" class="confidence-fill" style="width: 0%"></div>
-                    </div>
-                    <div style="margin-top: 1rem;">
-                        <div>Confianza: <span id="energy-confidence">--</span></div>
-                        <div>Recomendación: <span id="energy-recommendation">--</span></div>
-                    </div>
+            <!-- Inteligencia de Fábrica Basada en Datos Reales -->
+            <div class="card smart-insights" style="margin-top: 1.5rem;">
+                <div class="card-header">
+                    <span class="card-icon">🧠</span>
+                    <span class="card-title">Inteligencia de Fábrica - Análisis REE en Tiempo Real</span>
                 </div>
-                
-                <div class="card ml-prediction">
-                    <div class="card-header">
-                        <span class="card-icon">🎯</span>
-                        <span class="card-title">Recomendación Producción</span>
+                <div class="grid grid-2" style="gap: 1.5rem; margin-top: 1.5rem;">
+                    <!-- Momento Óptimo Actual -->
+                    <div class="insights-section">
+                        <h4 style="color: #4FC3F7; margin-bottom: 1rem; font-size: 1rem;">⚡ Momento Energético Actual</h4>
+                        <div class="current-status">
+                            <div class="status-indicator" id="current-energy-status">
+                                <span class="status-icon">🟡</span>
+                                <span class="status-text" id="energy-status-text">Evaluando...</span>
+                            </div>
+                            <div class="status-detail" id="energy-status-detail">
+                                Precio actual: <span id="current-price-analysis">-- €/kWh</span>
+                            </div>
+                            <div class="status-action" id="energy-action-recommendation">
+                                Calculando recomendación...
+                            </div>
+                        </div>
                     </div>
-                    <div class="metric-value" id="production-class">--</div>
-                    <div class="metric-label">Estado</div>
-                    <div class="confidence-bar">
-                        <div id="production-confidence-bar" class="confidence-fill" style="width: 0%"></div>
-                    </div>
-                    <div style="margin-top: 1rem;">
-                        <div>Confianza: <span id="production-confidence">--%</span></div>
-                        <div id="production-action" style="margin-top: 0.5rem; font-style: italic;">--</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Recomendaciones y Alertas -->
-            <div class="grid grid-2">
-                <div class="card recommendations">
-                    <div class="card-header">
-                        <span class="card-icon">💡</span>
-                        <span class="card-title">Recomendaciones</span>
-                    </div>
-                    <div id="recommendations-content">
-                        <div>Energía: <ul id="energy-recs" class="rec-list"></ul></div>
-                        <div>Producción: <ul id="production-recs" class="rec-list"></ul></div>
-                        <div id="priority-recs-container" style="display: none;">
-                            Prioridad: <ul id="priority-recs" class="rec-list"></ul>
+                    
+                    <!-- Oportunidad de Ahorro -->
+                    <div class="insights-section">
+                        <h4 style="color: #66BB6A; margin-bottom: 1rem; font-size: 1rem;">💰 Oportunidad de Ahorro</h4>
+                        <div class="savings-insight">
+                            <div class="savings-metric">
+                                <span class="metric-label">Ahorro vs Precio Promedio:</span>
+                                <span class="metric-value" id="current-savings-potential">-- €/hora</span>
+                            </div>
+                            <div class="savings-metric">
+                                <span class="metric-label">Posición en Ranking Diario:</span>
+                                <span class="metric-value" id="price-ranking">--/24</span>
+                            </div>
+                            <div class="savings-action" id="savings-action">
+                                Analizando oportunidades...
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="card alerts no-alerts" id="alerts-card">
-                    <div class="card-header">
-                        <span class="card-icon">🔔</span>
-                        <span class="card-title">Alertas del Sistema</span>
+                <!-- Recomendación Inteligente Principal -->
+                <div class="main-recommendation" id="main-recommendation" style="margin-top: 1.5rem; padding: 1.5rem; background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(46, 125, 50, 0.2) 100%); border-radius: 8px; border-left: 4px solid #4CAF50;">
+                    <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
+                        <span id="recommendation-icon" style="font-size: 1.5rem; margin-right: 0.75rem;">🎯</span>
+                        <span id="recommendation-title" style="font-weight: bold; color: white;">Analizando condiciones del mercado...</span>
                     </div>
-                    <div id="alerts-content">
-                        <div style="text-align: center; padding: 2rem;">
-                            <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
-                            <div>No hay alertas activas</div>
-                        </div>
+                    <div id="recommendation-detail" style="color: rgba(255, 255, 255, 0.9); line-height: 1.5;">
+                        Evaluando precios REE históricos y condiciones actuales para optimizar el momento de producción...
                     </div>
                 </div>
             </div>
@@ -3422,6 +3475,112 @@ Recomendación: ${day.production_recommendation}`;
                 }
             }
             
+            function renderSmartInsights(data) {
+                const analytics = data.historical_analytics;
+                const currentEnergy = data.current_info?.energy;
+                
+                if (!analytics || !currentEnergy) return;
+                
+                const currentPrice = currentEnergy.price_eur_kwh;
+                const avgPrice = analytics.price_analysis.avg_price_eur_kwh;
+                const minPrice = analytics.price_analysis.min_price_eur_kwh;
+                const maxPrice = analytics.price_analysis.max_price_eur_kwh;
+                
+                // Calcular percentil del precio actual
+                const priceRange = maxPrice - minPrice;
+                const pricePosition = (currentPrice - minPrice) / priceRange;
+                
+                // Actualizar estado energético actual
+                const statusIconEl = document.querySelector('.status-icon');
+                const statusTextEl = document.getElementById('energy-status-text');
+                const priceAnalysisEl = document.getElementById('current-price-analysis');
+                const actionRecommendationEl = document.getElementById('energy-action-recommendation');
+                
+                if (pricePosition <= 0.25) {
+                    // Precio muy bajo (25% inferior)
+                    if (statusIconEl) statusIconEl.textContent = '🟢';
+                    if (statusTextEl) statusTextEl.textContent = 'ÓPTIMO - Precio Muy Bajo';
+                    if (actionRecommendationEl) actionRecommendationEl.textContent = '🚀 Momento ideal para maximizar producción';
+                } else if (pricePosition <= 0.5) {
+                    // Precio bajo-medio (25-50%)
+                    if (statusIconEl) statusIconEl.textContent = '🟡';
+                    if (statusTextEl) statusTextEl.textContent = 'FAVORABLE - Precio Bajo';
+                    if (actionRecommendationEl) actionRecommendationEl.textContent = '✅ Condiciones buenas para producir';
+                } else if (pricePosition <= 0.75) {
+                    // Precio medio-alto (50-75%)
+                    if (statusIconEl) statusIconEl.textContent = '🟠';
+                    if (statusTextEl) statusTextEl.textContent = 'NEUTRO - Precio Medio';
+                    if (actionRecommendationEl) actionRecommendationEl.textContent = '⚖️ Evaluar necesidad vs costo';
+                } else {
+                    // Precio alto (75%+)
+                    if (statusIconEl) statusIconEl.textContent = '🔴';
+                    if (statusTextEl) statusTextEl.textContent = 'CARO - Precio Alto';
+                    if (actionRecommendationEl) actionRecommendationEl.textContent = '⚠️ Considerar diferir producción';
+                }
+                
+                if (priceAnalysisEl) priceAnalysisEl.textContent = formatSpanishNumber(currentPrice, 4) + ' €/kWh';
+                
+                // Calcular ahorro vs precio promedio
+                const hourlyConsumption = 104; // kW promedio de la fábrica
+                const savingsPerHour = (avgPrice - currentPrice) * hourlyConsumption;
+                const savingsPotentialEl = document.getElementById('current-savings-potential');
+                if (savingsPotentialEl) {
+                    if (savingsPerHour > 0) {
+                        savingsPotentialEl.textContent = '+' + formatSpanishNumber(savingsPerHour, 2) + ' €/hora';
+                        savingsPotentialEl.style.color = '#4CAF50';
+                    } else {
+                        savingsPotentialEl.textContent = formatSpanishNumber(savingsPerHour, 2) + ' €/hora';
+                        savingsPotentialEl.style.color = '#F44336';
+                    }
+                }
+                
+                // Ranking diario simulado (basado en percentil)
+                const rankingEl = document.getElementById('price-ranking');
+                const ranking = Math.ceil(pricePosition * 24);
+                if (rankingEl) rankingEl.textContent = ranking + '/24';
+                
+                // Acción de ahorro
+                const savingsActionEl = document.getElementById('savings-action');
+                if (savingsActionEl) {
+                    if (savingsPerHour > 5) {
+                        savingsActionEl.textContent = '💰 Excelente momento para ahorrar';
+                    } else if (savingsPerHour > 0) {
+                        savingsActionEl.textContent = '💡 Ahorro moderado disponible';
+                    } else if (savingsPerHour > -5) {
+                        savingsActionEl.textContent = '⚖️ Costo ligeramente superior';
+                    } else {
+                        savingsActionEl.textContent = '⚠️ Momento costoso para producir';
+                    }
+                }
+                
+                // Recomendación principal inteligente
+                const recIconEl = document.getElementById('recommendation-icon');
+                const recTitleEl = document.getElementById('recommendation-title');
+                const recDetailEl = document.getElementById('recommendation-detail');
+                
+                if (pricePosition <= 0.25) {
+                    if (recIconEl) recIconEl.textContent = '🚀';
+                    if (recTitleEl) recTitleEl.textContent = 'PRODUCIR AHORA - Oportunidad Excepcional';
+                    if (recDetailEl) recDetailEl.textContent = `Precio actual (${formatSpanishNumber(currentPrice, 4)} €/kWh) está en el 25% más bajo del histórico. Ahorro potencial: ${formatSpanishNumber(savingsPerHour, 2)} €/hora vs promedio. Momento ideal para maximizar producción y aprovechar costos energéticos reducidos.`;
+                } else if (pricePosition <= 0.4) {
+                    if (recIconEl) recIconEl.textContent = '✅';
+                    if (recTitleEl) recTitleEl.textContent = 'PRODUCIR - Condiciones Favorables';
+                    if (recDetailEl) recDetailEl.textContent = `Precio energético favorable para producción. Costo actual ${formatSpanishNumber(((currentPrice - minPrice) / (maxPrice - minPrice)) * 100, 1)}% por encima del mínimo histórico. Recomendado proceder con planificación normal.`;
+                } else if (pricePosition <= 0.6) {
+                    if (recIconEl) recIconEl.textContent = '⚖️';
+                    if (recTitleEl) recTitleEl.textContent = 'EVALUAR - Precio Medio';
+                    if (recDetailEl) recDetailEl.textContent = `Precio en rango medio del histórico. Evaluar urgencia vs costo. Si no es urgente, considerar esperar a precios más favorables. Diferencia vs óptimo: +${formatSpanishNumber((currentPrice - minPrice) * hourlyConsumption, 2)} €/hora.`;
+                } else if (pricePosition <= 0.8) {
+                    if (recIconEl) recIconEl.textContent = '⚠️';
+                    if (recTitleEl) recTitleEl.textContent = 'DIFERIR - Precio Elevado';
+                    if (recDetailEl) recDetailEl.textContent = `Precio en el 20% superior del rango histórico. Recomendado diferir producción no urgente. Costo adicional vs momento óptimo: +${formatSpanishNumber((currentPrice - minPrice) * hourlyConsumption, 2)} €/hora.`;
+                } else {
+                    if (recIconEl) recIconEl.textContent = '🛑';
+                    if (recTitleEl) recTitleEl.textContent = 'SUSPENDER - Precio Muy Alto';
+                    if (recDetailEl) recDetailEl.textContent = `⚠️ ALERTA: Precio en el 20% más alto del histórico (${formatSpanishNumber(currentPrice, 4)} €/kWh). Suspender producción no crítica. Esperar mejores condiciones. Sobrecosto vs óptimo: +${formatSpanishNumber((currentPrice - minPrice) * hourlyConsumption, 2)} €/hora.`;
+                }
+            }
+            
             async function loadData() {
                 try {
                     document.getElementById('status').textContent = '🔄 Cargando...';
@@ -3456,72 +3615,6 @@ Recomendación: ${day.production_recommendation}`;
                     document.getElementById('production-status').textContent = data.current_info.production_status || '--';
                     document.getElementById('factory-efficiency').textContent = formatSpanishNumber(data.current_info.factory_efficiency || 0, 1) + '%';
                     
-                    // ML Predictions (formato español)
-                    const predictions = data.predictions || {};
-                    
-                    // Energía ML
-                    const energyOpt = predictions.energy_optimization || {};
-                    document.getElementById('energy-score').textContent = formatSpanishNumber(energyOpt.score || 0, 1);
-                    document.getElementById('energy-confidence').textContent = energyOpt.confidence || '--';
-                    document.getElementById('energy-recommendation').textContent = energyOpt.recommendation || '--';
-                    
-                    const energyConfBar = document.getElementById('energy-confidence-bar');
-                    const energyConfWidth = energyOpt.confidence === 'high' ? 90 : energyOpt.confidence === 'medium' ? 60 : 30;
-                    energyConfBar.style.width = energyConfWidth + '%';
-                    energyConfBar.className = `confidence-fill confidence-${energyOpt.confidence || 'low'}`;
-                    
-                    // Producción ML (formato español)
-                    const prodRec = predictions.production_recommendation || {};
-                    document.getElementById('production-class').textContent = (prodRec.class || 'Unknown').replace('_', ' ');
-                    document.getElementById('production-confidence').textContent = formatSpanishNumber(prodRec.confidence || 0, 1) + '%';
-                    document.getElementById('production-action').textContent = prodRec.action || '--';
-                    
-                    const prodConfBar = document.getElementById('production-confidence-bar');
-                    const prodConfWidth = prodRec.confidence || 0;
-                    prodConfBar.style.width = prodConfWidth + '%';
-                    prodConfBar.className = `confidence-fill confidence-${prodConfWidth > 70 ? 'high' : prodConfWidth > 40 ? 'medium' : 'low'}`;
-                    
-                    // Recomendaciones
-                    const recs = data.recommendations || {};
-                    
-                    const energyRecsList = document.getElementById('energy-recs');
-                    energyRecsList.innerHTML = (recs.energy || []).map(rec => `<li class="rec-item">${rec}</li>`).join('');
-                    
-                    const productionRecsList = document.getElementById('production-recs');
-                    productionRecsList.innerHTML = (recs.production || []).map(rec => `<li class="rec-item">${rec}</li>`).join('');
-                    
-                    const priorityRecsContainer = document.getElementById('priority-recs-container');
-                    const priorityRecsList = document.getElementById('priority-recs');
-                    if (recs.priority && recs.priority.length > 0) {
-                        priorityRecsContainer.style.display = 'block';
-                        priorityRecsList.innerHTML = recs.priority.map(rec => `<li class="rec-item">${rec}</li>`).join('');
-                    } else {
-                        priorityRecsContainer.style.display = 'none';
-                    }
-                    
-                    // Alertas
-                    const alerts = data.alerts || [];
-                    const alertsCard = document.getElementById('alerts-card');
-                    const alertsContent = document.getElementById('alerts-content');
-                    
-                    if (alerts.length === 0) {
-                        alertsCard.className = 'card alerts no-alerts';
-                        alertsContent.innerHTML = `
-                            <div style="text-align: center; padding: 2rem;">
-                                <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
-                                <div>No hay alertas activas</div>
-                            </div>
-                        `;
-                    } else {
-                        alertsCard.className = 'card alerts';
-                        alertsContent.innerHTML = alerts.map(alert => `
-                            <div style="margin: 0.5rem 0; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                                <div style="font-weight: bold;">${alert.type}: ${alert.level}</div>
-                                <div>${alert.message}</div>
-                                <div style="font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;">${alert.action || ''}</div>
-                            </div>
-                        `).join('');
-                    }
                     
                     // Estado sistema
                     const systemStatus = data.system_status || {};
@@ -3542,6 +3635,9 @@ Recomendación: ${day.production_recommendation}`;
                     
                     // Renderizar analytics históricos
                     renderHistoricalAnalytics(data);
+                    
+                    // Renderizar inteligencia de fábrica
+                    renderSmartInsights(data);
                     
                 } catch (error) {
                     document.getElementById('status').textContent = '❌ Error de conexión';
