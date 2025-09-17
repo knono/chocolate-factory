@@ -181,7 +181,7 @@ class SiarETL:
             # Process each CSV file
             for csv_file in csv_files:
                 logger.info(f"📊 Processing {csv_file}")
-                file_stats = await self.process_real_siar_csv(csv_file)
+                file_stats = await self.process_real_siar_csv_simple(csv_file)
 
                 # Accumulate stats
                 stats.total_records += file_stats.total_records
@@ -193,6 +193,137 @@ class SiarETL:
 
         except Exception as e:
             logger.error(f"❌ SIAR ETL failed: {e}")
+            raise
+
+    async def process_real_siar_csv_simple(self, csv_file_path: str) -> DataIngestionStats:
+        """
+        Simple and direct processing of SIAR CSV files
+        Based on known format: IdProvincia;IdEstacion;Fecha;Año;Dia;TempMedia(°C);TempMax(°C);...
+        """
+        stats = DataIngestionStats()
+
+        try:
+            logger.info(f"📊 Processing SIAR CSV (simple): {csv_file_path}")
+
+            # Read file with encoding handling
+            content = None
+            for encoding in ['latin-1', 'iso-8859-1', 'cp1252', 'utf-8']:
+                try:
+                    with open(csv_file_path, 'r', encoding=encoding) as f:
+                        lines = f.readlines()
+                    logger.info(f"Successfully read {csv_file_path} with {encoding} encoding")
+                    break
+                except UnicodeDecodeError:
+                    continue
+
+            if lines is None:
+                raise ValueError(f"Could not decode {csv_file_path}")
+
+            # Skip header line and process data lines
+            data_lines = lines[1:]  # Skip first line (header)
+            logger.info(f"🎯 Found {len(data_lines)} data lines")
+
+            weather_data = []
+
+            for line_num, line in enumerate(data_lines, 2):  # Start from line 2
+                try:
+                    # Character-by-character cleaning approach - keep only valid CSV characters
+                    clean_chars = []
+                    for char in line:
+                        # Keep only printable ASCII characters, semicolons, commas, forward slashes, colons, digits, letters, dots, minus
+                        if char.isprintable() and (char.isalnum() or char in ';,/:.-'):
+                            clean_chars.append(char)
+
+                    clean_line = ''.join(clean_chars)
+
+                    if not clean_line.strip():
+                        continue
+
+                    # Debug first few lines to verify cleaning
+                    if line_num <= 5:
+                        logger.info(f"🔍 Line {line_num} Original: '{line[:30]}...' (len={len(line)})")
+                        logger.info(f"🔍 Line {line_num} Cleaned:  '{clean_line[:30]}...' (len={len(clean_line)})")
+
+                    parts = clean_line.split(';')
+                    if len(parts) < 22:  # Need at least 22 columns
+                        logger.warning(f"⚠️ Line {line_num}: insufficient columns ({len(parts)})")
+                        if len(parts) > 2:  # Debug: show what we got
+                            logger.info(f"🔍 Debug parts[0:3]: {parts[0:3]}")
+                        continue
+
+                    # Extract key data (using position-based access)
+                    try:
+                        fecha_str = parts[2]  # Should now be clean DD/MM/YYYY
+                        if not fecha_str or '/' not in fecha_str:
+                            continue
+
+                        # Debug: log first successful date parsing
+                        if stats.total_records < 3:
+                            logger.info(f"🔍 Debug: Clean line length={len(clean_line)}, fecha_str='{fecha_str}' (len={len(fecha_str)})")
+
+                        # Parse Spanish date format DD/MM/YYYY
+                        date_obj = pd.to_datetime(fecha_str, format='%d/%m/%Y')
+
+                        # Create weather record with SIAR-specific formatting
+                        weather_record = AEMETWeatherData(
+                            timestamp=date_obj.replace(tzinfo=timezone.utc),
+                            station_id=f"SIAR_J{int(parts[1]):02d}_Linares",  # Unique SIAR identifier
+                            station_name=f"SIAR_Linares_J{int(parts[1]):02d}",
+                            province="Jaén",
+                            altitude=None,  # Not available in SIAR
+                            temperature=self._safe_float_comma(parts[5]) if len(parts) > 5 else None,      # TempMedia
+                            temperature_max=self._safe_float_comma(parts[6]) if len(parts) > 6 else None,  # TempMax
+                            temperature_min=self._safe_float_comma(parts[8]) if len(parts) > 8 else None,  # TempMin
+                            humidity=self._safe_float_comma(parts[10]) if len(parts) > 10 else None,       # HumedadMedia
+                            humidity_max=self._safe_float_comma(parts[11]) if len(parts) > 11 else None,   # HumedadMax
+                            humidity_min=self._safe_float_comma(parts[13]) if len(parts) > 13 else None,   # HumedadMin
+                            pressure=None,  # Not available in SIAR format
+                            wind_speed=self._safe_float_comma(parts[15]) if len(parts) > 15 else None,     # Velviento (m/s)
+                            wind_direction=self._safe_float_comma(parts[16]) if len(parts) > 16 else None, # DirViento
+                            wind_gust=self._safe_float_comma(parts[17]) if len(parts) > 17 else None,      # VelVientoMax -> wind_gust
+                            precipitation=self._safe_float_comma(parts[21]) if len(parts) > 21 else None   # Precipitación
+                            # Note: radiation data (parts[20]) not included in AEMETWeatherData model
+                        )
+
+                        weather_data.append(weather_record)
+                        stats.total_records += 1
+
+                        # Log first successful record for debugging
+                        if stats.total_records == 1:
+                            logger.info(f"🎯 First record created successfully: {fecha_str}, Station: {weather_record.station_id}")
+
+                        # Log progress every 100 records
+                        if stats.total_records % 100 == 0:
+                            logger.info(f"📈 Processed {stats.total_records} records...")
+
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"⚠️ Line {line_num}: parsing error - {e}")
+                        stats.failed_writes += 1
+                        continue
+
+                except Exception as e:
+                    logger.warning(f"⚠️ Line {line_num}: general error - {e}")
+                    stats.failed_writes += 1
+                    continue
+
+            # Write to InfluxDB using AEMET weather ingestion method
+            if weather_data:
+                logger.info(f"💾 Writing {len(weather_data)} SIAR records to InfluxDB...")
+
+                async with DataIngestionService() as ingestion_service:
+                    ingestion_stats = await ingestion_service.ingest_aemet_weather(weather_data)
+
+                    stats.successful_writes = ingestion_stats.successful_writes
+                    stats.failed_writes = ingestion_stats.failed_writes
+
+                logger.info(f"✅ SIAR CSV completed: {stats.successful_writes} records written from {csv_file_path}")
+            else:
+                logger.warning(f"⚠️ No valid weather data found in {csv_file_path}")
+
+            return stats
+
+        except Exception as e:
+            logger.error(f"❌ Error processing SIAR CSV {csv_file_path}: {e}")
             raise
 
     async def process_real_siar_csv(self, csv_file_path: str) -> DataIngestionStats:
@@ -229,13 +360,21 @@ class SiarETL:
             # Remove the extra spaces between characters
             content = content.replace(' ', '')
 
-            # Create a temporary cleaned file
+            # Create a temporary cleaned file and examine first few lines
             import tempfile
             with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as tmp_file:
                 tmp_file.write(content)
                 tmp_file_path = tmp_file.name
 
-            # Read the cleaned CSV
+            # First, let's examine the actual format
+            with open(tmp_file_path, 'r') as f:
+                first_lines = [f.readline().strip() for _ in range(3)]
+
+            logger.info(f"🔍 First 3 lines after cleaning:")
+            for i, line in enumerate(first_lines):
+                logger.info(f"   Line {i}: {line[:100]}...")
+
+            # Read the cleaned CSV - use the first line as header
             df = pd.read_csv(tmp_file_path, sep=';', decimal=',')
 
             # Clean up temporary file
@@ -243,35 +382,70 @@ class SiarETL:
             os.unlink(tmp_file_path)
 
             logger.info(f"🎯 Loaded {len(df)} records from {csv_file_path}")
+            logger.info(f"📋 Columns: {list(df.columns)}")
+
+            # Skip if no valid data rows
+            if len(df) == 0:
+                logger.warning(f"No data rows in {csv_file_path}")
+                return stats
+
+            # Map real column names from SIAR format (after space removal)
+            # Based on original format: IdProvincia;IdEstacion;Fecha;Año;Dia;TempMedia(°C);TempMax(°C);...
+            column_mapping = {
+                'IdProvincia': 'IdProvincia',
+                'IdEstacion': 'IdEstacion',
+                'Fecha': 'Fecha',
+                'Año': 'Año',
+                'Dia': 'Dia',
+                'TempMedia(°C)': 'temperature',
+                'TempMax(°C)': 'temperature_max',
+                'TempMínima(°C)': 'temperature_min',
+                'HumedadMedia(%)': 'humidity',
+                'HumedadMax(%)': 'humidity_max',
+                'HumedadMin(%)': 'humidity_min',
+                'Velviento(m/s)': 'wind_speed',
+                'DirViento(°)': 'wind_direction',
+                'VelVientoMax(m/s)': 'wind_speed_max',
+                'Radiación(MJ/m2)': 'radiation',
+                'Precipitación(mm)': 'precipitation'
+            }
 
             # Convert to AEMET format
             weather_data = []
 
             for _, row in df.iterrows():
                 try:
+                    # Skip header row if it contains text instead of data
+                    if str(row.iloc[2]) == 'Fecha':  # Third column should be date
+                        continue
+
                     # Parse date (format: DD/MM/YYYY)
-                    date_str = str(row['Fecha'])
+                    date_str = str(row.iloc[2])  # Use position instead of column name initially
+                    if '/' not in date_str:
+                        logger.warning(f"⚠️ Invalid date format: {date_str}")
+                        continue
+
                     date_obj = pd.to_datetime(date_str, format='%d/%m/%Y')
 
-                    # Map SIAR columns to our format
+                    # Map SIAR columns to our format using column positions
                     weather_record = AEMETWeatherData(
                         timestamp=date_obj.replace(tzinfo=timezone.utc),
-                        station_id=f"J{row['IdEstacion']:02d}",  # J09, J17, etc.
-                        station_name=f"Linares_J{row['IdEstacion']:02d}",
-                        province=f"JAEN_{row['IdProvincia']:02d}",
+                        station_id=f"J{int(row.iloc[1]):02d}",  # J09, J17, etc.
+                        station_name=f"Linares_J{int(row.iloc[1]):02d}",
+                        province=f"JAEN_{int(row.iloc[0]):02d}",
                         altitude=None,  # Not available in this format
-                        temperature=self._safe_float_comma(row.get('TempMedia(°C)')),
-                        temperature_max=self._safe_float_comma(row.get('TempMax(°C)')),
-                        temperature_min=self._safe_float_comma(row.get('TempMínima(°C)')),
-                        humidity=self._safe_float_comma(row.get('HumedadMedia(%)')),
-                        humidity_max=self._safe_float_comma(row.get('HumedadMax(%)')),
-                        humidity_min=self._safe_float_comma(row.get('HumedadMin(%)')),
+                        temperature=self._safe_float_comma(row.iloc[5]) if len(row) > 5 else None,
+                        temperature_max=self._safe_float_comma(row.iloc[6]) if len(row) > 6 else None,
+                        temperature_min=self._safe_float_comma(row.iloc[8]) if len(row) > 8 else None,
+                        humidity=self._safe_float_comma(row.iloc[10]) if len(row) > 10 else None,
+                        humidity_max=self._safe_float_comma(row.iloc[11]) if len(row) > 11 else None,
+                        humidity_min=self._safe_float_comma(row.iloc[13]) if len(row) > 13 else None,
                         pressure=None,  # Not available in SIAR format
-                        wind_speed=self._safe_float_comma(row.get('Velviento(m/s)')),
-                        wind_direction=self._safe_float_comma(row.get('DirViento(°)')),
-                        wind_speed_max=self._safe_float_comma(row.get('VelVientoMax(m/s)')),
-                        precipitation=self._safe_float_comma(row.get('Precipitación(mm)')),
-                        radiation=self._safe_float_comma(row.get('Radiación(MJ/m2)'))
+                        wind_speed=self._safe_float_comma(row.iloc[15]) if len(row) > 15 else None,
+                        wind_direction=self._safe_float_comma(row.iloc[16]) if len(row) > 16 else None,
+                        wind_speed_max=self._safe_float_comma(row.iloc[17]) if len(row) > 17 else None,
+                        precipitation=self._safe_float_comma(row.iloc[21]) if len(row) > 21 else None,
+                        radiation=self._safe_float_comma(row.iloc[20]) if len(row) > 20 else None
                     )
 
                     weather_data.append(weather_record)
