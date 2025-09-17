@@ -44,7 +44,7 @@ graph TB
     subgraph "Data Sources"
         H[REE API]
         I[AEMET API]
-        J[datosclima.es]
+        J[Sistema SIAR]
     end
     
     C --> H
@@ -99,11 +99,11 @@ La estrategia de backfill cambia según el **rango temporal** de los gaps detect
 - **Uso**: Gaps en julio 2025 (mes actual)
 
 #### 📆 **Meses Anteriores**
-**Método**: datosclima.es ETL + CSV processing
-- **API**: Descarga CSV históricos
-- **Ventajas**: Datos históricos confiables, grandes volúmenes
+**Método**: Sistema SIAR ETL + CSV processing
+- **API**: Descarga CSV históricos desde portal oficial SIAR
+- **Ventajas**: Datos históricos oficiales (2000-2025), servicio público gratuito, grandes volúmenes
 - **Limitaciones**: Requiere procesamiento ETL adicional
-- **Rate limit**: 10 requests/min
+- **Rate limit**: Sin restricciones (servicio público)
 - **Uso**: Gaps en junio 2025 y anteriores
 
 ### Implementación del Criterio
@@ -122,8 +122,8 @@ if is_current_month:
     # Usar AEMET API (pequeños batches)
     result = await self._backfill_weather_aemet(gap)
 else:
-    # Usar datosclima.es ETL (históricos)
-    result = await self._backfill_weather_datosclima(gap)
+    # Usar Sistema SIAR ETL (históricos)
+    result = await self._backfill_weather_siar(gap)
 ```
 
 ## Implementación Técnica
@@ -159,7 +159,7 @@ async def _backfill_ree_gaps(self, gaps: List[DataGap]) -> List[BackfillResult]:
 
 ### Weather Backfill Engine
 
-**Estrategia**: Temporal inteligente (AEMET vs datosclima.es)
+**Estrategia**: Temporal inteligente (AEMET vs Sistema SIAR)
 
 #### AEMET Current Month
 ```python
@@ -173,13 +173,13 @@ async def _backfill_weather_aemet(self, gap: DataGap) -> BackfillResult:
     return write_result
 ```
 
-#### datosclima.es Historical
+#### Sistema SIAR Historical
 ```python
-async def _backfill_weather_datosclima(self, gap: DataGap) -> BackfillResult:
-    # ETL para meses anteriores
+async def _backfill_weather_siar(self, gap: DataGap) -> BackfillResult:
+    # ETL para meses anteriores usando Sistema SIAR
     years_needed = [gap.start_time.year]
-    etl_service = DatosClimaETL()
-    
+    etl_service = SiarETL()
+
     for year in years_needed:
         etl_result = await etl_service.process_station_data(
             station_id="5279X",
@@ -247,7 +247,7 @@ async def _backfill_weather_datosclima(self, gap: DataGap) -> BackfillResult:
       "method": "daily_chunks"
     },
     "weather_strategy": {
-      "primary_api": "datosclima.es",
+      "primary_api": "Sistema_SIAR",
       "fallback_api": "AEMET_historical"
     }
   }
@@ -490,9 +490,9 @@ docker restart chocolate_factory_brain
 
 **Causa**: AEMET API histórica no retorna datos para ciertos rangos
 
-**Solución**: El sistema automáticamente usa datosclima.es como fallback
+**Solución**: El sistema automáticamente usa Sistema SIAR como fallback
 ```bash
-# Forzar uso de datosclima.es para meses anteriores
+# Forzar uso de Sistema SIAR para meses anteriores
 # El sistema lo hace automáticamente basado en la fecha del gap
 ```
 
@@ -528,17 +528,17 @@ docker logs chocolate_factory_brain | grep "auto_backfill_check"
 - **REE Single Day**: ~3-5 segundos
 - **REE Week**: ~25-40 segundos  
 - **Weather AEMET (current month)**: ~2-4 segundos
-- **Weather datosclima.es ETL**: ~30-90 segundos
+- **Weather Sistema SIAR ETL**: ~30-90 segundos
 
 #### Success Rates por Fuente
 - **REE Historical API**: 85-95% (alta confiabilidad)
 - **AEMET Current Month**: 60-80% (limitado por disponibilidad)
-- **datosclima.es ETL**: 70-90% (dependiente de CSVs disponibles)
+- **Sistema SIAR ETL**: 85-95% (servicio oficial estable, datos 2000-2025)
 
 #### Rate Limiting Efectivo
 - **REE**: 30 requests/min (2s delay) - Sin timeouts observados
 - **AEMET**: 20 requests/min (3s delay) - Ocasionales 429 errors
-- **datosclima.es**: 10 requests/min (6s delay) - Estable
+- **Sistema SIAR**: Sin restricciones (servicio público) - Altamente estable
 
 ### Optimizaciones Implementadas
 

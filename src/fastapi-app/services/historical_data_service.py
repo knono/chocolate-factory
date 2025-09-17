@@ -20,7 +20,7 @@ import pandas as pd
 from loguru import logger
 
 from .ree_client import REEClient
-from .datosclima_etl import DatosClimaETL
+from .siar_etl import DatosClimaETL
 from .data_ingestion import DataIngestionService
 from .gap_detector import GapDetectionService
 

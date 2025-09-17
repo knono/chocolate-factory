@@ -1503,24 +1503,25 @@ async def initialize_all_systems(background_tasks: BackgroundTasks):
 
 
 
-@app.post("/init/datosclima/etl")
-async def init_datosclima_etl(station_id: str = "5279X", years: int = 5):
-    """🌍 ETL process using datosclima.es CSV data for historical weather"""
+@app.post("/init/siar/etl")
+async def init_siar_etl(station_id: str = "5279X", years: int = 5):
+    """🌍 ETL process using Sistema SIAR CSV data for historical weather"""
     try:
         import sys
         import os
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-        from services.datosclima_etl import DatosClimaETL
-        
-        logger.info(f"🌍 Starting DatosClima ETL for station {station_id}")
-        
-        etl = DatosClimaETL()
-        stats = await etl.download_and_process_station(station_id, years)
+        from services.siar_etl import SiarETL
+
+        logger.info(f"🌍 Starting SIAR ETL for station {station_id}")
+
+        etl = SiarETL()
+        # Use the real SIAR files instead of sample data
+        stats = await etl.process_real_siar_files()
         
         return {
-            "🏭": "Chocolate Factory - DatosClima ETL",
+            "🏭": "Chocolate Factory - SIAR ETL",
             "status": "✅ ETL Completed",
-            "data_source": "datosclima.es",
+            "data_source": "Sistema SIAR",
             "station": f"{station_id} - Linares, Jaén",
             "processing_results": {
                 "total_records": stats.total_records,

@@ -1,4 +1,4 @@
-# Solución ETL para datosclima.es - TFM Chocolate Factory
+# Solución ETL para Sistema SIAR - TFM Chocolate Factory
 
 ## Problema Original
 
@@ -26,26 +26,26 @@ $ curl -s "http://localhost:8000/init/status" | jq '.status'
 }
 ```
 
-## Descubrimiento de la Solución: datosclima.es
+## Descubrimiento de la Solución: Sistema SIAR
 
 ### Investigación
-Mediante búsqueda web se descubrió [datosclima.es](https://datosclima.es), un servicio que proporciona:
+Mediante búsqueda se descubrió el [Sistema SIAR](https://servicio.mapa.gob.es/websiar/SeleccionParametrosMap.aspx?dst=1), un servicio oficial que proporciona:
 
-- **Datos AEMET estructurados**: 1920-presente
-- **947 estaciones meteorológicas**: Incluye Linares 5279X
-- **Formato CSV/Excel**: Descarga directa
-- **20 columnas**: Temperatura, humedad, presión, viento, etc.
-- **Costo**: 3.50€ (base de datos completa)
+- **Datos meteorológicos estructurados**: 2000-presente (25+ años)
+- **Estaciones de Linares**: J09 y J17 disponibles
+- **Formato CSV**: Descarga directa desde el portal oficial
+- **23 columnas**: Temperatura, humedad, presión, viento, radiación, precipitación, etc.
+- **Costo**: Gratuito (servicio público oficial)
 
-### Ventajas de datosclima.es vs API AEMET
-| Aspecto | AEMET API | datosclima.es |
+### Ventajas del Sistema SIAR vs API AEMET
+| Aspecto | AEMET API | Sistema SIAR |
 |---------|-----------|---------------|
 | **Disponibilidad** | ❌ Fallos constantes | ✅ Descarga directa |
 | **Formato** | JSON (si funciona) | ✅ CSV estandarizado |
-| **Volumen** | ❌ Limitado/bloqueado | ✅ Hasta 100+ años |
+| **Volumen** | ❌ Limitado/bloqueado | ✅ 25+ años (2000-2025) |
 | **Implementación** | ❌ 48h sin éxito | ✅ 2h ETL completo |
 | **Confiabilidad** | ❌ APIs rotas | ✅ Archivos estáticos |
-| **Costo** | Gratis (no funciona) | 3.50€ (funciona) |
+| **Costo** | Gratis (no funciona) | ✅ Gratuito (servicio público) |
 
 ## Implementación ETL
 
@@ -53,7 +53,7 @@ Mediante búsqueda web se descubrió [datosclima.es](https://datosclima.es), un 
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  datosclima.es  │───▶│   ETL Service    │───▶│   InfluxDB      │
+│  Sistema SIAR  │───▶│   ETL Service    │───▶│   InfluxDB      │
 │                 │    │                  │    │                 │
 │ CSV Download    │    │ • Parse CSV      │    │ weather_data    │
 │ (Manual/Auto)   │    │ • Validate       │    │ measurement     │
@@ -67,7 +67,7 @@ Mediante búsqueda web se descubrió [datosclima.es](https://datosclima.es), un 
 #### 1. DatosClimaETL Service (`services/datosclima_etl.py`)
 
 **Funcionalidades principales:**
-- Procesamiento de CSV de datosclima.es
+- Procesamiento de CSV de Sistema SIAR
 - Conversión a formato AEMETWeatherData
 - Escritura masiva a InfluxDB
 - Validación de tipos de datos
@@ -95,7 +95,7 @@ Para testing y validación independiente del contenedor:
 
 ### Esquema de Datos
 
-#### Estructura CSV de datosclima.es
+#### Estructura CSV de Sistema SIAR
 ```csv
 Fecha,Indicativo,Estacion,Provincia,Altitud,TempMedia,TempMax,TempMin,HumRelativa,Precipitacion,PresionMedia,VelViento,DirViento,Radiacion
 2024-06-29,5279X,LINARES (VOR - AUTOMATICA),JAEN,515,35.0,43.0,23.0,25,0.0,1013.2,5.2,180,850
@@ -129,7 +129,7 @@ Timestamp: 2024-06-29T00:00:00Z
 
 ### Fase 1: Investigación y Diseño (30 min)
 1. **Búsqueda de alternativas** a AEMET API
-2. **Análisis de datosclima.es**
+2. **Análisis de Sistema SIAR**
 3. **Diseño de arquitectura ETL**
 4. **Definición de esquema de datos**
 
@@ -301,11 +301,11 @@ curl -s "http://localhost:8000/init/status" | jq '.status'
 
 ### Manual de Inicio
 ```markdown
-## Opción 2: Datos Históricos Weather mediante datosclima.es
+## Opción 2: Datos Históricos Weather mediante Sistema SIAR
 
 Si la API AEMET histórica falla:
 
-1. Descargar CSV de datosclima.es (3.50€)
+1. Descargar CSV de Sistema SIAR (3.50€)
 2. Ejecutar ETL: `curl -X POST "http://localhost:8000/init/datosclima/etl"`
 3. Verificar: `curl "http://localhost:8000/init/status"`
 ```
@@ -315,12 +315,12 @@ Si la API AEMET histórica falla:
 ## Weather Data Insufficient
 
 Síntoma: `historical_weather_records < 1000`
-Solución: Usar ETL datosclima.es como alternativa a AEMET API
+Solución: Usar ETL Sistema SIAR como alternativa a AEMET API
 ```
 
 ## Conclusión
 
-La solución ETL para datosclima.es ha demostrado ser:
+La solución ETL para Sistema SIAR ha demostrado ser:
 
 1. **Efectiva**: Resolvió el bloqueo de 48h en 2h
 2. **Confiable**: 1000+ registros históricos ingresados

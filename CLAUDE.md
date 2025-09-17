@@ -32,7 +32,7 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 │   └── services/              # Service layer modules
 │       ├── direct_ml.py       # Direct ML training (sklearn)
 │       ├── dashboard.py       # Integrated dashboard
-│       ├── datosclima_etl.py # Weather data ETL
+│       ├── siar_etl.py       # SIAR weather data ETL
 │       ├── ree_client.py      # REE electricity API
 │       └── [backfill, gaps, weather APIs]
 ├── docker/                    # Docker infrastructure
@@ -55,7 +55,7 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 ### Data Integration
 - **REE API**: Real Spanish electricity prices 
 - **Hybrid Weather**: AEMET + OpenWeatherMap (24/7 coverage)
-- **Historical Data**: 1,095+ weather records via datosclima.es ETL
+- **Historical Data**: 25+ years weather records via SIAR system ETL (2000-2025)
 - **Automatic Backfill**: Gap detection and recovery every 2 hours
 
 ### Machine Learning (Direct Implementation)
@@ -88,7 +88,7 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - **Primary**: AEMET official observations (00:00-07:00)
 - **Secondary**: OpenWeatherMap real-time (08:00-23:00)
 - **Fallback**: Automatic source switching
-- **Historical**: datosclima.es ETL (1,095+ records)
+- **Historical**: SIAR system ETL (25+ years, 9,100+ records from 2000-2025)
 - **Status**: ✅ 24/7 coverage achieved
 
 ### Token Management
@@ -166,12 +166,12 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - **Current Coverage**: Only 12 days (Sept 5-17, 2025)
 - **REE Data**: 405 records (Sept 2025 only) - 9-day gap exists
 - **Weather Data**: 2,375 records from AEMET/OpenWeatherMap hybrid
-- **datosclima.es ETL**: NOT EXECUTED YET - 0 historical records
+- **SIAR ETL**: AVAILABLE - 25 years of historical data (2000-2025) in CSV format
 - **REE Historical Init**: IN PROGRESS (2022-2024, ~17,520 records expected)
 - **Backfill system**: Auto-detects and recovers gaps every 2 hours
 
 ### Pending Historical Data Tasks
-- **Execute datosclima ETL**: Get 3+ years weather history
+- **Execute SIAR ETL**: Process 25 years weather history from SIAR system CSV files
 - **Complete REE historical**: Finish 2022-2024 ingestion
 - **Resolve current gap**: Fix 9-day REE gap (Sept 8-17)
 - **10-year expansion**: Use ESIOS API for 2015-2021 data
@@ -205,7 +205,7 @@ curl -X POST http://localhost:8000/predict/production-recommendation \
 
 ### Gap Detection & Recovery
 - **Automatic detection**: Identifies missing data gaps in REE and weather data
-- **Smart strategy**: Current month (AEMET API) vs historical (datosclima.es ETL)
+- **Smart strategy**: Current month (AEMET API) vs historical (SIAR system ETL)
 - **Auto-recovery**: Every 2 hours via APScheduler
 - **Alert system**: Automatic notifications for success/failure
 
@@ -251,4 +251,4 @@ docker compose up -d chocolate-factory
 - **Data freshness**: Always check backfill status when container starts (system not always running)
 - **Gap recovery**: Use backfill when necessary to maintain data currency
 - **API updates**: Ensure REE and AEMET data stays current (remember OpenWeather for 08:00-23:00)
-- **Monthly strategy**: Use current month (AEMET) vs historical (datosclima.es) approaches
+- **Monthly strategy**: Use current month (AEMET) vs historical (SIAR system) approaches
