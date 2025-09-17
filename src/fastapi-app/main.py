@@ -2373,6 +2373,174 @@ async def _execute_range_backfill_sync(backfill_service, request: RangeBackfillR
     }
 
 
+# === HISTORICAL DATA ENDPOINTS ===
+
+@app.get("/historical/status", tags=["Historical Data"])
+async def get_historical_data_status():
+    """📊 Analizar estado de datos históricos de 10 años"""
+    try:
+        from services.historical_data_service import historical_data_service
+
+        analysis = await historical_data_service.analyze_historical_data_status()
+
+        return {
+            "🏭": "Chocolate Factory - Historical Data Analysis",
+            "📊": "Análisis de Datos Históricos (10 años)",
+            **analysis
+        }
+
+    except Exception as e:
+        logger.error(f"Historical data analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/historical/ingest-year/{year}", tags=["Historical Data"])
+async def ingest_year_data(year: int,
+                          include_ree: bool = True,
+                          include_weather: bool = True,
+                          background_tasks: BackgroundTasks = None):
+    """📅 Ingestar datos históricos de un año específico"""
+    try:
+        from services.historical_data_service import historical_data_service
+
+        # Validar año
+        current_year = datetime.now().year
+        if year < 2015 or year > current_year:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Año debe estar entre 2015 y {current_year}"
+            )
+
+        if background_tasks:
+            # Ejecutar en background para años grandes
+            background_tasks.add_task(
+                _execute_year_ingestion_background,
+                historical_data_service, year, include_ree, include_weather
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Year Ingestion Started",
+                "📅": f"Ingesta Año {year}",
+                "status": "🚀 Executing in background",
+                "year": year,
+                "data_sources": {
+                    "ree": include_ree,
+                    "weather": include_weather
+                },
+                "estimated_duration": "15-45 minutes",
+                "monitoring": {
+                    "check_progress": "GET /historical/status",
+                    "verify_results": f"GET /gaps/detect?days_back=365"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            # Ejecutar sincrónicamente (para testing)
+            result = await historical_data_service.ingest_year_data(
+                year=year,
+                include_ree=include_ree,
+                include_weather=include_weather
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Year Ingestion Completed",
+                "📅": f"Ingesta Año {year}",
+                **result
+            }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Year ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/historical/progressive-ingestion", tags=["Historical Data"])
+async def execute_progressive_ingestion(max_years_per_session: int = 3,
+                                      background_tasks: BackgroundTasks = None):
+    """🚀 Ejecutar ingesta progresiva de 10 años (limitada por sesión)"""
+    try:
+        from services.historical_data_service import historical_data_service
+
+        # Validar parámetros
+        if max_years_per_session < 1 or max_years_per_session > 5:
+            raise HTTPException(
+                status_code=400,
+                detail="max_years_per_session debe estar entre 1 y 5"
+            )
+
+        if background_tasks:
+            # Ejecutar en background (recomendado para múltiples años)
+            background_tasks.add_task(
+                _execute_progressive_ingestion_background,
+                historical_data_service, max_years_per_session
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Progressive Ingestion Started",
+                "🚀": "Ingesta Progresiva 10 Años",
+                "status": "🚀 Executing in background",
+                "session_config": {
+                    "max_years_per_session": max_years_per_session,
+                    "estimated_duration_hours": max_years_per_session * 0.5
+                },
+                "monitoring": {
+                    "check_progress": "GET /historical/status",
+                    "scheduler_status": "GET /scheduler/status"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            # Ejecutar sincrónicamente (solo para testing con pocos años)
+            if max_years_per_session > 2:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Para ejecución síncrona, usar máximo 2 años por sesión"
+                )
+
+            result = await historical_data_service.execute_progressive_10_year_ingestion(
+                max_years_per_session=max_years_per_session
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Progressive Ingestion Completed",
+                "🚀": "Ingesta Progresiva 10 Años",
+                **result
+            }
+
+    except Exception as e:
+        logger.error(f"Progressive ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _execute_year_ingestion_background(historical_data_service, year: int,
+                                           include_ree: bool, include_weather: bool):
+    """Helper para ejecutar ingesta de año en background"""
+    try:
+        logger.info(f"📅 Starting year {year} ingestion (REE: {include_ree}, Weather: {include_weather})")
+        result = await historical_data_service.ingest_year_data(
+            year=year,
+            include_ree=include_ree,
+            include_weather=include_weather
+        )
+        logger.info(f"✅ Year {year} ingestion completed: {result.get('status', 'unknown')}")
+    except Exception as e:
+        logger.error(f"❌ Year {year} ingestion failed: {e}")
+
+
+async def _execute_progressive_ingestion_background(historical_data_service,
+                                                  max_years_per_session: int):
+    """Helper para ejecutar ingesta progresiva en background"""
+    try:
+        logger.info(f"🚀 Starting progressive ingestion (max {max_years_per_session} years)")
+        result = await historical_data_service.execute_progressive_10_year_ingestion(
+            max_years_per_session=max_years_per_session
+        )
+        logger.info(f"✅ Progressive ingestion completed: {result.get('session_summary', {}).get('successful_years', 0)} years")
+    except Exception as e:
+        logger.error(f"❌ Progressive ingestion failed: {e}")
+
+
 # === DASHBOARD ENDPOINTS ===
 
 @app.get("/test-heatmap")

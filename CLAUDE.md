@@ -162,10 +162,19 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - **ML Models**: `/app/models/` (pickle files)
 - **System shutdown safe**: Data persists across restarts
 
-### Historical Data
-- **datosclima.es ETL**: 1,095+ weather records via `POST /init/datosclima/etl`
-- **REE Historical**: Limited reliability for >1 year data
+### Historical Data Status (Updated Sept 17, 2025)
+- **Current Coverage**: Only 12 days (Sept 5-17, 2025)
+- **REE Data**: 405 records (Sept 2025 only) - 9-day gap exists
+- **Weather Data**: 2,375 records from AEMET/OpenWeatherMap hybrid
+- **datosclima.es ETL**: NOT EXECUTED YET - 0 historical records
+- **REE Historical Init**: IN PROGRESS (2022-2024, ~17,520 records expected)
 - **Backfill system**: Auto-detects and recovers gaps every 2 hours
+
+### Pending Historical Data Tasks
+- **Execute datosclima ETL**: Get 3+ years weather history
+- **Complete REE historical**: Finish 2022-2024 ingestion
+- **Resolve current gap**: Fix 9-day REE gap (Sept 8-17)
+- **10-year expansion**: Use ESIOS API for 2015-2021 data
 
 
 ## Machine Learning (Direct Implementation)

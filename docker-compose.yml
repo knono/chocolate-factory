@@ -33,6 +33,9 @@ services:
     volumes:
       - ./data:/app/data
       - ./src/configs:/app/configs
+      - ./src/fastapi-app/services/historical_data_service.py:/app/services/historical_data_service.py
+      - ./src/fastapi-app/services/ml_models.py:/app/services/ml_models.py
+      - ./src/fastapi-app/main.py:/app/main.py
       - ./docker/services/fastapi/logs:/app/logs
       - ./models:/app/models
       - ./scripts:/app/scripts
