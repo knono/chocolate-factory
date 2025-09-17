@@ -1,0 +1,153 @@
+# Shift Schedule Configuration - Chocolate Factory
+
+shift_configuration:
+  operating_days:
+    - monday
+    - tuesday
+    - wednesday
+    - thursday
+    - friday
+    - saturday
+    # Sunday: maintenance and cleaning only
+  
+  daily_shifts:
+    morning:
+      name: "Morning Shift"
+      code: "T1"
+      start_time: "06:00"
+      end_time: "14:00"
+      duration_hours: 8
+      workers:
+        operators: 3
+        supervisor: 1
+        quality_control: 1
+      production_focus: "standard_quality"
+      break_schedule:
+        - { start: "08:00", duration_min: 15 }
+        - { start: "10:00", duration_min: 30 }
+        - { start: "12:30", duration_min: 15 }
+    
+    afternoon:
+      name: "Afternoon Shift"
+      code: "T2"
+      start_time: "14:00"
+      end_time: "22:00"
+      duration_hours: 8
+      workers:
+        operators: 3
+        supervisor: 1
+        quality_control: 1
+      production_focus: "mixed_quality"  # Standard + Premium
+      break_schedule:
+        - { start: "16:00", duration_min: 15 }
+        - { start: "18:00", duration_min: 30 }
+        - { start: "20:30", duration_min: 15 }
+    
+    night:
+      name: "Night Maintenance"
+      code: "T3"
+      start_time: "22:00"
+      end_time: "06:00"
+      duration_hours: 8
+      workers:
+        maintenance: 2
+        cleaning: 1
+      production_focus: "none"  # Maintenance only
+      tasks:
+        - equipment_cleaning
+        - preventive_maintenance
+        - calibration
+        - system_backups
+
+  weekly_schedule:
+    monday:
+      shifts: ["morning", "afternoon", "night"]
+      production_target_kg: 200
+      quality_mix: { standard: 0.7, premium: 0.3 }
+    
+    tuesday:
+      shifts: ["morning", "afternoon", "night"]
+      production_target_kg: 200
+      quality_mix: { standard: 0.7, premium: 0.3 }
+    
+    wednesday:
+      shifts: ["morning", "afternoon", "night"]
+      production_target_kg: 200
+      quality_mix: { standard: 0.6, premium: 0.4 }
+    
+    thursday:
+      shifts: ["morning", "afternoon", "night"]
+      production_target_kg: 200
+      quality_mix: { standard: 0.7, premium: 0.3 }
+    
+    friday:
+      shifts: ["morning", "afternoon", "night"]
+      production_target_kg: 250  # Higher for weekend demand
+      quality_mix: { standard: 0.8, premium: 0.2 }
+    
+    saturday:
+      shifts: ["morning", "night"]  # No afternoon shift
+      production_target_kg: 100
+      quality_mix: { standard: 1.0, premium: 0.0 }
+    
+    sunday:
+      shifts: ["night"]  # Maintenance only
+      production_target_kg: 0
+      maintenance_tasks:
+        - deep_cleaning
+        - major_maintenance
+        - system_updates
+        - inventory_check
+
+  shift_handover:
+    duration_min: 15
+    overlap: true
+    required_items:
+      - production_log
+      - quality_report
+      - equipment_status
+      - material_inventory
+      - pending_issues
+
+  productivity_metrics:
+    morning_shift:
+      avg_output_kg: 100
+      efficiency_percent: 85
+      typical_batches: 2
+    
+    afternoon_shift:
+      avg_output_kg: 100
+      efficiency_percent: 80  # Slightly lower due to fatigue
+      typical_batches: 2
+
+  energy_considerations:
+    peak_hours:
+      - { start: "10:00", end: "14:00", multiplier: 1.5 }
+      - { start: "19:00", end: "22:00", multiplier: 1.5 }
+    
+    valley_hours:
+      - { start: "00:00", end: "06:00", multiplier: 0.7 }
+      - { start: "23:00", end: "00:00", multiplier: 0.7 }
+    
+    strategy:
+      - Schedule conching during valley hours when possible
+      - Minimize high-consumption processes during peak
+      - Use night shift for energy-intensive cleaning
+
+  holiday_schedule:
+    national_holidays:
+      - { date: "2025-01-01", name: "New Year" }
+      - { date: "2025-01-06", name: "Epiphany" }
+      - { date: "2025-04-18", name: "Good Friday" }
+      - { date: "2025-05-01", name: "Labor Day" }
+      - { date: "2025-08-15", name: "Assumption" }
+      - { date: "2025-10-12", name: "National Day" }
+      - { date: "2025-11-01", name: "All Saints" }
+      - { date: "2025-12-06", name: "Constitution" }
+      - { date: "2025-12-08", name: "Immaculate" }
+      - { date: "2025-12-25", name: "Christmas" }
+    
+    holiday_operation:
+      mode: "minimal"
+      shifts: ["night"]  # Maintenance only
+      staff_multiplier: 2.0  # Double pay

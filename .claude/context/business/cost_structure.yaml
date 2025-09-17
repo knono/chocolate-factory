@@ -1,0 +1,158 @@
+# Cost Structure - Chocolate Factory
+# Note: Energy costs are dynamic from REE API
+
+cost_structure:
+  variable_costs:
+    raw_materials:
+      chocolate_liquor:
+        cost_per_kg: 8.50
+        unit: "EUR"
+        percentage_in_mix: 0.40
+      sugar:
+        cost_per_kg: 0.80
+        unit: "EUR"
+        percentage_in_mix: 0.35
+      milk_powder:
+        cost_per_kg: 3.20
+        unit: "EUR"
+        percentage_in_mix: 0.25
+      
+      # Cost per kg of final product
+      material_cost_per_kg: 4.28  # Calculated from mix
+    
+    energy:
+      # Dynamic pricing from REE API
+      source: "REE_API"
+      average_kwh_per_kg: 2.4
+      target_kwh_per_kg: 2.0
+      note: "Real-time prices fetched from REE PVPC"
+      
+      # Machine consumption (for reference)
+      consumption_by_process:
+        mixing: 0.5  # kWh/min
+        rolling: 0.7  # kWh/min
+        conching: 0.8  # kWh/min
+        tempering: 0.6  # kWh/min
+    
+    packaging:
+      wrapper_per_unit: 0.02
+      box_per_12_units: 0.15
+      label_per_unit: 0.01
+      total_per_bar: 0.03
+      
+  fixed_costs:
+    monthly:
+      facility_rent: 3000
+      equipment_lease: 1500
+      insurance: 500
+      utilities_base: 200  # Fixed portion (not energy)
+      maintenance_contract: 400
+      total_monthly_fixed: 5600
+    
+    labor:
+      operators:
+        hourly_rate: 15
+        quantity_per_shift: 3
+        hours_per_day: 16  # 2 shifts
+        daily_cost: 720
+      
+      supervisor:
+        hourly_rate: 20
+        quantity_per_shift: 1
+        hours_per_day: 16
+        daily_cost: 320
+      
+      quality_control:
+        hourly_rate: 18
+        quantity_per_shift: 1
+        hours_per_day: 16
+        daily_cost: 288
+      
+      maintenance:
+        hourly_rate: 17
+        quantity: 2
+        hours_per_day: 8
+        daily_cost: 272
+      
+      total_daily_labor: 1600
+      monthly_labor: 33600  # 21 working days average
+
+  cost_breakdown:
+    per_kg_chocolate:
+      raw_materials: 4.28
+      energy_estimate: 0.30  # Based on 2.4 kWh/kg @ ~0.125 €/kWh average
+      packaging: 0.20  # ~6.67 bars per kg
+      labor: 8.00  # 1600€/day ÷ 200kg/day
+      fixed_overhead: 1.12  # 5600€/month ÷ 5000kg/month
+      total_cost_per_kg: 13.90
+      
+    per_bar_150g:
+      raw_materials: 0.64
+      energy_estimate: 0.05
+      packaging: 0.03
+      labor: 1.20
+      fixed_overhead: 0.17
+      total_cost_per_bar: 2.09
+      
+  pricing_strategy:
+    standard_quality:
+      cost_per_bar: 2.09
+      wholesale_price: 3.50
+      retail_price: 5.00
+      margin_wholesale: 0.40  # 40%
+      margin_retail: 0.58  # 58%
+    
+    premium_quality:
+      cost_per_bar: 2.35  # Higher due to longer conching
+      wholesale_price: 5.00
+      retail_price: 7.50
+      margin_wholesale: 0.53  # 53%
+      margin_retail: 0.69  # 69%
+
+  optimization_targets:
+    energy_cost_reduction:
+      current_avg_per_kg: 0.30
+      target_avg_per_kg: 0.24
+      strategy: "Schedule production during valley hours"
+      potential_savings_monthly: 300
+    
+    labor_efficiency:
+      current_kg_per_labor_hour: 12.5
+      target_kg_per_labor_hour: 15.0
+      strategy: "Optimize batch sequencing"
+      potential_savings_monthly: 400
+    
+    material_waste_reduction:
+      current_waste_percent: 2.5
+      target_waste_percent: 1.5
+      strategy: "Improve process control"
+      potential_savings_monthly: 200
+
+  breakeven_analysis:
+    fixed_costs_monthly: 39200  # 5600 + 33600
+    variable_cost_per_kg: 4.58  # materials + energy + packaging
+    
+    breakeven_volume_kg: 3017  # At 3.50€/kg wholesale
+    current_production_kg: 4333  # Monthly average
+    margin_of_safety: 0.30  # 30%
+
+  investment_roi:
+    sensor_implementation:
+      investment: 15000
+      annual_savings: 7200
+      payback_months: 25
+      roi_3_years: 0.44  # 44%
+    
+    ml_optimization:
+      development_cost: 5000
+      annual_energy_savings: 3600
+      annual_efficiency_gains: 4800
+      payback_months: 7
+      roi_3_years: 4.08  # 408%
+
+  notes:
+    - "Energy costs vary significantly with REE real-time pricing"
+    - "Labor costs include Spanish social security (33%)"
+    - "Premium products require 2x conching time, affecting energy costs"
+    - "Seasonal variations affect both costs and pricing"
+    - "Valley hour production can reduce energy costs by 30%"

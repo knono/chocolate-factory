@@ -1,0 +1,293 @@
+{
+  "factory_knowledge": {
+    "production_capacity": {
+      "theoretical_max_kg_day": 300,
+      "practical_max_kg_day": 200,
+      "annual_target_kg": 52000,
+      "batch_size_kg": 10,
+      "bar_weight_g": 150,
+      "bars_per_batch": 66,
+      "efficiency_target_percent": 75,
+      "current_efficiency_percent": 65
+    },
+    
+    "energy_profile": {
+      "machine_power_consumption": {
+        "mezcladora_kwh_min": 0.5,
+        "roladora_kwh_min": 0.7,
+        "conchadora_kwh_min": 0.8,
+        "templadora_kwh_min": 0.6,
+        "total_production_kw": 156
+      },
+      "auxiliary_consumption": {
+        "cooling_system_kw": 5,
+        "hvac_system_kw": 8,
+        "lighting_kw": 2,
+        "compressed_air_kw": 3,
+        "total_auxiliary_kw": 18
+      },
+      "daily_consumption": {
+        "production_min_kwh": 840,
+        "production_max_kwh": 1250,
+        "auxiliary_kwh": 368,
+        "total_min_kwh": 1208,
+        "total_max_kwh": 1618,
+        "average_kwh": 1413
+      },
+      "efficiency_metrics": {
+        "current_kwh_per_kg": 2.4,
+        "target_kwh_per_kg": 2.0,
+        "best_achieved_kwh_per_kg": 2.1,
+        "worst_case_kwh_per_kg": 3.2,
+        "load_factor": 0.59,
+        "target_load_factor": 0.70,
+        "power_factor_average": 0.86
+      },
+      "contracted_power_kw": 150,
+      "average_demand_kw": 88,
+      "peak_shaving_target_kw": 120
+    },
+    
+    "process_times": {
+      "mixing_min": [5, 10],
+      "rolling_min": [15, 20],
+      "conching_hours": {
+        "standard": [4, 6],
+        "premium": [8, 12],
+        "ultra_premium": [16, 24]
+      },
+      "tempering_min": [30, 45],
+      "molding_cooling_min": [20, 30],
+      "total_batch_time_standard_hours": 6,
+      "total_batch_time_premium_hours": 10
+    },
+    
+    "energy_consumption_by_process": {
+      "mixing": {
+        "kwh_per_batch_min": 2.5,
+        "kwh_per_batch_max": 5.0,
+        "percentage_of_total": 3
+      },
+      "rolling": {
+        "kwh_per_batch_min": 10.5,
+        "kwh_per_batch_max": 14.0,
+        "percentage_of_total": 8
+      },
+      "conching": {
+        "standard_kwh_min": 192,
+        "standard_kwh_max": 288,
+        "premium_kwh_min": 384,
+        "premium_kwh_max": 576,
+        "percentage_of_total": 75
+      },
+      "tempering": {
+        "kwh_per_batch_min": 18,
+        "kwh_per_batch_max": 27,
+        "percentage_of_total": 10
+      },
+      "auxiliary": {
+        "percentage_of_total": 4
+      }
+    },
+    
+    "quality_parameters": {
+      "particle_size_microns": {
+        "standard_max": 25,
+        "premium_max": 20
+      },
+      "moisture_percent": {
+        "standard_max": 1.0,
+        "premium_max": 0.8
+      },
+      "tempering_accuracy_celsius": 0.2,
+      "ambient_temp_range_celsius": [18, 22],
+      "ambient_humidity_max_percent": 60,
+      "conche_temp_celsius": [55, 60],
+      "storage_temp_celsius": [15, 18]
+    },
+    
+    "cost_metrics": {
+      "raw_material_cost_per_kg_eur": 4.28,
+      "average_energy_cost_per_kg_eur": 0.30,
+      "labor_cost_per_kg_eur": 8.00,
+      "packaging_cost_per_kg_eur": 0.20,
+      "overhead_cost_per_kg_eur": 1.12,
+      "total_cost_per_kg_eur": 13.90,
+      "energy_cost_daily_avg_eur": 170,
+      "energy_cost_monthly_avg_eur": 3570,
+      "energy_as_percent_of_total_cost": 2.2,
+      "wholesale_price_standard_per_kg_eur": 23.33,
+      "wholesale_price_premium_per_kg_eur": 33.33
+    },
+    
+    "shift_patterns": {
+      "shifts_per_day": 2,
+      "production_shifts": ["T1_morning", "T2_afternoon"],
+      "maintenance_shift": "T3_night",
+      "hours_per_shift": 8,
+      "workers_per_production_shift": 5,
+      "production_days_per_week": 5.5,
+      "annual_production_days": 248
+    },
+    
+    "optimization_opportunities": {
+      "energy_savings": {
+        "valley_hour_cost_reduction_percent": 30,
+        "peak_avoidance_cost_reduction_percent": 20,
+        "process_optimization_consumption_reduction_percent": 15,
+        "combined_potential_savings_percent": 40,
+        "annual_savings_potential_eur": 15000
+      },
+      "process_improvements": {
+        "conching_energy_reduction_potential_percent": 20,
+        "tempering_energy_reduction_potential_percent": 10,
+        "cooling_winter_savings_percent": 25,
+        "changeover_time_reduction_percent": 20
+      },
+      "targets": {
+        "peak_hour_avoidance_percent": 80,
+        "valley_hour_utilization_percent": 60,
+        "waste_reduction_percent": 40,
+        "oee_improvement_points": 10
+      }
+    },
+    
+    "ree_integration": {
+      "price_threshold_process_delay_eur_kwh": 0.15,
+      "conching_price_decision_horizon_hours": 6,
+      "sheddable_load_kw": 40,
+      "shiftable_load_kwh_day": 500,
+      "response_time_minutes": 15,
+      "peak_hours": ["10:00-14:00", "19:00-22:00"],
+      "valley_hours": ["00:00-06:00"],
+      "price_multiplier_peak": 1.5,
+      "price_multiplier_valley": 0.7
+    },
+    
+    "external_data_sources": {
+      "ree_api": {
+        "endpoint": "https://api.esios.ree.es",
+        "update_frequency_min": 15,
+        "data_type": "electricity_prices_pvpc",
+        "integration_status": "active"
+      },
+      "aemet_api": {
+        "endpoint": "https://opendata.aemet.es",
+        "coverage_hours": ["00:00", "07:00"],
+        "data_type": "weather_official",
+        "token_renewal_days": 6
+      },
+      "openweathermap_api": {
+        "coverage_hours": ["08:00", "23:00"],
+        "data_type": "weather_realtime",
+        "rate_limit_per_min": 60
+      },
+      "datosclima_etl": {
+        "historical_records": 1095,
+        "data_type": "weather_historical",
+        "use_case": "backfill"
+      }
+    },
+    
+    "ml_models": {
+      "energy_optimization": {
+        "algorithm": "RandomForestRegressor",
+        "features": 13,
+        "r2_score": 0.89,
+        "output_range": [0, 100],
+        "retrain_frequency_min": 30
+      },
+      "production_classifier": {
+        "algorithm": "RandomForestClassifier",
+        "accuracy": 0.90,
+        "classes": ["Optimal", "Moderate", "Reduced", "Halt"],
+        "retrain_frequency_min": 30
+      }
+    },
+    
+    "automation_schedule": {
+      "ree_ingestion": "*/5 * * * *",
+      "weather_ingestion": "*/5 * * * *",
+      "ml_training": "*/30 * * * *",
+      "ml_predictions": "*/30 * * * *",
+      "auto_backfill": "0 */2 * * *",
+      "health_check": "*/15 * * * *",
+      "token_renewal": "0 0 */6 * *",
+      "weekly_cleanup": "0 2 * * 0"
+    },
+    
+    "system_architecture": {
+      "containers": 2,
+      "main_service": "fastapi_brain",
+      "storage_service": "influxdb",
+      "optional_service": "tailscale_sidecar",
+      "primary_language": "python",
+      "framework": "fastapi",
+      "scheduler": "apscheduler",
+      "ml_storage": "pickle"
+    },
+    
+    "kpi_definitions": {
+      "oee": {
+        "formula": "availability * performance * quality",
+        "target": 0.75,
+        "current": 0.65
+      },
+      "energy_per_kg": {
+        "unit": "kWh/kg",
+        "target": 2.0,
+        "current": 2.4
+      },
+      "cost_per_kg": {
+        "unit": "EUR/kg",
+        "target": 12.50,
+        "current": 13.90
+      },
+      "quality_rate": {
+        "formula": "passed_bars / total_bars",
+        "target": 0.98,
+        "current": 0.96
+      },
+      "changeover_time": {
+        "unit": "minutes",
+        "target": 15,
+        "current": 20
+      }
+    },
+    
+    "monitoring_points": {
+      "main_incomer": "total_factory_consumption",
+      "production_line": "combined_machinery",
+      "hvac_system": "separate_metering",
+      "major_machines": "individual_monitoring_planned",
+      "measurement_resolution": {
+        "power_kw": "1_second",
+        "energy_kwh": "15_minutes",
+        "power_factor": "continuous",
+        "thd_target_percent": 5
+      }
+    },
+    
+    "seasonal_variations": {
+      "q1": {
+        "demand_index": 1.0,
+        "quality_mix_premium": 0.3
+      },
+      "q2": {
+        "demand_index": 1.0,
+        "quality_mix_premium": 0.3
+      },
+      "q3": {
+        "demand_index": 0.8,
+        "quality_mix_premium": 0.2,
+        "hvac_increase_percent": 30,
+        "note": "Summer heat affects production"
+      },
+      "q4": {
+        "demand_index": 1.3,
+        "quality_mix_premium": 0.4,
+        "note": "Holiday season peak"
+      }
+    }
+  }
+}
