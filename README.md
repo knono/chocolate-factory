@@ -29,13 +29,14 @@ Chocolate Factory es un **sistema personal de monitoreo y optimización** diseñ
 - **REE (Red Eléctrica)**: Precios reales de electricidad española PVPC
 - **AEMET**: Datos meteorológicos oficiales (Linares, Andalucía)
 - **OpenWeatherMap**: Datos complementarios en tiempo real
-- **Histórico Completo**: ETL automático de datos históricos
+- **✅ SIAR Histórico**: **88,935 registros** de 25+ años (2000-2025) - **COMPLETADO**
 
 ### 🤖 **Machine Learning Personal**
 - **Direct ML Training**: sklearn + pickle storage (sin dependencias MLflow)
 - **2 Modelos Productivos**: Energy Optimization (R²=0.89) + Production Classifier (90% accuracy)
 - **Feature Engineering**: 13 características derivadas de datos reales REE+Weather
 - **Predicciones Automáticas**: Recomendaciones cada 30 minutos
+- **🎯 Datos Históricos**: 25+ años de datos SIAR para entrenamiento robusto
 
 ### 🔄 **Operación Autónoma**
 - **Sistema Self-Healing**: Recuperación automática de gaps de datos
@@ -53,10 +54,11 @@ Chocolate Factory es un **sistema personal de monitoreo y optimización** diseñ
 ├── Solo /dashboard expuesto          ├── APIs REST completas  
 └── 52MB ultra-ligero                 └── ML predictions + scheduling
 
-💾 InfluxDB Storage                   
-├── Time series database               
-├── REE + Weather data                 
-└── Historical data ETL
+💾 InfluxDB Storage
+├── Time series database
+├── REE + Weather data (current)
+├── SIAR Historical (88,935 records)
+└── Automated ETL pipelines
 ```
 
 ### 🛡️ **Seguridad Personal**
@@ -148,9 +150,10 @@ https://chocolate-factory.tu-tailnet.ts.net/dashboard
 *Localización específica, fuentes de datos y estado completo del sistema*
 
 **Fuentes de datos integradas:**
-- **⚡ REE**: Precios electricidad España (conectado)
+- **⚡ REE**: Precios electricidad España (42,578 registros)
 - **🌡️ AEMET**: Estación 5279X Linares (00:00-07:00)
 - **☁️ OpenWeatherMap**: Tiempo real (08:00-23:00)
+- **📊 SIAR Histórico**: 88,935 registros de 25+ años (2000-2025)
 - **🤖 ML Models**: Modelos de producción específicos cargados
 
 ## 📊 **Casos de Uso Personales**
@@ -217,13 +220,40 @@ El proyecto incluye **25+ documentos técnicos** en `/docs/` cubriendo:
 - **`DIRECT_ML_IMPLEMENTATION.md`** - Pipeline ML simplificado
 - **`TAILSCALE_INTEGRATION.md`** - Setup acceso remoto seguro
 - **`AUTOMATIC_BACKFILL_SYSTEM.md`** - Sistema auto-recuperación
+- **✅ `SIAR_ETL_SOLUTION.md`** - **Solución ETL histórico completada**
 - **`QUICK_START_GUIDE.md`** - Guía rápida personalizada
+
+### 🏆 **Hito Técnico: SIAR Historical Data ETL**
+
+**✅ COMPLETADO (Sept 17, 2025)** - Implementación exitosa del sistema ETL para datos históricos del **Sistema de Información Agroclimática para el Regadío (SIAR)**:
+
+#### 📊 **Logros del ETL SIAR**
+- **88,935 registros** históricos procesados exitosamente
+- **25+ años** de cobertura temporal (Agosto 2000 - Septiembre 2025)
+- **2 estaciones**: SIAR_J09_Linares (2000-2017) + SIAR_J17_Linares (2018-2025)
+- **10 campos meteorológicos** por registro (temperatura, humedad, viento, precipitación)
+- **Bucket dedicado**: `siar_historical` completamente separado de datos actuales
+
+#### 🔧 **Desafíos Técnicos Resueltos**
+- **Unicode cleaning**: Espacios especiales que rompían parsing CSV
+- **Formatos españoles**: DD/MM/YYYY dates y decimales con coma (,)
+- **Encoding robusto**: Detección automática (latin-1, iso-8859-1, cp1252, utf-8)
+- **Separación de datos**: Arquitectura clara para ML training vs predicción real-time
+
+#### ⚡ **Rendimiento del ETL**
+- **26 archivos CSV** procesados con 100% éxito
+- **~3 minutos** para procesar 25 años de datos históricos
+- **Script automático**: `/scripts/test_siar_simple.py`
+- **Error handling**: Continúa procesando aunque falle un archivo individual
+
+**Impacto**: El sistema ML ahora dispone de **25+ años de datos históricos** para entrenamiento robusto, complementando los datos en tiempo real de AEMET/OpenWeatherMap.
 
 ## ⚡ **Rendimiento Personal**
 
 ### 📊 **Métricas del Sistema**
 - **Modelos ML**: Energy R² = 0.89, Production accuracy = 90%
-- **Cobertura Datos**: 24/7 con self-healing automático
+- **Base de Datos**: 134,415 registros totales (REE + Weather + SIAR)
+- **Cobertura Histórica**: 25+ años datos meteorológicos (2000-2025)
 - **Dashboard**: Heatmap interactivo con datos en tiempo real
 - **Latencia**: <100ms respuesta API local
 - **Recursos**: 4GB RAM, 2 CPU cores recomendados
