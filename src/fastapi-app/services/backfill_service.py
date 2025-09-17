@@ -16,7 +16,7 @@ from loguru import logger
 from .gap_detector import GapDetectionService, DataGap
 from .data_ingestion import DataIngestionService
 from .ree_client import REEClient
-from .datosclima_etl import DatosClimaETL
+from .siar_etl import DatosClimaETL
 
 
 @dataclass
@@ -284,7 +284,7 @@ class BackfillService:
                     records_written=total_written,
                     success_rate=success_rate,
                     duration_seconds=duration,
-                    method_used="datosclima_etl",
+                    method_used="siar_etl",
                     errors=[]
                 )
                 
@@ -300,7 +300,7 @@ class BackfillService:
                 records_written=0,
                 success_rate=0,
                 duration_seconds=(datetime.now() - gap_start).total_seconds(),
-                method_used="datosclima_etl",
+                method_used="siar_etl",
                 errors=[str(e)]
             )
     

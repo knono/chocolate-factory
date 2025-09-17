@@ -175,48 +175,65 @@ class GapDetectionService:
             logger.error(f"Error detectando gaps climáticos: {e}")
             return []
     
-    def _find_time_gaps(self, expected_times: List[datetime], 
+    def _find_time_gaps(self, expected_times: List[datetime],
                        existing_times: List[datetime],
                        measurement: str,
                        interval: timedelta) -> List[DataGap]:
         """Encontrar gaps comparando tiempos esperados vs existentes"""
-        
+
         existing_set = set(existing_times)
         gaps = []
-        
+
         # Agrupar tiempos faltantes en rangos continuos
         missing_times = [t for t in expected_times if t not in existing_set]
-        
+
         if not missing_times:
             return gaps
-        
-        # Agrupar tiempos consecutivos en gaps
+
+        # IMPROVED: Lógica mejorada para detectar gaps grandes
         missing_times.sort()
         current_gap_start = missing_times[0]
         current_gap_end = missing_times[0]
-        
+
         for i in range(1, len(missing_times)):
             time_diff = missing_times[i] - current_gap_end
-            
-            if time_diff <= interval * 1.5:  # Tolerancia del 50%
+
+            # IMPROVED: Tolerancia adaptativa basada en tamaño del gap
+            current_gap_duration = current_gap_end - current_gap_start
+
+            # Si el gap actual es pequeño (<6h), usar tolerancia estricta
+            if current_gap_duration < timedelta(hours=6):
+                tolerance = interval * 1.5  # 1.5 horas
+            # Si el gap actual es mediano (6h-24h), usar tolerancia media
+            elif current_gap_duration < timedelta(hours=24):
+                tolerance = interval * 3    # 3 horas
+            # Si el gap actual es grande (>24h), usar tolerancia amplia
+            else:
+                tolerance = interval * 6    # 6 horas
+
+            if time_diff <= tolerance:
                 # Extender gap actual
                 current_gap_end = missing_times[i]
             else:
-                # Finalizar gap actual y empezar uno nuevo
-                gap = self._create_gap(
-                    measurement, current_gap_start, current_gap_end, interval
-                )
-                gaps.append(gap)
-                
+                # IMPROVED: Solo crear gap si es significativo (>30min)
+                gap_duration = current_gap_end - current_gap_start
+                if gap_duration >= timedelta(minutes=30):
+                    gap = self._create_gap(
+                        measurement, current_gap_start, current_gap_end, interval
+                    )
+                    gaps.append(gap)
+
                 current_gap_start = missing_times[i]
                 current_gap_end = missing_times[i]
-        
-        # Añadir último gap
-        gap = self._create_gap(
-            measurement, current_gap_start, current_gap_end, interval
-        )
-        gaps.append(gap)
-        
+
+        # Añadir último gap si es significativo
+        gap_duration = current_gap_end - current_gap_start
+        if gap_duration >= timedelta(minutes=30):
+            gap = self._create_gap(
+                measurement, current_gap_start, current_gap_end, interval
+            )
+            gaps.append(gap)
+
         return gaps
     
     def _create_gap(self, measurement: str, start: datetime, 

@@ -1,19 +1,20 @@
 """
-ML Models Service - Chocolate Factory Models
-============================================
+ML Models Service - Chocolate Factory (Direct Implementation)
+============================================================
 
-Modelos de Machine Learning para optimización de producción
-de chocolate en la Unidad MLOps (Cuartel General ML).
+Direct ML implementation using sklearn + pickle storage.
+No external ML services (MLflow removed).
 """
 
+import os
+import pickle
 import logging
 import pandas as pd
 import numpy as np
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
-import mlflow
-import mlflow.sklearn
+
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split, cross_val_score
@@ -21,393 +22,405 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from services.feature_engineering import ChocolateFeatureEngine
-from services.mlflow_client import get_mlflow_service
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ModelMetrics:
-    """Métricas de evaluación de modelos"""
+class ModelTrainingResult:
+    """Result of model training operation"""
     model_type: str
-    model_name: str
-    
-    # Regression metrics
-    mse: Optional[float] = None
-    mae: Optional[float] = None
-    r2: Optional[float] = None
-    
-    # Classification metrics
-    accuracy: Optional[float] = None
-    precision: Optional[float] = None
-    recall: Optional[float] = None
-    f1: Optional[float] = None
-    
-    # Cross validation
-    cv_mean: Optional[float] = None
-    cv_std: Optional[float] = None
-    
-    # Training info
-    training_samples: int = 0
-    features_count: int = 0
-    training_time_seconds: float = 0.0
+    model_path: str
+    metrics: Dict[str, float]
+    training_time_seconds: float
+    feature_names: List[str]
+    status: str
+    error_message: Optional[str] = None
 
 
 class ChocolateMLModels:
-    """Modelos ML para fábrica de chocolate"""
-    
-    def __init__(self):
+    """
+    Direct ML Models for Chocolate Factory
+    - Energy optimization prediction
+    - Production recommendation classification
+    - Direct sklearn + pickle storage
+    """
+
+    def __init__(self, models_dir: str = "/app/models"):
+        self.models_dir = models_dir
         self.feature_engine = ChocolateFeatureEngine()
-        self.scaler = StandardScaler()
-        self.label_encoder = LabelEncoder()
-        
-    async def prepare_training_data(self, hours_back: int = 72, use_synthetic: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Preparar datos para entrenamiento"""
-        try:
-            # Generate feature sets with synthetic data if needed
-            feature_sets = await self.feature_engine.generate_feature_set(hours_back, include_synthetic=use_synthetic)
-            
-            if len(feature_sets) < 10:
-                raise ValueError(f"Insufficient data: only {len(feature_sets)} samples, need at least 10")
-            
-            # Convert to DataFrame
-            df = self.feature_engine.features_to_dataframe(feature_sets)
-            
-            # Prepare features for regression (energy optimization)
-            feature_columns = [
-                'price_eur_kwh', 'price_trend_1h', 'price_volatility_24h',
-                'energy_cost_index', 'temperature', 'humidity',
-                'temperature_comfort_index', 'humidity_stress_factor'
-            ]
-            
-            X = df[feature_columns].copy()
-            
-            # Prepare targets
-            targets = df[['chocolate_production_index', 'energy_optimization_score', 'production_recommendation']].copy()
-            
-            # Log data composition (simplified without timestamp comparison)
-            logger.info(f"✅ Prepared training data: {len(X)} samples (mix of real + synthetic), {len(feature_columns)} features")
-            
-            return X, targets
-            
-        except Exception as e:
-            logger.error(f"Failed to prepare training data: {e}")
-            raise
-    
-    async def train_energy_optimization_model(self, experiment_name: str = "chocolate_energy_optimization") -> ModelMetrics:
-        """Entrenar modelo de optimización energética (Regression)"""
+
+        # Ensure models directory exists
+        os.makedirs(self.models_dir, exist_ok=True)
+
+    async def train_energy_optimization_model(self,
+                                            training_data: pd.DataFrame,
+                                            experiment_name: str = "energy_optimization") -> ModelTrainingResult:
+        """
+        Train energy optimization model (Direct Implementation)
+        """
         try:
             start_time = datetime.now()
-            
-            # Prepare data
-            X, targets = await self.prepare_training_data()
-            y = targets['energy_optimization_score']  # Target: energy optimization score
-            
+            logger.info(f"🤖 Training energy optimization model with {len(training_data)} records")
+
+            # Feature engineering
+            features_df = await self.feature_engine.create_features(training_data)
+
+            # Target variable
+            if 'energy_optimization_score' not in features_df.columns:
+                logger.warning("Creating synthetic energy_optimization_score for training")
+                features_df['energy_optimization_score'] = (
+                    100 - (features_df['ree_price_eur_kwh'] * 100) +
+                    (features_df['chocolate_production_index'] * 0.3)
+                ).clip(0, 100)
+
+            target = features_df['energy_optimization_score']
+            feature_columns = [col for col in features_df.columns if col != 'energy_optimization_score']
+            features = features_df[feature_columns]
+
             # Split data
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42
+                features, target, test_size=0.2, random_state=42
             )
-            
+
             # Scale features
-            X_train_scaled = self.scaler.fit_transform(X_train)
-            X_test_scaled = self.scaler.transform(X_test)
-            
-            # Train Random Forest model
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+
+            # Train model
             model = RandomForestRegressor(
                 n_estimators=100,
                 max_depth=10,
                 random_state=42,
                 n_jobs=-1
             )
-            
+
             model.fit(X_train_scaled, y_train)
-            
-            # Make predictions
+
+            # Evaluate
             y_pred = model.predict(X_test_scaled)
-            
-            # Calculate metrics
             mse = mean_squared_error(y_test, y_pred)
             mae = mean_absolute_error(y_test, y_pred)
             r2 = r2_score(y_test, y_pred)
-            
+
             # Cross validation
             cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=5, scoring='r2')
-            
-            # Training time
+
             training_time = (datetime.now() - start_time).total_seconds()
-            
-            # Log to MLflow with proper tracking URI setup
-            async with get_mlflow_service() as mlflow_service:
-                # Ensure MLflow tracking URI is properly set for this context
-                import os
-                os.environ["MLFLOW_TRACKING_URI"] = "http://mlflow:5000"
-                mlflow.set_tracking_uri("http://mlflow:5000")
-                
-                run_id = await mlflow_service.log_chocolate_metrics(
-                    experiment_name=experiment_name,
-                    run_name=f"energy_optimization_{datetime.now().strftime('%Y%m%d_%H%M')}",
-                    metrics={
-                        "mse": mse,
-                        "mae": mae,
-                        "r2_score": r2,
-                        "cv_mean": cv_scores.mean(),
-                        "cv_std": cv_scores.std(),
-                        "training_time_seconds": training_time
-                    },
-                    params={
-                        "model_type": "RandomForestRegressor",
-                        "n_estimators": 100,
-                        "max_depth": 10,
-                        "features_count": len(X.columns),
-                        "training_samples": len(X_train),
-                        "test_samples": len(X_test)
-                    },
-                    artifacts={
-                        "feature_names": str(list(X.columns)),
-                        "target": "energy_optimization_score",
-                        "model_description": "Modelo de optimización energética para producción de chocolate"
-                    }
-                )
-                
-                # Log the trained model as MLflow artifact
-                try:
-                    # Get experiment by name and start a new run
-                    experiment = mlflow.get_experiment_by_name(experiment_name)
-                    if experiment is None:
-                        experiment_id = mlflow.create_experiment(experiment_name)
-                    else:
-                        experiment_id = experiment.experiment_id
-                    
-                    with mlflow.start_run(experiment_id=experiment_id, run_name=f"energy_model_artifact_{datetime.now().strftime('%Y%m%d_%H%M')}"):
-                        # Log the trained model as artifact (manual method due to MLflow version issues)
-                        import pickle
-                        import tempfile
-                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
-                            pickle.dump(model, f)
-                            mlflow.log_artifact(f.name, "model")
-                        
-                        # Log the scaler as well (manual method)
-                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
-                            pickle.dump(self.scaler, f)
-                            mlflow.log_artifact(f.name, "scaler")
-                        
-                        # Log feature names as artifact
-                        import tempfile
-                        import json
-                        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                            json.dump(list(X.columns), f)
-                            mlflow.log_artifact(f.name, "features")
-                        
-                        logger.info(f"✅ Model and scaler saved as MLflow artifacts")
-                        
-                except Exception as artifact_error:
-                    logger.warning(f"⚠️ Failed to save model artifacts: {artifact_error}")
-                    logger.info(f"✅ Model training completed - metrics logged, but artifacts failed")
-                
-                logger.info(f"✅ Energy optimization model trained and logged: {run_id}")
-            
-            return ModelMetrics(
-                model_type="regression",
-                model_name="energy_optimization",
-                mse=mse,
-                mae=mae,
-                r2=r2,
-                cv_mean=cv_scores.mean(),
-                cv_std=cv_scores.std(),
-                training_samples=len(X_train),
-                features_count=len(X.columns),
-                training_time_seconds=training_time
+
+            # Save model artifacts
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+            model_filename = f"energy_optimization_model_{timestamp}.pkl"
+            scaler_filename = f"energy_optimization_scaler_{timestamp}.pkl"
+            features_filename = f"energy_optimization_features_{timestamp}.pkl"
+
+            model_path = os.path.join(self.models_dir, model_filename)
+            scaler_path = os.path.join(self.models_dir, scaler_filename)
+            features_path = os.path.join(self.models_dir, features_filename)
+
+            # Save with pickle
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
+
+            with open(scaler_path, 'wb') as f:
+                pickle.dump(scaler, f)
+
+            with open(features_path, 'wb') as f:
+                pickle.dump(feature_columns, f)
+
+            # Update latest model symlinks
+            latest_model_path = os.path.join(self.models_dir, "energy_optimization_model_latest.pkl")
+            latest_scaler_path = os.path.join(self.models_dir, "energy_optimization_scaler_latest.pkl")
+            latest_features_path = os.path.join(self.models_dir, "energy_optimization_features_latest.pkl")
+
+            # Create or update symlinks
+            for latest_path, current_path in [
+                (latest_model_path, model_path),
+                (latest_scaler_path, scaler_path),
+                (latest_features_path, features_path)
+            ]:
+                if os.path.exists(latest_path):
+                    os.remove(latest_path)
+                os.symlink(os.path.basename(current_path), latest_path)
+
+            metrics = {
+                "mse": float(mse),
+                "mae": float(mae),
+                "r2_score": float(r2),
+                "cv_mean": float(cv_scores.mean()),
+                "cv_std": float(cv_scores.std()),
+                "training_time_seconds": training_time,
+                "training_samples": len(X_train),
+                "test_samples": len(X_test),
+                "feature_count": len(feature_columns)
+            }
+
+            logger.info(f"✅ Energy model trained: R²={r2:.3f}, MAE={mae:.3f}")
+
+            return ModelTrainingResult(
+                model_type="energy_optimization",
+                model_path=model_path,
+                metrics=metrics,
+                training_time_seconds=training_time,
+                feature_names=feature_columns,
+                status="success"
             )
-            
+
         except Exception as e:
-            logger.error(f"Energy optimization model training failed: {e}")
-            raise
-    
-    async def train_production_classifier(self, experiment_name: str = "chocolate_production_classification") -> ModelMetrics:
-        """Entrenar clasificador de recomendaciones de producción"""
+            logger.error(f"❌ Energy model training failed: {e}")
+            return ModelTrainingResult(
+                model_type="energy_optimization",
+                model_path="",
+                metrics={},
+                training_time_seconds=0,
+                feature_names=[],
+                status="error",
+                error_message=str(e)
+            )
+
+    async def train_production_recommendation_model(self,
+                                                  training_data: pd.DataFrame,
+                                                  experiment_name: str = "production_recommendation") -> ModelTrainingResult:
+        """
+        Train production recommendation model (Direct Implementation)
+        """
         try:
             start_time = datetime.now()
-            
-            # Prepare data
-            X, targets = await self.prepare_training_data()
-            y = targets['production_recommendation']  # Target: production recommendation
-            
-            # Encode labels
-            y_encoded = self.label_encoder.fit_transform(y)
-            
+            logger.info(f"🤖 Training production model with {len(training_data)} records")
+
+            # Feature engineering
+            features_df = await self.feature_engine.create_features(training_data)
+
+            # Create synthetic production recommendations if not present
+            if 'production_recommendation' not in features_df.columns:
+                logger.warning("Creating synthetic production_recommendation for training")
+
+                def get_production_recommendation(row):
+                    if row['ree_price_eur_kwh'] < 0.15 and row['chocolate_production_index'] > 75:
+                        return "Optimal"
+                    elif row['ree_price_eur_kwh'] < 0.25 and row['chocolate_production_index'] > 50:
+                        return "Moderate"
+                    elif row['ree_price_eur_kwh'] < 0.35 and row['chocolate_production_index'] > 25:
+                        return "Reduced"
+                    else:
+                        return "Halt"
+
+                features_df['production_recommendation'] = features_df.apply(get_production_recommendation, axis=1)
+
+            target = features_df['production_recommendation']
+            feature_columns = [col for col in features_df.columns if col != 'production_recommendation']
+            features = features_df[feature_columns]
+
+            # Encode target labels
+            label_encoder = LabelEncoder()
+            target_encoded = label_encoder.fit_transform(target)
+
             # Split data
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
+                features, target_encoded, test_size=0.2, random_state=42, stratify=target_encoded
             )
-            
+
             # Scale features
-            X_train_scaled = self.scaler.fit_transform(X_train)
-            X_test_scaled = self.scaler.transform(X_test)
-            
-            # Train Random Forest classifier
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+
+            # Train model
             model = RandomForestClassifier(
                 n_estimators=100,
                 max_depth=10,
                 random_state=42,
                 n_jobs=-1
             )
-            
+
             model.fit(X_train_scaled, y_train)
-            
-            # Make predictions
+
+            # Evaluate
             y_pred = model.predict(X_test_scaled)
-            
-            # Calculate metrics
             accuracy = accuracy_score(y_test, y_pred)
             precision = precision_score(y_test, y_pred, average='weighted')
             recall = recall_score(y_test, y_pred, average='weighted')
             f1 = f1_score(y_test, y_pred, average='weighted')
-            
+
             # Cross validation
             cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=5, scoring='accuracy')
-            
-            # Training time
+
             training_time = (datetime.now() - start_time).total_seconds()
-            
-            # Log to MLflow with proper tracking URI setup
-            async with get_mlflow_service() as mlflow_service:
-                # Ensure MLflow tracking URI is properly set for this context
-                import os
-                os.environ["MLFLOW_TRACKING_URI"] = "http://mlflow:5000"
-                mlflow.set_tracking_uri("http://mlflow:5000")
-                
-                run_id = await mlflow_service.log_chocolate_metrics(
-                    experiment_name=experiment_name,
-                    run_name=f"production_classifier_{datetime.now().strftime('%Y%m%d_%H%M')}",
-                    metrics={
-                        "accuracy": accuracy,
-                        "precision": precision,
-                        "recall": recall,
-                        "f1_score": f1,
-                        "cv_mean": cv_scores.mean(),
-                        "cv_std": cv_scores.std(),
-                        "training_time_seconds": training_time
-                    },
-                    params={
-                        "model_type": "RandomForestClassifier",
-                        "n_estimators": 100,
-                        "max_depth": 10,
-                        "features_count": len(X.columns),
-                        "training_samples": len(X_train),
-                        "test_samples": len(X_test),
-                        "classes": str(list(self.label_encoder.classes_))
-                    },
-                    artifacts={
-                        "feature_names": str(list(X.columns)),
-                        "target": "production_recommendation",
-                        "label_mapping": str(dict(zip(self.label_encoder.classes_, self.label_encoder.transform(self.label_encoder.classes_)))),
-                        "model_description": "Clasificador de recomendaciones de producción de chocolate"
-                    }
-                )
-                
-                # Log the trained classifier model as MLflow artifact
-                try:
-                    # Get experiment by name and start a new run
-                    experiment = mlflow.get_experiment_by_name(experiment_name)
-                    if experiment is None:
-                        experiment_id = mlflow.create_experiment(experiment_name)
-                    else:
-                        experiment_id = experiment.experiment_id
-                    
-                    with mlflow.start_run(experiment_id=experiment_id, run_name=f"production_model_artifact_{datetime.now().strftime('%Y%m%d_%H%M')}"):
-                        # Log the trained classifier as artifact (manual method)
-                        import pickle
-                        import tempfile
-                        import json
-                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
-                            pickle.dump(model, f)
-                            mlflow.log_artifact(f.name, "model")
-                        
-                        # Log the scaler as well (manual method)
-                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
-                            pickle.dump(self.scaler, f)
-                            mlflow.log_artifact(f.name, "scaler")
-                        
-                        # Log label encoder as pickle artifact
-                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pkl', delete=False) as f:
-                            pickle.dump(self.label_encoder, f)
-                            mlflow.log_artifact(f.name, "label_encoder")
-                        
-                        # Log feature names and class mapping as artifacts
-                        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-                            json.dump({
-                                "feature_names": list(X.columns),
-                                "classes": list(self.label_encoder.classes_),
-                                "class_mapping": {str(k): int(v) for k, v in zip(self.label_encoder.classes_, self.label_encoder.transform(self.label_encoder.classes_))}
-                            }, f)
-                            mlflow.log_artifact(f.name, "metadata")
-                        
-                        logger.info(f"✅ Classifier model, scaler, and label encoder saved as MLflow artifacts")
-                        
-                except Exception as artifact_error:
-                    logger.warning(f"⚠️ Failed to save classifier artifacts: {artifact_error}")
-                    logger.info(f"✅ Model training completed - metrics logged, but artifacts failed")
-                
-                logger.info(f"✅ Production classifier trained and logged: {run_id}")
-            
-            return ModelMetrics(
-                model_type="classification",
-                model_name="production_classifier",
-                accuracy=accuracy,
-                precision=precision,
-                recall=recall,
-                f1=f1,
-                cv_mean=cv_scores.mean(),
-                cv_std=cv_scores.std(),
-                training_samples=len(X_train),
-                features_count=len(X.columns),
-                training_time_seconds=training_time
-            )
-            
-        except Exception as e:
-            logger.error(f"Production classifier training failed: {e}")
-            raise
-    
-    async def train_all_models(self) -> Dict[str, ModelMetrics]:
-        """Entrenar todos los modelos baseline"""
-        try:
-            logger.info("🚀 Starting training of all chocolate factory models")
-            
-            results = {}
-            
-            # Train energy optimization model
-            energy_metrics = await self.train_energy_optimization_model()
-            results['energy_optimization'] = energy_metrics
-            
-            # Train production classifier
-            classifier_metrics = await self.train_production_classifier()
-            results['production_classifier'] = classifier_metrics
-            
-            logger.info(f"✅ All models trained successfully: {list(results.keys())}")
-            return results
-            
-        except Exception as e:
-            logger.error(f"Failed to train all models: {e}")
-            raise
-    
-    async def get_feature_importance(self, model_name: str) -> Dict[str, float]:
-        """Obtener importancia de features de un modelo"""
-        try:
-            # For now, return mock feature importance
-            # In production, this would load the model and return actual feature importance
-            importance = {
-                "price_eur_kwh": 0.25,
-                "temperature": 0.20,
-                "energy_cost_index": 0.18,
-                "humidity": 0.15,
-                "temperature_comfort_index": 0.12,
-                "price_trend_1h": 0.05,
-                "price_volatility_24h": 0.03,
-                "humidity_stress_factor": 0.02
+
+            # Save model artifacts
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+            model_filename = f"production_recommendation_model_{timestamp}.pkl"
+            scaler_filename = f"production_recommendation_scaler_{timestamp}.pkl"
+            encoder_filename = f"production_recommendation_encoder_{timestamp}.pkl"
+            features_filename = f"production_recommendation_features_{timestamp}.pkl"
+
+            model_path = os.path.join(self.models_dir, model_filename)
+            scaler_path = os.path.join(self.models_dir, scaler_filename)
+            encoder_path = os.path.join(self.models_dir, encoder_filename)
+            features_path = os.path.join(self.models_dir, features_filename)
+
+            # Save with pickle
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
+
+            with open(scaler_path, 'wb') as f:
+                pickle.dump(scaler, f)
+
+            with open(encoder_path, 'wb') as f:
+                pickle.dump(label_encoder, f)
+
+            with open(features_path, 'wb') as f:
+                pickle.dump(feature_columns, f)
+
+            # Update latest model symlinks
+            latest_model_path = os.path.join(self.models_dir, "production_recommendation_model_latest.pkl")
+            latest_scaler_path = os.path.join(self.models_dir, "production_recommendation_scaler_latest.pkl")
+            latest_encoder_path = os.path.join(self.models_dir, "production_recommendation_encoder_latest.pkl")
+            latest_features_path = os.path.join(self.models_dir, "production_recommendation_features_latest.pkl")
+
+            # Create or update symlinks
+            for latest_path, current_path in [
+                (latest_model_path, model_path),
+                (latest_scaler_path, scaler_path),
+                (latest_encoder_path, encoder_path),
+                (latest_features_path, features_path)
+            ]:
+                if os.path.exists(latest_path):
+                    os.remove(latest_path)
+                os.symlink(os.path.basename(current_path), latest_path)
+
+            metrics = {
+                "accuracy": float(accuracy),
+                "precision": float(precision),
+                "recall": float(recall),
+                "f1_score": float(f1),
+                "cv_mean": float(cv_scores.mean()),
+                "cv_std": float(cv_scores.std()),
+                "training_time_seconds": training_time,
+                "training_samples": len(X_train),
+                "test_samples": len(X_test),
+                "feature_count": len(feature_columns),
+                "classes": len(label_encoder.classes_)
             }
-            
-            return importance
-            
+
+            logger.info(f"✅ Production model trained: Accuracy={accuracy:.3f}, F1={f1:.3f}")
+
+            return ModelTrainingResult(
+                model_type="production_recommendation",
+                model_path=model_path,
+                metrics=metrics,
+                training_time_seconds=training_time,
+                feature_names=feature_columns,
+                status="success"
+            )
+
         except Exception as e:
-            logger.error(f"Failed to get feature importance: {e}")
-            return {}
+            logger.error(f"❌ Production model training failed: {e}")
+            return ModelTrainingResult(
+                model_type="production_recommendation",
+                model_path="",
+                metrics={},
+                training_time_seconds=0,
+                feature_names=[],
+                status="error",
+                error_message=str(e)
+            )
+
+    def load_latest_energy_model(self) -> Tuple[Any, Any, List[str]]:
+        """Load latest energy optimization model"""
+        try:
+            model_path = os.path.join(self.models_dir, "energy_optimization_model_latest.pkl")
+            scaler_path = os.path.join(self.models_dir, "energy_optimization_scaler_latest.pkl")
+            features_path = os.path.join(self.models_dir, "energy_optimization_features_latest.pkl")
+
+            with open(model_path, 'rb') as f:
+                model = pickle.load(f)
+
+            with open(scaler_path, 'rb') as f:
+                scaler = pickle.load(f)
+
+            with open(features_path, 'rb') as f:
+                feature_names = pickle.load(f)
+
+            return model, scaler, feature_names
+
+        except Exception as e:
+            logger.error(f"Failed to load energy model: {e}")
+            raise
+
+    def load_latest_production_model(self) -> Tuple[Any, Any, Any, List[str]]:
+        """Load latest production recommendation model"""
+        try:
+            model_path = os.path.join(self.models_dir, "production_recommendation_model_latest.pkl")
+            scaler_path = os.path.join(self.models_dir, "production_recommendation_scaler_latest.pkl")
+            encoder_path = os.path.join(self.models_dir, "production_recommendation_encoder_latest.pkl")
+            features_path = os.path.join(self.models_dir, "production_recommendation_features_latest.pkl")
+
+            with open(model_path, 'rb') as f:
+                model = pickle.load(f)
+
+            with open(scaler_path, 'rb') as f:
+                scaler = pickle.load(f)
+
+            with open(encoder_path, 'rb') as f:
+                label_encoder = pickle.load(f)
+
+            with open(features_path, 'rb') as f:
+                feature_names = pickle.load(f)
+
+            return model, scaler, label_encoder, feature_names
+
+        except Exception as e:
+            logger.error(f"Failed to load production model: {e}")
+            raise
+
+    async def get_model_status(self) -> Dict[str, Any]:
+        """Get status of trained models"""
+        try:
+            status = {
+                "timestamp": datetime.now().isoformat(),
+                "models_directory": self.models_dir,
+                "energy_optimization": {
+                    "available": False,
+                    "model_file": None,
+                    "last_modified": None
+                },
+                "production_recommendation": {
+                    "available": False,
+                    "model_file": None,
+                    "last_modified": None
+                }
+            }
+
+            # Check energy model
+            energy_model_path = os.path.join(self.models_dir, "energy_optimization_model_latest.pkl")
+            if os.path.exists(energy_model_path):
+                status["energy_optimization"]["available"] = True
+                status["energy_optimization"]["model_file"] = energy_model_path
+                status["energy_optimization"]["last_modified"] = datetime.fromtimestamp(
+                    os.path.getmtime(energy_model_path)
+                ).isoformat()
+
+            # Check production model
+            production_model_path = os.path.join(self.models_dir, "production_recommendation_model_latest.pkl")
+            if os.path.exists(production_model_path):
+                status["production_recommendation"]["available"] = True
+                status["production_recommendation"]["model_file"] = production_model_path
+                status["production_recommendation"]["last_modified"] = datetime.fromtimestamp(
+                    os.path.getmtime(production_model_path)
+                ).isoformat()
+
+            return status
+
+        except Exception as e:
+            logger.error(f"Failed to get model status: {e}")
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e),
+                "models_directory": self.models_dir
+            }
+
+
+# Global instance
+chocolate_ml_models = ChocolateMLModels()
