@@ -1,0 +1,77 @@
+# Restricciones de Producción - YAML para validación automática
+
+production_constraints:
+  machinery:
+    mixer:
+      capacity_kg: 10
+      power_kwh_min: 0.5
+      max_runtime_min: 10
+      min_batch_kg: 5
+      temperature_range:
+        min: 20
+        max: 60
+        unit: "celsius"
+      
+    roller:
+      capacity_kg: 10
+      power_kwh_min: 0.7
+      particle_size_output_microns: 20
+      pressure_bar:
+        min: 50
+        max: 200
+        optimal: 120
+      
+    conche:
+      capacity_kg: 10
+      power_kwh_min: 0.8
+      process_time_hours:
+        min: 4
+        max: 24
+        standard: 8
+      temperature_celsius:
+        min: 45
+        max: 60
+        optimal: 55
+      
+    temperer:
+      capacity_kg: 10
+      power_kwh_min: 0.6
+      temperature_profile:
+        phase1_heat: [45, 50]
+        phase2_cool: [27, 28]
+        phase3_reheat: [31, 32]
+      crystal_types:
+        - { type: "V", stable: true, melting_point: 34 }
+        - { type: "IV", stable: false, melting_point: 28 }
+
+  production_flow:
+    sequence:
+      - mixer
+      - roller
+      - conche
+      - temperer
+      - molder
+    
+    buffer_times_min:
+      mixer_to_roller: 30
+      roller_to_conche: 30
+      conche_to_temperer: 15
+      temperer_to_molder: 5
+    
+  quality_parameters:
+    final_product:
+      weight_g: 150
+      tolerance_g: 2
+      snap_test: true
+      gloss_level: "high"
+      shelf_life_months: 12
+    
+    environmental:
+      production_temp_c: [18, 22]
+      storage_temp_c: [15, 18]
+      max_humidity_percent: 60
+      
+  shifts:
+    - { name: "morning", start: "06:00", end: "14:00", workers: 5 }
+    - { name: "afternoon", start: "14:00", end: "22:00", workers: 5 }
+    - { name: "maintenance", start: "22:00", end: "06:00", workers: 2 }
