@@ -163,18 +163,65 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - **System shutdown safe**: Data persists across restarts
 
 ### Historical Data Status (Updated Sept 17, 2025)
-- **Current Coverage**: Only 12 days (Sept 5-17, 2025)
-- **REE Data**: 405 records (Sept 2025 only) - 9-day gap exists
-- **Weather Data**: 2,375 records from AEMET/OpenWeatherMap hybrid
-- **SIAR ETL**: AVAILABLE - 25 years of historical data (2000-2025) in CSV format
-- **REE Historical Init**: IN PROGRESS (2022-2024, ~17,520 records expected)
+- **REE Data**: 42,578 records (2022-2025) including historical backfill
+- **Weather Current**: 2,902 records from AEMET/OpenWeatherMap hybrid (Sept 2025)
+- **✅ SIAR Historical**: **88,935 records** (2000-2025) - **COMPLETED**
+- **REE Historical**: Comprehensive coverage 2022-2024
 - **Backfill system**: Auto-detects and recovers gaps every 2 hours
 
-### Pending Historical Data Tasks
-- **Execute SIAR ETL**: Process 25 years weather history from SIAR system CSV files
-- **Complete REE historical**: Finish 2022-2024 ingestion
-- **Resolve current gap**: Fix 9-day REE gap (Sept 8-17)
-- **10-year expansion**: Use ESIOS API for 2015-2021 data
+### ✅ SIAR Historical Data ETL Solution (COMPLETED)
+- **Data Source**: Sistema de Información Agroclimática para el Regadío (SIAR)
+- **Coverage**: 25+ years (August 2000 - September 2025)
+- **Total Records**: 88,935 weather observations
+- **Stations**:
+  - SIAR_J09_Linares (2000-2017): 62,842 records
+  - SIAR_J17_Linares (2018-2025): 26,093 records
+- **Storage**: Dedicated `siar_historical` bucket (separated from current weather)
+- **Fields**: 10 meteorological variables (temperature, humidity, wind, precipitation)
+- **Script**: `/scripts/test_siar_simple.py` - Processes all CSV files automatically
+- **Format Handling**: Spanish dates (DD/MM/YYYY), comma decimals, Unicode cleaning
+- **Data Quality**: Comprehensive 25-year dataset for ML training and analysis
+
+### SIAR ETL Technical Implementation Details
+
+#### Unicode and Format Challenges Solved
+```python
+# Character-by-character cleaning for Unicode spaces
+def clean_line(line):
+    clean_chars = []
+    for char in line:
+        if char.isprintable() and (char.isalnum() or char in ';,/:.-'):
+            clean_chars.append(char)
+    return ''.join(clean_chars)
+
+# Spanish decimal and date format handling
+def safe_float(value):
+    return float(str(value).replace(',', '.'))
+
+# DD/MM/YYYY date parsing
+date_obj = pd.to_datetime(fecha_str, format='%d/%m/%Y')
+```
+
+#### Station Identification Strategy
+- **J09 Station**: Historical SIAR format (2000-2017)
+- **J17 Station**: Modern SIAR format (2018-2025)
+- **Automatic Detection**: Based on filename pattern
+- **InfluxDB Tags**: `station_id`, `data_source=siar_historical`
+
+#### Data Separation Architecture
+- **Current Weather**: `energy_data` bucket (AEMET/OpenWeatherMap)
+- **Historical Weather**: `siar_historical` bucket (SIAR system)
+- **Benefit**: Clear data lineage for ML models and analysis
+
+#### Execution Statistics
+- **Files Processed**: 26 CSV files (100% success rate)
+- **Processing Time**: ~3 minutes for 25 years of data
+- **Error Handling**: Robust encoding detection (latin-1, iso-8859-1, cp1252, utf-8)
+- **Batch Processing**: 100-record batches for optimal InfluxDB performance
+
+### Remaining Tasks
+- **REE 10-year expansion**: Use ESIOS API for 2015-2021 data (optional)
+- **Data integration**: Connect SIAR historical data with ML models
 
 
 ## Machine Learning (Direct Implementation)
