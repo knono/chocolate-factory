@@ -35,6 +35,7 @@ services:
       - ./src/configs:/app/configs
       - ./docker/services/fastapi/logs:/app/logs
       - ./models:/app/models
+      - ./scripts:/app/scripts
     depends_on:
       - influxdb
     networks:

@@ -39,18 +39,18 @@ show_help() {
 # Función para iniciar desarrollo
 dev_start() {
     echo -e "${GREEN}🚀 Iniciando entorno de desarrollo...${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
     echo -e "${GREEN}✅ Entorno de desarrollo iniciado${NC}"
     echo -e "${YELLOW}📍 Dashboard: http://localhost:8000/dashboard${NC}"
     echo -e "${YELLOW}📊 API Docs: http://localhost:8000/docs${NC}"
-    echo -e "${YELLOW}🔍 Ver logs: ./dev.sh logs${NC}"
+    echo -e "${YELLOW}🔍 Ver logs: scripts/dev.sh logs${NC}"
 }
 
 # Función para detener desarrollo
 dev_stop() {
     echo -e "${YELLOW}🛑 Deteniendo entorno de desarrollo...${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
     echo -e "${GREEN}✅ Entorno de desarrollo detenido${NC}"
 }
 
@@ -64,20 +64,20 @@ dev_restart() {
 # Función para ver logs
 dev_logs() {
     echo -e "${BLUE}📋 Logs del entorno de desarrollo:${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs "${@}" fastapi-app
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs "${@}" fastapi-app
 }
 
 # Función para ver estado
 dev_status() {
     echo -e "${BLUE}📊 Estado de contenedores:${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml ps
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml -f docker-compose.dev.yml ps
 }
 
 # Función para cambiar a producción
 prod_mode() {
     echo -e "${YELLOW}🏭 Cambiando a modo producción...${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
-    docker-compose -f docker-compose.yml up -d
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml up -d
     echo -e "${GREEN}✅ Modo producción activado${NC}"
     echo -e "${YELLOW}📍 Dashboard: http://localhost:8000/dashboard${NC}"
 }
@@ -85,16 +85,16 @@ prod_mode() {
 # Función para build de producción
 prod_build() {
     echo -e "${YELLOW}🔨 Rebuilding imagen para producción...${NC}"
-    docker-compose build --no-cache fastapi-app
-    docker-compose -f docker-compose.yml up -d
+    cd "$(dirname "$0")/.." && docker-compose build --no-cache fastapi-app
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml up -d
     echo -e "${GREEN}✅ Imagen reconstruida y producción iniciada${NC}"
 }
 
 # Función para limpiar
 clean_env() {
     echo -e "${RED}🧹 Limpiando entorno...${NC}"
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
-    docker-compose -f docker-compose.yml down
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+    cd "$(dirname "$0")/.." && docker-compose -f docker-compose.yml down
     docker system prune -f
     echo -e "${GREEN}✅ Entorno limpio${NC}"
 }

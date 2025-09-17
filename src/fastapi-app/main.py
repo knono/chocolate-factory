@@ -123,6 +123,12 @@ class PredictionRequest(BaseModel):
     humidity: float
     include_features: bool = True  # Return engineered features
 
+class RangeBackfillRequest(BaseModel):
+    start_date: str  # ISO format: 2025-09-08T00:00:00Z
+    end_date: str    # ISO format: 2025-09-17T23:59:59Z
+    data_source: str = "both"  # "ree", "weather", "both"
+    chunk_hours: int = 24  # Process in chunks to avoid timeouts
+
 
 @app.get("/")
 async def root():
@@ -2224,6 +2230,147 @@ async def _execute_backfill_background(backfill_service, days_back: int):
         
     except Exception as e:
         logger.error(f"❌ Background backfill failed: {e}")
+
+
+@app.post("/gaps/backfill/range", tags=["Data Management"])
+async def execute_range_backfill(request: RangeBackfillRequest, background_tasks: BackgroundTasks = None):
+    """🎯 Backfill específico para rango de fechas exacto (para gaps históricos)"""
+    try:
+        from services.backfill_service import backfill_service
+        from datetime import datetime, timezone
+
+        # Parse dates
+        start_date = datetime.fromisoformat(request.start_date.replace('Z', '+00:00'))
+        end_date = datetime.fromisoformat(request.end_date.replace('Z', '+00:00'))
+
+        # Validate date range
+        if start_date >= end_date:
+            raise HTTPException(status_code=400, detail="start_date must be before end_date")
+
+        # Calculate days difference
+        days_diff = (end_date - start_date).days + 1
+
+        if background_tasks:
+            # Execute in background
+            background_tasks.add_task(
+                _execute_range_backfill_background,
+                backfill_service, request
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Range Backfill Started",
+                "🎯": "Backfill de Rango Específico",
+                "status": "🚀 Executing in background",
+                "date_range": f"{request.start_date} → {request.end_date}",
+                "days_processing": days_diff,
+                "data_source": request.data_source,
+                "chunk_hours": request.chunk_hours,
+                "estimated_duration": f"{max(5, days_diff * 2)}-{days_diff * 5} minutes",
+                "monitoring": {
+                    "check_progress": "GET /gaps/summary",
+                    "verify_results": "GET /influxdb/verify"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            # Execute synchronously (for testing)
+            result = await _execute_range_backfill_sync(backfill_service, request)
+            return {
+                "🏭": "Chocolate Factory - Range Backfill Completed",
+                "🎯": "Backfill de Rango Específico",
+                **result,
+                "timestamp": datetime.now().isoformat()
+            }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Range backfill failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def _execute_range_backfill_background(backfill_service, request: RangeBackfillRequest):
+    """Función helper para ejecutar range backfill en background"""
+    try:
+        logger.info(f"🎯 Starting range backfill: {request.start_date} → {request.end_date}")
+        result = await _execute_range_backfill_sync(backfill_service, request)
+        logger.info(f"✅ Range backfill completed: {result.get('status', 'unknown')}")
+    except Exception as e:
+        logger.error(f"❌ Range backfill failed: {e}")
+
+async def _execute_range_backfill_sync(backfill_service, request: RangeBackfillRequest):
+    """Ejecutar range backfill sincronamente"""
+    from services.ree_client import REEClient
+    from services.data_ingestion import DataIngestionService
+    from datetime import datetime, timezone, timedelta
+    import asyncio
+
+    start_date = datetime.fromisoformat(request.start_date.replace('Z', '+00:00'))
+    end_date = datetime.fromisoformat(request.end_date.replace('Z', '+00:00'))
+
+    total_records = 0
+    total_written = 0
+    errors = []
+
+    # Process REE data if requested
+    if request.data_source in ["ree", "both"]:
+        logger.info(f"📊 Processing REE data for range: {start_date} → {end_date}")
+
+        async with REEClient() as ree_client:
+            async with DataIngestionService() as ingestion_service:
+
+                current_date = start_date.date()
+                end_date_date = end_date.date()
+
+                while current_date <= end_date_date:
+                    try:
+                        # Process day by day
+                        day_start = datetime.combine(
+                            current_date, datetime.min.time()
+                        ).replace(tzinfo=timezone.utc)
+
+                        day_end = day_start + timedelta(days=1) - timedelta(minutes=1)
+
+                        logger.info(f"📊 Processing REE data for {current_date}")
+
+                        # Get REE data for this day
+                        daily_data = await ree_client.get_pvpc_prices(
+                            start_date=day_start,
+                            end_date=day_end
+                        )
+
+                        if daily_data:
+                            # Write to InfluxDB
+                            write_result = await ingestion_service.ingest_ree_prices_historical(daily_data)
+                            total_records += len(daily_data)
+                            total_written += write_result.successful_writes
+
+                            logger.info(f"✅ REE day {current_date}: {len(daily_data)} records → {write_result.successful_writes} written")
+                        else:
+                            logger.warning(f"⚠️ No REE data for {current_date}")
+
+                        # Rate limiting
+                        await asyncio.sleep(2)
+
+                    except Exception as day_error:
+                        error_msg = f"Error processing REE day {current_date}: {day_error}"
+                        errors.append(error_msg)
+                        logger.error(error_msg)
+
+                    current_date += timedelta(days=1)
+
+    success_rate = (total_written / total_records * 100) if total_records > 0 else 0
+
+    return {
+        "status": "success" if success_rate > 70 else "partial",
+        "date_range": f"{request.start_date} → {request.end_date}",
+        "data_source": request.data_source,
+        "records": {
+            "total_requested": total_records,
+            "total_written": total_written,
+            "success_rate": round(success_rate, 1)
+        },
+        "errors": errors[:5] if errors else []  # Limit errors shown
+    }
 
 
 # === DASHBOARD ENDPOINTS ===
