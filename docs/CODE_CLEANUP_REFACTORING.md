@@ -1,7 +1,7 @@
 # Code Cleanup and Refactoring Documentation
 
 ## Overview
-This document details the comprehensive code cleanup and refactoring process performed after implementing the datosclima.es ETL solution. The cleanup removed obsolete AEMET historical endpoints and functions that were no longer needed.
+This document details the comprehensive code cleanup and refactoring process performed after implementing the Sistema SIAR ETL solution. The cleanup removed obsolete AEMET historical endpoints and functions that were no longer needed.
 
 ## Executive Summary
 
@@ -40,7 +40,7 @@ This document details the comprehensive code cleanup and refactoring process per
 ### Phase 1: Identification and Analysis
 1. **Audit of all endpoints:** Comprehensive review of 28 FastAPI endpoints
 2. **Redundancy analysis:** Identified overlapping functionality 
-3. **Obsolescence assessment:** Determined which components were replaced by datosclima.es solution
+3. **Obsolescence assessment:** Determined which components were replaced by Sistema SIAR solution
 
 ### Phase 2: Systematic Removal
 1. **Code elimination:** Removed functions, endpoints, and imports
@@ -78,7 +78,7 @@ This document details the comprehensive code cleanup and refactoring process per
 
 ### Essential Endpoints Maintained
 - `POST /init/historical-data` - **Kept** for REE historical data (non-AEMET)
-- `POST /init/datosclima/etl` - **New** datosclima.es ETL endpoint
+- `POST /init/datosclima/etl` - **New** Sistema SIAR ETL endpoint
 - All operational weather, scheduling, and ingestion endpoints
 
 ### Core Features Intact
@@ -159,7 +159,7 @@ docker logs --tail 10 chocolate_factory_brain
 ### Easier MLflow Integration
 - Clean foundation for ML model implementation
 - No competing or confusing data initialization endpoints
-- Clear path forward with datosclima.es as single weather data source
+- Clear path forward with Sistema SIAR as single weather data source
 
 ### Container Optimization
 - Faster deployment cycles with smaller, cleaner codebase

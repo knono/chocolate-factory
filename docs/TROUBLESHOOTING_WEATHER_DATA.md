@@ -13,7 +13,7 @@ $ curl -s "http://localhost:8000/init/status" | jq '.status.historical_weather_r
 - ❌ Datos insuficientes para modelos ML
 - ❌ Sistema reportará "weather_data: insufficient"
 
-**Solución:** → [Usar ETL datosclima.es](#solucion-etl-datosclima)
+**Solución:** → [Usar ETL Sistema SIAR](#solucion-etl-datosclima)
 
 ---
 
@@ -32,7 +32,7 @@ $ curl -X POST "http://localhost:8000/init/aemet/historical-data?years_back=3"
 - ❌ Connection reset/timeout constante
 - ❌ Problema conocido con endpoints históricos
 
-**Solución:** → [Usar ETL datosclima.es](#solucion-etl-datosclima)
+**Solución:** → [Usar ETL Sistema SIAR](#solucion-etl-datosclima)
 
 ---
 
@@ -49,11 +49,11 @@ $ watch -n 5 'du -sh docker/services/influxdb/data/engine/'
 - ❌ Ingesta fallida silenciosamente
 - ❌ Necesario método alternativo
 
-**Solución:** → [Usar ETL datosclima.es](#solucion-etl-datosclima)
+**Solución:** → [Usar ETL Sistema SIAR](#solucion-etl-datosclima)
 
 ---
 
-## Solución ETL datosclima.es
+## Solución ETL Sistema SIAR
 
 ### Verificación Previa
 ```bash
@@ -266,7 +266,7 @@ Registrar en `/docs/INCIDENTS.md`:
 ## Escalación
 
 ### Nivel 1: Auto-resolución
-- Ejecutar ETL datosclima.es
+- Ejecutar ETL Sistema SIAR
 - Verificar con scripts automáticos
 - Documentar en logs
 

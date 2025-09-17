@@ -123,6 +123,12 @@ class PredictionRequest(BaseModel):
     humidity: float
     include_features: bool = True  # Return engineered features
 
+class RangeBackfillRequest(BaseModel):
+    start_date: str  # ISO format: 2025-09-08T00:00:00Z
+    end_date: str    # ISO format: 2025-09-17T23:59:59Z
+    data_source: str = "both"  # "ree", "weather", "both"
+    chunk_hours: int = 24  # Process in chunks to avoid timeouts
+
 
 @app.get("/")
 async def root():
@@ -1497,24 +1503,25 @@ async def initialize_all_systems(background_tasks: BackgroundTasks):
 
 
 
-@app.post("/init/datosclima/etl")
-async def init_datosclima_etl(station_id: str = "5279X", years: int = 5):
-    """🌍 ETL process using datosclima.es CSV data for historical weather"""
+@app.post("/init/siar/etl")
+async def init_siar_etl(station_id: str = "5279X", years: int = 5):
+    """🌍 ETL process using Sistema SIAR CSV data for historical weather"""
     try:
         import sys
         import os
         sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-        from services.datosclima_etl import DatosClimaETL
-        
-        logger.info(f"🌍 Starting DatosClima ETL for station {station_id}")
-        
-        etl = DatosClimaETL()
-        stats = await etl.download_and_process_station(station_id, years)
+        from services.siar_etl import SiarETL
+
+        logger.info(f"🌍 Starting SIAR ETL for station {station_id}")
+
+        etl = SiarETL()
+        # Use the real SIAR files instead of sample data
+        stats = await etl.process_real_siar_files()
         
         return {
-            "🏭": "Chocolate Factory - DatosClima ETL",
+            "🏭": "Chocolate Factory - SIAR ETL",
             "status": "✅ ETL Completed",
-            "data_source": "datosclima.es",
+            "data_source": "Sistema SIAR",
             "station": f"{station_id} - Linares, Jaén",
             "processing_results": {
                 "total_records": stats.total_records,
@@ -2224,6 +2231,315 @@ async def _execute_backfill_background(backfill_service, days_back: int):
         
     except Exception as e:
         logger.error(f"❌ Background backfill failed: {e}")
+
+
+@app.post("/gaps/backfill/range", tags=["Data Management"])
+async def execute_range_backfill(request: RangeBackfillRequest, background_tasks: BackgroundTasks = None):
+    """🎯 Backfill específico para rango de fechas exacto (para gaps históricos)"""
+    try:
+        from services.backfill_service import backfill_service
+        from datetime import datetime, timezone
+
+        # Parse dates
+        start_date = datetime.fromisoformat(request.start_date.replace('Z', '+00:00'))
+        end_date = datetime.fromisoformat(request.end_date.replace('Z', '+00:00'))
+
+        # Validate date range
+        if start_date >= end_date:
+            raise HTTPException(status_code=400, detail="start_date must be before end_date")
+
+        # Calculate days difference
+        days_diff = (end_date - start_date).days + 1
+
+        if background_tasks:
+            # Execute in background
+            background_tasks.add_task(
+                _execute_range_backfill_background,
+                backfill_service, request
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Range Backfill Started",
+                "🎯": "Backfill de Rango Específico",
+                "status": "🚀 Executing in background",
+                "date_range": f"{request.start_date} → {request.end_date}",
+                "days_processing": days_diff,
+                "data_source": request.data_source,
+                "chunk_hours": request.chunk_hours,
+                "estimated_duration": f"{max(5, days_diff * 2)}-{days_diff * 5} minutes",
+                "monitoring": {
+                    "check_progress": "GET /gaps/summary",
+                    "verify_results": "GET /influxdb/verify"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            # Execute synchronously (for testing)
+            result = await _execute_range_backfill_sync(backfill_service, request)
+            return {
+                "🏭": "Chocolate Factory - Range Backfill Completed",
+                "🎯": "Backfill de Rango Específico",
+                **result,
+                "timestamp": datetime.now().isoformat()
+            }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Range backfill failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def _execute_range_backfill_background(backfill_service, request: RangeBackfillRequest):
+    """Función helper para ejecutar range backfill en background"""
+    try:
+        logger.info(f"🎯 Starting range backfill: {request.start_date} → {request.end_date}")
+        result = await _execute_range_backfill_sync(backfill_service, request)
+        logger.info(f"✅ Range backfill completed: {result.get('status', 'unknown')}")
+    except Exception as e:
+        logger.error(f"❌ Range backfill failed: {e}")
+
+async def _execute_range_backfill_sync(backfill_service, request: RangeBackfillRequest):
+    """Ejecutar range backfill sincronamente"""
+    from services.ree_client import REEClient
+    from services.data_ingestion import DataIngestionService
+    from datetime import datetime, timezone, timedelta
+    import asyncio
+
+    start_date = datetime.fromisoformat(request.start_date.replace('Z', '+00:00'))
+    end_date = datetime.fromisoformat(request.end_date.replace('Z', '+00:00'))
+
+    total_records = 0
+    total_written = 0
+    errors = []
+
+    # Process REE data if requested
+    if request.data_source in ["ree", "both"]:
+        logger.info(f"📊 Processing REE data for range: {start_date} → {end_date}")
+
+        async with REEClient() as ree_client:
+            async with DataIngestionService() as ingestion_service:
+
+                current_date = start_date.date()
+                end_date_date = end_date.date()
+
+                while current_date <= end_date_date:
+                    try:
+                        # Process day by day
+                        day_start = datetime.combine(
+                            current_date, datetime.min.time()
+                        ).replace(tzinfo=timezone.utc)
+
+                        day_end = day_start + timedelta(days=1) - timedelta(minutes=1)
+
+                        logger.info(f"📊 Processing REE data for {current_date}")
+
+                        # Get REE data for this day
+                        daily_data = await ree_client.get_pvpc_prices(
+                            start_date=day_start,
+                            end_date=day_end
+                        )
+
+                        if daily_data:
+                            # Write to InfluxDB
+                            write_result = await ingestion_service.ingest_ree_prices_historical(daily_data)
+                            total_records += len(daily_data)
+                            total_written += write_result.successful_writes
+
+                            logger.info(f"✅ REE day {current_date}: {len(daily_data)} records → {write_result.successful_writes} written")
+                        else:
+                            logger.warning(f"⚠️ No REE data for {current_date}")
+
+                        # Rate limiting
+                        await asyncio.sleep(2)
+
+                    except Exception as day_error:
+                        error_msg = f"Error processing REE day {current_date}: {day_error}"
+                        errors.append(error_msg)
+                        logger.error(error_msg)
+
+                    current_date += timedelta(days=1)
+
+    success_rate = (total_written / total_records * 100) if total_records > 0 else 0
+
+    return {
+        "status": "success" if success_rate > 70 else "partial",
+        "date_range": f"{request.start_date} → {request.end_date}",
+        "data_source": request.data_source,
+        "records": {
+            "total_requested": total_records,
+            "total_written": total_written,
+            "success_rate": round(success_rate, 1)
+        },
+        "errors": errors[:5] if errors else []  # Limit errors shown
+    }
+
+
+# === HISTORICAL DATA ENDPOINTS ===
+
+@app.get("/historical/status", tags=["Historical Data"])
+async def get_historical_data_status():
+    """📊 Analizar estado de datos históricos de 10 años"""
+    try:
+        from services.historical_data_service import historical_data_service
+
+        analysis = await historical_data_service.analyze_historical_data_status()
+
+        return {
+            "🏭": "Chocolate Factory - Historical Data Analysis",
+            "📊": "Análisis de Datos Históricos (10 años)",
+            **analysis
+        }
+
+    except Exception as e:
+        logger.error(f"Historical data analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/historical/ingest-year/{year}", tags=["Historical Data"])
+async def ingest_year_data(year: int,
+                          include_ree: bool = True,
+                          include_weather: bool = True,
+                          background_tasks: BackgroundTasks = None):
+    """📅 Ingestar datos históricos de un año específico"""
+    try:
+        from services.historical_data_service import historical_data_service
+
+        # Validar año
+        current_year = datetime.now().year
+        if year < 2015 or year > current_year:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Año debe estar entre 2015 y {current_year}"
+            )
+
+        if background_tasks:
+            # Ejecutar en background para años grandes
+            background_tasks.add_task(
+                _execute_year_ingestion_background,
+                historical_data_service, year, include_ree, include_weather
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Year Ingestion Started",
+                "📅": f"Ingesta Año {year}",
+                "status": "🚀 Executing in background",
+                "year": year,
+                "data_sources": {
+                    "ree": include_ree,
+                    "weather": include_weather
+                },
+                "estimated_duration": "15-45 minutes",
+                "monitoring": {
+                    "check_progress": "GET /historical/status",
+                    "verify_results": f"GET /gaps/detect?days_back=365"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            # Ejecutar sincrónicamente (para testing)
+            result = await historical_data_service.ingest_year_data(
+                year=year,
+                include_ree=include_ree,
+                include_weather=include_weather
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Year Ingestion Completed",
+                "📅": f"Ingesta Año {year}",
+                **result
+            }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Year ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/historical/progressive-ingestion", tags=["Historical Data"])
+async def execute_progressive_ingestion(max_years_per_session: int = 3,
+                                      background_tasks: BackgroundTasks = None):
+    """🚀 Ejecutar ingesta progresiva de 10 años (limitada por sesión)"""
+    try:
+        from services.historical_data_service import historical_data_service
+
+        # Validar parámetros
+        if max_years_per_session < 1 or max_years_per_session > 5:
+            raise HTTPException(
+                status_code=400,
+                detail="max_years_per_session debe estar entre 1 y 5"
+            )
+
+        if background_tasks:
+            # Ejecutar en background (recomendado para múltiples años)
+            background_tasks.add_task(
+                _execute_progressive_ingestion_background,
+                historical_data_service, max_years_per_session
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Progressive Ingestion Started",
+                "🚀": "Ingesta Progresiva 10 Años",
+                "status": "🚀 Executing in background",
+                "session_config": {
+                    "max_years_per_session": max_years_per_session,
+                    "estimated_duration_hours": max_years_per_session * 0.5
+                },
+                "monitoring": {
+                    "check_progress": "GET /historical/status",
+                    "scheduler_status": "GET /scheduler/status"
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            # Ejecutar sincrónicamente (solo para testing con pocos años)
+            if max_years_per_session > 2:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Para ejecución síncrona, usar máximo 2 años por sesión"
+                )
+
+            result = await historical_data_service.execute_progressive_10_year_ingestion(
+                max_years_per_session=max_years_per_session
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Progressive Ingestion Completed",
+                "🚀": "Ingesta Progresiva 10 Años",
+                **result
+            }
+
+    except Exception as e:
+        logger.error(f"Progressive ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _execute_year_ingestion_background(historical_data_service, year: int,
+                                           include_ree: bool, include_weather: bool):
+    """Helper para ejecutar ingesta de año en background"""
+    try:
+        logger.info(f"📅 Starting year {year} ingestion (REE: {include_ree}, Weather: {include_weather})")
+        result = await historical_data_service.ingest_year_data(
+            year=year,
+            include_ree=include_ree,
+            include_weather=include_weather
+        )
+        logger.info(f"✅ Year {year} ingestion completed: {result.get('status', 'unknown')}")
+    except Exception as e:
+        logger.error(f"❌ Year {year} ingestion failed: {e}")
+
+
+async def _execute_progressive_ingestion_background(historical_data_service,
+                                                  max_years_per_session: int):
+    """Helper para ejecutar ingesta progresiva en background"""
+    try:
+        logger.info(f"🚀 Starting progressive ingestion (max {max_years_per_session} years)")
+        result = await historical_data_service.execute_progressive_10_year_ingestion(
+            max_years_per_session=max_years_per_session
+        )
+        logger.info(f"✅ Progressive ingestion completed: {result.get('session_summary', {}).get('successful_years', 0)} years")
+    except Exception as e:
+        logger.error(f"❌ Progressive ingestion failed: {e}")
 
 
 # === DASHBOARD ENDPOINTS ===
