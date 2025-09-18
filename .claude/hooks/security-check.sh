@@ -151,35 +151,54 @@ run_trufflehog() {
     return 0
 }
 
+# Get files respecting gitignore
+get_files_to_check() {
+    local files_to_check
+    if [ "$STAGED_ONLY" = true ]; then
+        files_to_check=$(git diff --cached --name-only | grep -E '\.(md|py|sh|yml|yaml|json|js|ts)$' || true)
+    else
+        # Use git ls-files to respect .gitignore automatically
+        files_to_check=$(git ls-files | grep -E '\.(md|py|sh|yml|yaml|json|js|ts)$' || true)
+    fi
+    echo "$files_to_check"
+}
+
 # Pattern-based detection
 run_pattern_detection() {
     print_section "Búsqueda por Patrones - Información Sensible"
 
     local found_issues=false
 
-    # Define files to check
+    # Define files to check (respecting .gitignore)
     local files_to_check
-    if [ "$STAGED_ONLY" = true ]; then
-        files_to_check=$(git diff --cached --name-only | grep -E '\.(md|py|sh|yml|yaml|json|js|ts)$' || true)
-        if [ -z "$files_to_check" ]; then
-            print_success "No hay archivos relevantes en staging"
-            return 0
-        fi
-    else
-        files_to_check=$(find . -type f \( -name "*.md" -o -name "*.py" -o -name "*.sh" -o -name "*.yml" -o -name "*.yaml" -o -name "*.json" -o -name "*.js" -o -name "*.ts" \) -not -path "./.git/*" -not -path "./node_modules/*")
+    files_to_check=$(get_files_to_check)
+
+    if [ -z "$files_to_check" ]; then
+        print_success "No hay archivos relevantes para verificar"
+        return 0
     fi
 
     echo "📁 Verificando archivos por patrones sospechosos..."
 
-    # Check for potential API keys (but avoid false positives)
+    # Check for potential API keys (but avoid false positives and respect placeholders)
     echo "🔑 Buscando posibles API keys..."
     if echo "$files_to_check" | xargs grep -l "token.*[A-Za-z0-9]\{20,\}" 2>/dev/null | grep -v ".example" | head -5; then
-        print_warning "Encontrados posibles tokens/API keys"
-        print_fix "Verificar que no sean credenciales reales - usar formato <your_token_here>"
-        found_issues=true
+        # Additional check for placeholders
+        suspicious_files=$(echo "$files_to_check" | xargs grep -l "token.*[A-Za-z0-9]\{20,\}" 2>/dev/null | grep -v ".example")
+        real_tokens=false
+        for file in $suspicious_files; do
+            if grep "token.*[A-Za-z0-9]\{20,\}" "$file" | grep -v "<.*>" | grep -v "placeholder" >/dev/null 2>&1; then
+                print_warning "Token real encontrado en: $file"
+                real_tokens=true
+            fi
+        done
+        if [ "$real_tokens" = true ]; then
+            print_fix "Verificar que no sean credenciales reales - usar formato <your_token_here>"
+            found_issues=true
+        fi
     fi
 
-    # Check for hardcoded secrets patterns
+    # Check for hardcoded secrets patterns (respecting placeholders)
     echo "🔐 Buscando secretos hardcodeados..."
     SECRET_PATTERNS=(
         "password.*=.*[^<].*[^>]"
@@ -189,26 +208,54 @@ run_pattern_detection() {
     )
 
     for pattern in "${SECRET_PATTERNS[@]}"; do
-        if echo "$files_to_check" | xargs grep -l "$pattern" 2>/dev/null | grep -v ".example" | head -3; then
-            print_warning "Patrón sospechoso encontrado: $pattern"
-            found_issues=true
+        suspicious_files=$(echo "$files_to_check" | xargs grep -l "$pattern" 2>/dev/null | grep -v ".example" | head -3)
+        if [ -n "$suspicious_files" ]; then
+            real_secrets=false
+            for file in $suspicious_files; do
+                if grep "$pattern" "$file" | grep -v "<.*>" | grep -v "placeholder" >/dev/null 2>&1; then
+                    print_warning "Patrón sospechoso en $file: $pattern"
+                    real_secrets=true
+                fi
+            done
+            if [ "$real_secrets" = true ]; then
+                found_issues=true
+            fi
         fi
     done
 
-    # Check for real-looking URLs
+    # Check for real-looking URLs (excluding placeholders)
     echo "🌐 Verificando URLs reales..."
-    if echo "$files_to_check" | xargs grep -l "https://[a-zA-Z0-9.-]*\.ts\.net" 2>/dev/null | head -3; then
-        print_warning "URLs de Tailscale reales encontradas"
-        print_fix "Reemplazar con: https://<your-domain>.ts.net"
-        found_issues=true
+    suspicious_urls=$(echo "$files_to_check" | xargs grep -l "https://[a-zA-Z0-9.-]*\.ts\.net" 2>/dev/null | head -3)
+    if [ -n "$suspicious_urls" ]; then
+        real_urls=false
+        for file in $suspicious_urls; do
+            if grep "https://[a-zA-Z0-9.-]*\.ts\.net" "$file" | grep -v "<.*>" | grep -v "placeholder" | grep -v "your-domain" >/dev/null 2>&1; then
+                print_warning "URL real de Tailscale encontrada en: $file"
+                real_urls=true
+            fi
+        done
+        if [ "$real_urls" = true ]; then
+            print_fix "Reemplazar con: https://<your-domain>.ts.net"
+            found_issues=true
+        fi
     fi
 
-    # Check for IP addresses
+    # Check for IP addresses (excluding common placeholders)
     echo "🖥️ Buscando direcciones IP..."
-    if echo "$files_to_check" | xargs grep -l "[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}" 2>/dev/null | head -3; then
-        print_warning "Direcciones IP encontradas"
-        print_fix "Verificar que no sean IPs privadas reales"
-        found_issues=true
+    ip_files=$(echo "$files_to_check" | xargs grep -l "[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}" 2>/dev/null | head -3)
+    if [ -n "$ip_files" ]; then
+        real_ips=false
+        for file in $ip_files; do
+            # Exclude common placeholder IPs and localhost
+            if grep "[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}" "$file" | grep -v "127.0.0.1" | grep -v "localhost" | grep -v "0.0.0.0" | grep -v "255.255.255" | grep -v "<.*>" | grep -v "placeholder" >/dev/null 2>&1; then
+                print_warning "Dirección IP real encontrada en: $file"
+                real_ips=true
+            fi
+        done
+        if [ "$real_ips" = true ]; then
+            print_fix "Verificar que no sean IPs privadas reales - usar <your_ip_here>"
+            found_issues=true
+        fi
     fi
 
     # Check .env files are not tracked (respecting .gitignore)

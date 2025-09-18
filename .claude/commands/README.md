@@ -1,201 +1,99 @@
-# 🍫 Chocolate Factory - Command Scripts
+# 🍫 Chocolate Factory - Commands
 
-Scripts de utilidad para gestión del sistema Chocolate Factory.
+Comandos de Claude Code para gestión del sistema Chocolate Factory.
 
-## 📂 Scripts Disponibles
+## 📂 Comandos Disponibles
 
-### 🔄 `backfill.sh` - Script Principal de Backfill
-Script completo con análisis detallado y confirmaciones interactivas.
+Los siguientes comandos están disponibles directamente desde Claude Code usando la sintaxis `/comando`:
 
-```bash
-# Uso básico
-./backfill.sh [mode] [options]
-
-# Modos disponibles
-./backfill.sh auto        # Backfill automático inteligente (recomendado)
-./backfill.sh full        # Backfill completo de todos los gaps
-./backfill.sh ree         # Solo backfill de datos REE
-./backfill.sh weather     # Solo backfill de datos meteorológicos
-./backfill.sh check       # Solo verificar gaps sin ejecutar backfill
-
-# Ejemplos con parámetros
-./backfill.sh weather 14  # Weather de últimos 14 días
-./backfill.sh auto        # Backfill automático con confirmación
-```
-
-**Características:**
-- ✅ Verificación del estado del sistema
-- 📊 Análisis detallado de gaps
-- 🛡️ Confirmación interactiva antes de ejecutar
-- 🎨 Output colorizado y estructurado
-- ⚠️ Manejo robusto de errores
-
-### 🔒 `security-check.sh` - Verificación de Seguridad
-Script para detectar información comprometida antes de commits.
+### 🔄 `/backfill` - Recuperación Principal de Datos
+Análisis detallado y recuperación de gaps con confirmaciones interactivas.
 
 ```bash
-# Uso básico
-./security-check.sh [options]
-
-# Opciones disponibles
-./security-check.sh               # Verificación completa
-./security-check.sh --trufflehog  # Solo TruffleHog
-./security-check.sh --patterns    # Solo búsqueda por patrones
-./security-check.sh --staged      # Solo archivos en staging
-./security-check.sh --fix         # Con sugerencias de corrección
-
-# Ejemplos de uso
-./security-check.sh --staged --fix    # Pre-commit check con fixes
-./security-check.sh --trufflehog      # Detector avanzado de secretos
+/backfill [auto|full|ree|weather|check] [days]
 ```
 
-**Características:**
-- 🔍 **TruffleHog integration**: Detector avanzado de secretos
-- 📝 **Pattern detection**: Búsqueda por patrones personalizados
-- 🛡️ **Pre-commit checks**: Verificación antes de commits
-- 📋 **Staged files**: Verificar solo archivos en staging
-- 💡 **Fix suggestions**: Sugerencias automáticas de corrección
+**[Ver documentación completa →](./backfill.md)**
 
-### ⚡ `quick-backfill.sh` - Script Rápido
-Script simplificado para ejecución rápida sin confirmaciones.
+### ⚡ `/quick-backfill` - Recuperación Rápida
+Ejecución inmediata sin confirmaciones para automatización.
 
 ```bash
-# Uso rápido
-./quick-backfill.sh [auto|ree|weather|check]
-
-# Ejemplos
-./quick-backfill.sh auto     # Backfill automático inmediato
-./quick-backfill.sh check    # Check rápido de gaps
-./quick-backfill.sh ree      # Solo REE
-./quick-backfill.sh weather  # Solo weather
+/quick-backfill [auto|ree|weather|check]
 ```
 
-**Características:**
-- 🚀 Ejecución inmediata sin confirmaciones
-- 📊 Output compacto
-- ⚡ Ideal para scripts automatizados
+**[Ver documentación completa →](./quick-backfill.md)**
 
-## 🎯 Casos de Uso Recomendados
+### 🔒 `/security-check` - Verificación de Seguridad
+Detecta información comprometida antes de commits.
 
-### 🔍 **Verificar Estado de Datos**
 ```bash
-# Análisis completo
-./backfill.sh check
-
-# Check rápido
-./quick-backfill.sh check
+/security-check [--trufflehog|--patterns|--staged|--fix]
 ```
 
-### 🔄 **Backfill Automático** (Recomendado)
+**[Ver documentación completa →](./security-check.md)**
+
+## 🔧 Configuración de Hooks
+
+Los scripts también pueden ejecutarse automáticamente mediante hooks configurados en `../settings.json`:
+
+### Hooks Disponibles (Deshabilitados por defecto)
+
+- **PreToolUse**: Verificación de seguridad antes de editar archivos
+- **UserPromptSubmit**: Security check antes de commits
+- **SessionStart**: Verificación de datos al iniciar
+- **PostToolUse**: Backfill automático después de cambios de config
+
+### Habilitar Hooks
+
+Editar `.claude/settings.json` y cambiar `"enabled": true` para los hooks deseados.
+
+## 🚀 Uso Rápido
+
 ```bash
-# Con confirmación (seguro)
-./backfill.sh auto
+# Verificar estado de datos
+/quick-backfill check
 
-# Inmediato (para automatización)
-./quick-backfill.sh auto
+# Backfill automático
+/backfill auto
+
+# Verificación de seguridad pre-commit
+/security-check --staged --fix
 ```
 
-### ⚡ **Backfill Específico**
-```bash
-# Solo datos REE
-./backfill.sh ree
-./quick-backfill.sh ree
+## 📁 Estructura
 
-# Solo datos meteorológicos
-./backfill.sh weather
-./quick-backfill.sh weather
+```
+.claude/
+├── commands/           # Documentación de comandos (este directorio)
+│   ├── backfill.md
+│   ├── quick-backfill.md
+│   ├── security-check.md
+│   └── README.md
+├── hooks/              # Scripts ejecutables
+│   ├── backfill.sh
+│   ├── quick-backfill.sh
+│   └── security-check.sh
+└── settings.json       # Configuración de hooks y comandos
 ```
 
-### 📅 **Backfill de Períodos Específicos**
-```bash
-# Weather de últimos 30 días
-./backfill.sh weather 30
+## 🛠️ Prerrequisitos
 
-# Backfill completo sin límites
-./backfill.sh full
-```
-
-## 🛠️ Configuración
-
-### Prerrequisitos
 - Docker containers ejecutándose (`chocolate_factory_brain`)
 - API disponible en `http://localhost:8000`
 - Herramientas: `curl`, `jq`, `docker`
+- Para TruffleHog: instalación opcional externa
 
-### Variables de Configuración
-Edita los scripts para personalizar:
+## 📊 Endpoints API
 
-```bash
-# En backfill.sh o quick-backfill.sh
-API_BASE="http://localhost:8000"  # URL base de la API
-DAYS_BACK=7                       # Días por defecto para weather backfill
-```
-
-## 📊 Endpoints API Utilizados
-
-| Endpoint | Propósito | Script |
-|----------|-----------|---------|
-| `GET /health` | Verificar API | backfill.sh |
-| `GET /gaps/summary` | Resumen de gaps | Ambos |
-| `GET /gaps/detect` | Análisis detallado | backfill.sh |
-| `POST /gaps/backfill/auto` | Backfill automático | Ambos |
-| `POST /gaps/backfill` | Backfill completo | backfill.sh |
-| `POST /gaps/backfill/ree` | Solo REE | Ambos |
-| `POST /gaps/backfill/weather` | Solo weather | Ambos |
-
-## 🚨 Troubleshooting
-
-### Error: "API no disponible"
-```bash
-# Verificar containers
-docker ps | grep chocolate_factory
-
-# Reiniciar si es necesario
-docker compose up -d
-```
-
-### Error: "Comando no encontrado"
-```bash
-# Dar permisos de ejecución
-chmod +x .claude/commands/*.sh
-
-# Ejecutar desde directorio del proyecto
-cd /ruta/al/chocolate-factory
-./.claude/commands/backfill.sh check
-```
-
-### Gaps no se resuelven
-```bash
-# Verificar logs del container
-docker logs chocolate_factory_brain --tail=50
-
-# Ejecutar backfill manual con más días
-./backfill.sh weather 30
-```
-
-## 📈 Monitoreo
-
-### Verificar Éxito del Backfill
-```bash
-# Antes del backfill
-./quick-backfill.sh check
-
-# Ejecutar backfill
-./quick-backfill.sh auto
-
-# Verificar después
-./quick-backfill.sh check
-```
-
-### Logs del Sistema
-```bash
-# Ver logs en tiempo real
-docker logs chocolate_factory_brain -f
-
-# Ver logs de scheduler
-curl -s http://localhost:8000/scheduler/status | jq '.jobs[].stats'
-```
+| Endpoint | Uso | Comandos |
+|----------|-----|----------|
+| `GET /health` | Estado API | backfill |
+| `GET /gaps/summary` | Resumen gaps | todos |
+| `POST /gaps/backfill/auto` | Backfill automático | todos |
+| `POST /gaps/backfill/ree` | Solo REE | backfill, quick-backfill |
+| `POST /gaps/backfill/weather` | Solo weather | backfill, quick-backfill |
 
 ---
 
-**💡 Tip**: Para uso diario, recomendamos `./quick-backfill.sh auto` como comando rápido para mantener los datos actualizados.
+💡 **Tip**: Los comandos markdown proporcionan documentación y ejemplos, mientras que los hooks en `../hooks/` contienen la lógica ejecutable.
