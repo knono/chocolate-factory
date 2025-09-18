@@ -1,0 +1,77 @@
+{
+  "hooks": {
+    "preToolUse": [
+      {
+        "name": "security-check-pre-edit",
+        "command": ".claude/hooks/security-check.sh --staged --patterns",
+        "description": "Verificar seguridad antes de editar archivos",
+        "enabled": false,
+        "conditions": {
+          "tools": ["Edit", "Write", "MultiEdit"]
+        }
+      }
+    ],
+    "userPromptSubmit": [
+      {
+        "name": "security-check-pre-commit",
+        "command": ".claude/hooks/security-check.sh --staged --fix",
+        "description": "Verificación de seguridad antes de commits",
+        "enabled": false,
+        "conditions": {
+          "promptContains": ["commit", "git add", "git push"]
+        }
+      }
+    ],
+    "sessionStart": [
+      {
+        "name": "backfill-status-check",
+        "command": ".claude/hooks/quick-backfill.sh check",
+        "description": "Verificar estado de datos al iniciar sesión",
+        "enabled": false
+      }
+    ],
+    "postToolUse": [
+      {
+        "name": "auto-backfill-after-config",
+        "command": ".claude/hooks/quick-backfill.sh auto",
+        "description": "Backfill automático después de cambios en configuración",
+        "enabled": false,
+        "conditions": {
+          "tools": ["Edit", "Write"],
+          "filePatterns": ["docker-compose*.yml", "*.env*", "pyproject.toml"]
+        }
+      }
+    ]
+  },
+  "commands": {
+    "backfill": {
+      "description": "Ejecutar script de backfill principal con análisis detallado",
+      "script": ".claude/hooks/backfill.sh",
+      "args": ["${1:-auto}"],
+      "workingDir": "${workspaceRoot}"
+    },
+    "quick-backfill": {
+      "description": "Ejecutar backfill rápido sin confirmaciones",
+      "script": ".claude/hooks/quick-backfill.sh",
+      "args": ["${1:-auto}"],
+      "workingDir": "${workspaceRoot}"
+    },
+    "security-check": {
+      "description": "Verificación de seguridad del repositorio",
+      "script": ".claude/hooks/security-check.sh",
+      "args": ["${@}"],
+      "workingDir": "${workspaceRoot}"
+    }
+  },
+  "project": {
+    "name": "Chocolate Factory",
+    "description": "Sistema de monitoreo y simulación de fábrica de chocolate",
+    "framework": "FastAPI + InfluxDB + Docker",
+    "architecture": "2-container production system"
+  },
+  "preferences": {
+    "autoEnableHooks": false,
+    "showHookOutput": true,
+    "verboseLogging": false
+  }
+}
