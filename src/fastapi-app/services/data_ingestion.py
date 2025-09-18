@@ -208,62 +208,103 @@ class DataIngestionService:
         stats = DataIngestionStats()
         
         try:
-            logger.info("Starting REE price data ingestion")
-            
+            range_info = f"{start_date.strftime('%Y-%m-%d %H:%M') if start_date else 'auto'} to {end_date.strftime('%Y-%m-%d %H:%M') if end_date else 'auto'}"
+            logger.info(f"📊 REE Ingestion Start: {range_info}")
+
             # Fetch data from REE API
             async with REEClient() as ree_client:
                 price_data = await ree_client.get_pvpc_prices(start_date, end_date)
-            
+
             stats.total_records = len(price_data)
-            logger.info(f"Retrieved {stats.total_records} price records from REE API")
-            
-            if not price_data:
-                logger.warning("No price data retrieved from REE API")
+
+            if price_data:
+                earliest = min(p.timestamp for p in price_data)
+                latest = max(p.timestamp for p in price_data)
+                logger.success(f"✅ REE Data Retrieved: {stats.total_records} records ({earliest.strftime('%Y-%m-%d %H:%M')} to {latest.strftime('%Y-%m-%d %H:%M')})")
+            else:
+                logger.error(f"❌ REE Data Empty: No price data retrieved from REE API for {range_info}")
                 return stats
             
             # Transform and validate data
+            logger.info(f"🔄 REE Processing: Transforming {stats.total_records} records to InfluxDB points")
             valid_points = []
+            validation_errors_detail = []
+
             for price_record in price_data:
                 is_valid, validation_errors = self._validate_price_data(price_record)
-                
+
                 if not is_valid:
                     stats.validation_errors += 1
-                    logger.warning(f"Validation failed for {price_record.timestamp}: {validation_errors}")
+                    error_detail = f"{price_record.timestamp}: {validation_errors}"
+                    validation_errors_detail.append(error_detail)
+                    logger.warning(f"⚠️ REE Validation Failed: {error_detail}")
                     continue
-                
+
                 try:
                     point = self._transform_ree_price_to_influx_point(price_record)
                     valid_points.append(point)
                 except Exception as e:
-                    logger.error(f"Failed to transform price data: {e}")
+                    logger.error(f"❌ REE Transform Error: Failed to transform {price_record.timestamp}: {e}")
                     stats.failed_writes += 1
+
+            if validation_errors_detail:
+                logger.warning(f"⚠️ REE Validation Summary: {len(validation_errors_detail)} records failed validation")
+
+            logger.info(f"✅ REE Transform Complete: {len(valid_points)} valid points ready for InfluxDB")
             
             # Batch write to InfluxDB
             if valid_points:
                 try:
-                    logger.info(f"Writing {len(valid_points)} points to InfluxDB")
+                    logger.info(f"📥 REE InfluxDB Write: Starting batch write of {len(valid_points)} points")
+                    logger.debug(f"🔧 InfluxDB Config: bucket={self.config.bucket}, org={self.config.org}")
+
                     self.write_api.write(
                         bucket=self.config.bucket,
                         org=self.config.org,
                         record=valid_points
                     )
+
                     stats.successful_writes = len(valid_points)
-                    logger.info(f"Successfully wrote {stats.successful_writes} price records to InfluxDB")
-                    
+
+                    # Log success with data range info
+                    if valid_points:
+                        first_point_time = valid_points[0].time
+                        last_point_time = valid_points[-1].time
+                        logger.success(f"✅ REE InfluxDB Success: Wrote {stats.successful_writes} records")
+                        logger.info(f"📈 REE Data Written: From {first_point_time} to {last_point_time}")
+
                 except Exception as e:
-                    logger.error(f"Failed to write to InfluxDB: {e}")
+                    logger.error(f"❌ REE InfluxDB Error: Failed to write {len(valid_points)} points: {e}")
+                    logger.error(f"🔍 InfluxDB Error Details: Type={type(e).__name__}, Message={str(e)}")
+
+                    # Log first few points for debugging
+                    if valid_points:
+                        logger.debug(f"🔍 Sample Point Debug: {valid_points[0]}")
+
                     stats.failed_writes = len(valid_points)
                     raise
+            else:
+                logger.warning("⚠️ REE Write Skipped: No valid points to write to InfluxDB")
             
         except Exception as e:
-            logger.error(f"REE price ingestion failed: {e}")
+            logger.error(f"❌ REE Ingestion Failed: {e}")
+            logger.error(f"🔍 REE Failure Details: Type={type(e).__name__}, Message={str(e)}")
             raise
-        
+
         finally:
             stats.processing_time_seconds = (datetime.now() - start_time).total_seconds()
-            logger.info(f"REE ingestion completed in {stats.processing_time_seconds:.2f}s - "
-                       f"Success rate: {stats.success_rate:.1f}%")
-        
+
+            # Enhanced completion logging with alarm thresholds
+            if stats.success_rate >= 90:
+                logger.success(f"✅ REE Ingestion Complete: {stats.processing_time_seconds:.2f}s - Success rate: {stats.success_rate:.1f}%")
+            elif stats.success_rate >= 50:
+                logger.warning(f"⚠️ REE Ingestion Partial: {stats.processing_time_seconds:.2f}s - Success rate: {stats.success_rate:.1f}% (Below 90% threshold)")
+            else:
+                logger.error(f"🚨 REE Ingestion Critical: {stats.processing_time_seconds:.2f}s - Success rate: {stats.success_rate:.1f}% (ALARM: Below 50%)")
+
+            # Detailed stats for monitoring
+            logger.info(f"📊 REE Stats: Total={stats.total_records}, Success={stats.successful_writes}, Failed={stats.failed_writes}, ValidationErrors={stats.validation_errors}")
+
         return stats
     
     async def ingest_current_prices(self) -> DataIngestionStats:

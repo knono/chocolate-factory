@@ -2116,9 +2116,11 @@ async def get_data_summary():
         ree_gap_hours = None
         if latest['latest_ree']:
             ree_gap_hours = (now - latest['latest_ree']).total_seconds() / 3600
-            if ree_gap_hours < 2:
+            if ree_gap_hours < 6:
                 ree_status = "✅ Actualizado"
             elif ree_gap_hours < 24:
+                ree_status = f"🟡 Normal ({int(ree_gap_hours)}h)"
+            elif ree_gap_hours < 48:
                 ree_status = f"⚠️ {int(ree_gap_hours)}h atrasado"
             else:
                 ree_status = f"🚨 {int(ree_gap_hours // 24)}d atrasado"
@@ -2149,7 +2151,7 @@ async def get_data_summary():
                 "gap_hours": round(weather_gap_hours, 1) if weather_gap_hours else None
             },
             "recommendations": {
-                "action_needed": ree_gap_hours and ree_gap_hours > 2 or weather_gap_hours and weather_gap_hours > 2,
+                "action_needed": ree_gap_hours and ree_gap_hours > 48 or weather_gap_hours and weather_gap_hours > 6,
                 "suggested_endpoint": "GET /gaps/detect para análisis completo"
             }
         }
