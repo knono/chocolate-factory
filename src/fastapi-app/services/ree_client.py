@@ -101,31 +101,67 @@ class REEClient:
     async def _make_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Make HTTP request to REE API with retry logic"""
         if not self.client:
+            logger.error("❌ REE Client Error: Client not initialized. Use async context manager.")
             raise RuntimeError("Client not initialized. Use async context manager.")
-        
+
         url = f"{self.config.base_url}/{endpoint}"
-        
+
         for attempt in range(self.config.max_retries):
             try:
-                logger.debug(f"REE API request: {url} - Attempt {attempt + 1}")
-                
+                logger.debug(f"🌐 REE API Request: {url} - Attempt {attempt + 1}/{self.config.max_retries}")
+                logger.debug(f"🔧 REE Request Params: {params}")
+
                 response = await self.client.get(url, params=params)
+
+                logger.debug(f"📊 REE Response: Status {response.status_code}, Size {len(response.content)} bytes")
+
                 response.raise_for_status()
-                
+
                 # Rate limiting
                 if attempt < self.config.max_retries - 1:
                     await asyncio.sleep(self.config.rate_limit_delay)
-                
-                return response.json()
-                
-            except httpx.HTTPError as e:
-                logger.warning(f"REE API request failed (attempt {attempt + 1}): {e}")
-                
+
+                data = response.json()
+                logger.success(f"✅ REE API Success: {endpoint} - Response received")
+
+                return data
+
+            except httpx.HTTPStatusError as e:
+                logger.error(f"❌ REE HTTP Error (attempt {attempt + 1}): Status {e.response.status_code}")
+                logger.error(f"🔍 REE Error Response: {e.response.text[:500]}...")
+
                 if attempt == self.config.max_retries - 1:
+                    logger.error(f"🚨 REE Final Failure: All {self.config.max_retries} attempts failed for {endpoint}")
                     raise
-                
+
                 # Exponential backoff
-                await asyncio.sleep(2 ** attempt)
+                backoff_time = 2 ** attempt
+                logger.info(f"⏳ REE Retry Backoff: Waiting {backoff_time}s before retry")
+                await asyncio.sleep(backoff_time)
+
+            except httpx.RequestError as e:
+                logger.error(f"❌ REE Request Error (attempt {attempt + 1}): {e}")
+
+                if attempt == self.config.max_retries - 1:
+                    logger.error(f"🚨 REE Network Failure: Unable to reach REE API after {self.config.max_retries} attempts")
+                    raise
+
+                # Exponential backoff
+                backoff_time = 2 ** attempt
+                logger.info(f"⏳ REE Network Retry: Waiting {backoff_time}s before retry")
+                await asyncio.sleep(backoff_time)
+
+            except Exception as e:
+                logger.error(f"❌ REE Unexpected Error (attempt {attempt + 1}): {type(e).__name__}: {e}")
+
+                if attempt == self.config.max_retries - 1:
+                    logger.error(f"🚨 REE Critical Failure: Unexpected error after {self.config.max_retries} attempts")
+                    raise
+
+                # Exponential backoff
+                backoff_time = 2 ** attempt
+                logger.info(f"⏳ REE Error Retry: Waiting {backoff_time}s before retry")
+                await asyncio.sleep(backoff_time)
     
     async def get_pvpc_prices(self, 
                              start_date: Optional[datetime] = None,
@@ -157,36 +193,63 @@ class REEClient:
         endpoint = "mercados/precios-mercados-tiempo-real"
         
         try:
+            logger.info(f"📊 REE PVPC Request: {start_date.strftime('%Y-%m-%d %H:%M')} to {end_date.strftime('%Y-%m-%d %H:%M')}")
+
             data = await self._make_request(endpoint, params)
-            
+
             prices = []
-            
+
             # Navigate REE API response structure
             if "included" in data:
+                logger.debug(f"🔍 REE Response Analysis: Found {len(data['included'])} items in response")
+
+                pvpc_items = 0
                 for item in data["included"]:
                     if item.get("type") == "PVPC" and "attributes" in item:
+                        pvpc_items += 1
                         values = item["attributes"].get("values", [])
-                        
+                        logger.debug(f"📈 REE PVPC Item: Found {len(values)} price values")
+
                         for value in values:
                             timestamp_str = value.get("datetime")
                             price_value = value.get("value")
-                            
+
                             if timestamp_str and price_value is not None:
-                                # Parse REE timestamp format
-                                timestamp = datetime.fromisoformat(
-                                    timestamp_str.replace("Z", "+00:00")
-                                )
-                                
-                                prices.append(REEPriceData(
-                                    timestamp=timestamp,
-                                    price_eur_mwh=float(price_value)
-                                ))
-            
-            logger.info(f"Retrieved {len(prices)} PVPC price records from REE")
+                                try:
+                                    # Parse REE timestamp format
+                                    timestamp = datetime.fromisoformat(
+                                        timestamp_str.replace("Z", "+00:00")
+                                    )
+
+                                    prices.append(REEPriceData(
+                                        timestamp=timestamp,
+                                        price_eur_mwh=float(price_value)
+                                    ))
+                                except (ValueError, TypeError) as parse_error:
+                                    logger.warning(f"⚠️ REE Parse Warning: Invalid data point - timestamp: {timestamp_str}, value: {price_value}, error: {parse_error}")
+
+                logger.debug(f"🔍 REE PVPC Summary: {pvpc_items} PVPC items processed")
+            else:
+                logger.warning("⚠️ REE Response Warning: No 'included' field in API response")
+                logger.debug(f"🔍 REE Response Keys: {list(data.keys()) if data else 'Empty response'}")
+
+            if prices:
+                earliest = min(p.timestamp for p in prices)
+                latest = max(p.timestamp for p in prices)
+                avg_price = sum(p.price_eur_mwh for p in prices) / len(prices)
+
+                logger.success(f"✅ REE PVPC Success: {len(prices)} records retrieved")
+                logger.info(f"📈 REE Data Range: {earliest.strftime('%Y-%m-%d %H:%M')} to {latest.strftime('%Y-%m-%d %H:%M')}")
+                logger.info(f"💰 REE Price Stats: Avg {avg_price:.2f} €/MWh, Min {min(p.price_eur_mwh for p in prices):.2f} €/MWh, Max {max(p.price_eur_mwh for p in prices):.2f} €/MWh")
+            else:
+                logger.error(f"❌ REE PVPC Empty: No valid price data found in response")
+                logger.debug(f"🔍 REE Response Debug: {data}")
+
             return sorted(prices, key=lambda x: x.timestamp)
-            
+
         except Exception as e:
-            logger.error(f"Failed to fetch PVPC prices: {e}")
+            logger.error(f"❌ REE PVPC Error: Failed to fetch PVPC prices from {start_date} to {end_date}: {e}")
+            logger.error(f"🔍 REE Exception Details: Type={type(e).__name__}, Message={str(e)}")
             raise
     
     async def get_demand_data(self, 
@@ -344,26 +407,68 @@ class REEClient:
     async def get_price_range(self, start_date: datetime, end_date: datetime) -> List[REEPriceData]:
         """
         Get historical price data for a specific date range
-        
+
         Args:
             start_date: Start datetime for historical data
             end_date: End datetime for historical data
-            
+
         Returns:
             List of REEPriceData objects for the specified range
         """
         try:
-            logger.info(f"📊 Fetching REE historical data: {start_date.date()} to {end_date.date()}")
-            
+            logger.info(f"📊 REE Historical Request: {start_date.date()} to {end_date.date()}")
+
             # Use existing PVPC method which supports date ranges
             prices = await self.get_pvpc_prices(start_date, end_date)
-            
-            logger.info(f"✅ Retrieved {len(prices)} historical REE records")
+
+            if prices:
+                logger.success(f"✅ REE Historical Success: {len(prices)} records retrieved ({start_date.date()} to {end_date.date()})")
+            else:
+                logger.warning(f"⚠️ REE Historical Empty: No data found for {start_date.date()} to {end_date.date()}")
+
             return prices
-            
+
         except Exception as e:
-            logger.error(f"❌ Failed to fetch historical REE data {start_date} to {end_date}: {e}")
+            logger.error(f"❌ REE Historical Error: Failed to fetch data {start_date.date()} to {end_date.date()}: {e}")
+            logger.error(f"🔍 REE Error Details: Type={type(e).__name__}, Message={str(e)}")
             raise
+
+    async def get_prices_last_hours(self, hours: int = 24) -> List[REEPriceData]:
+        """
+        Get electricity prices for the last N hours
+
+        Args:
+            hours: Number of hours back to fetch (default: 24)
+
+        Returns:
+            List of REEPriceData objects for the last N hours
+        """
+        try:
+            logger.info(f"📊 REE Last Hours Request: {hours}h back")
+
+            now = datetime.now(timezone.utc)
+            start_time = now - timedelta(hours=hours)
+            end_time = now + timedelta(hours=1)  # Include current hour
+
+            prices = await self.get_pvpc_prices(start_time, end_time)
+
+            if prices:
+                latest_time = max(p.timestamp for p in prices)
+                hours_gap = (now - latest_time).total_seconds() / 3600
+
+                logger.success(f"✅ REE Last Hours Success: {len(prices)} records, latest data {hours_gap:.1f}h ago")
+
+                if hours_gap > 6:
+                    logger.warning(f"⚠️ REE Data Lag Alert: Latest data is {hours_gap:.1f}h old (threshold: 6h)")
+            else:
+                logger.error(f"❌ REE Last Hours Empty: No data found for last {hours}h")
+
+            return prices
+
+        except Exception as e:
+            logger.error(f"❌ REE Last Hours Error: Failed to fetch last {hours}h: {e}")
+            logger.error(f"🔍 REE Error Details: Type={type(e).__name__}, Message={str(e)}")
+            return []
 
     async def get_weekly_market_prices(self, start_date: Optional[datetime] = None) -> List[REEPriceData]:
         """

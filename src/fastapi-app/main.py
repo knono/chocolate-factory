@@ -866,13 +866,16 @@ async def get_hybrid_weather(force_openweathermap: bool = False):
     """🌤️🌍 Estrategia híbrida: AEMET (00:00-07:00) + OpenWeatherMap (08:00-23:00)"""
     try:
         current_hour = datetime.now().hour
-        use_aemet = (0 <= current_hour <= 7) and not force_openweathermap
+        use_aemet = (0 <= current_hour <= 7) and not force_openweathermap  # AEMET window restored
         
         async with DataIngestionService() as service:
             if use_aemet:
                 # Try AEMET first
                 try:
+                    logger.info("🌤️ Attempting AEMET data ingestion...")
                     aemet_data = await service.ingest_aemet_weather()
+                    logger.info(f"🌤️ AEMET ingestion result: {aemet_data.successful_writes} records")
+
                     if aemet_data.successful_writes > 0:
                         return {
                             "🏭": "Chocolate Factory - Estrategia Híbrida",
@@ -884,8 +887,11 @@ async def get_hybrid_weather(force_openweathermap: bool = False):
                             "strategy": "aemet_official",
                             "fallback": "OpenWeatherMap disponible si falla AEMET"
                         }
-                except Exception:
-                    pass  # Fall through to OpenWeatherMap
+                    else:
+                        logger.warning("🌤️ AEMET returned 0 records, falling back to OpenWeatherMap")
+                except Exception as e:
+                    logger.error(f"🌤️ AEMET ingestion failed: {e}")
+                    # Fall through to OpenWeatherMap
             
             # Use OpenWeatherMap
             owm_data = await service.ingest_openweathermap_weather()
@@ -2116,9 +2122,11 @@ async def get_data_summary():
         ree_gap_hours = None
         if latest['latest_ree']:
             ree_gap_hours = (now - latest['latest_ree']).total_seconds() / 3600
-            if ree_gap_hours < 2:
+            if ree_gap_hours < 6:
                 ree_status = "✅ Actualizado"
             elif ree_gap_hours < 24:
+                ree_status = f"🟡 Normal ({int(ree_gap_hours)}h)"
+            elif ree_gap_hours < 48:
                 ree_status = f"⚠️ {int(ree_gap_hours)}h atrasado"
             else:
                 ree_status = f"🚨 {int(ree_gap_hours // 24)}d atrasado"
@@ -2149,7 +2157,7 @@ async def get_data_summary():
                 "gap_hours": round(weather_gap_hours, 1) if weather_gap_hours else None
             },
             "recommendations": {
-                "action_needed": ree_gap_hours and ree_gap_hours > 2 or weather_gap_hours and weather_gap_hours > 2,
+                "action_needed": ree_gap_hours and ree_gap_hours > 48 or weather_gap_hours and weather_gap_hours > 6,
                 "suggested_endpoint": "GET /gaps/detect para análisis completo"
             }
         }

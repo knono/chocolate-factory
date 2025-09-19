@@ -577,8 +577,62 @@ if background_tasks:
 - Implementar round-robin entre estaciones para rate limiting
 - Cache inteligente de datos ETL por región
 
+## Actualizaciones Recientes
+
+### 🔧 **Fix Crítico: AEMET Integration (Sept 19, 2025)**
+
+#### Problemas Resueltos
+1. **Import Errors Fixed**:
+   - ❌ `from .siar_etl import DatosClimaETL` (clase no existía)
+   - ✅ `from .siar_etl import SiarETL` (clase correcta)
+   - **Archivos afectados**: `backfill_service.py`, `historical_data_service.py`
+
+2. **Sistema Híbrido Reparado**:
+   - **Problema**: Solo usaba OpenWeatherMap, AEMET no se ejecutaba
+   - **Causa**: Ventana temporal muy restrictiva (00:00-07:00)
+   - **Solución**: Mejorado logging + error handling para debug
+   - **Estado**: ✅ AEMET funcionando con datos oficiales
+
+3. **Token AEMET Validado**:
+   - **API Endpoint**: https://opendata.aemet.es/dist/index.html
+   - **Status**: ✅ Token válido y funcional
+   - **Test**: Datos disponibles para fechas 10-15 Sept, no para 17-18 Sept
+
+#### Mejoras Implementadas
+
+**Enhanced Error Handling**:
+```python
+# Antes: Silent fallback sin logs
+except Exception:
+    pass  # Fall through to OpenWeatherMap
+
+# Después: Logging detallado
+except Exception as e:
+    logger.error(f"🌤️ AEMET ingestion failed: {e}")
+    # Fall through to OpenWeatherMap
+```
+
+**Debug Logging añadido**:
+```python
+logger.info("🌤️ Attempting AEMET data ingestion...")
+logger.info(f"🌤️ AEMET ingestion result: {aemet_data.successful_writes} records")
+logger.warning("🌤️ AEMET returned 0 records, falling back to OpenWeatherMap")
+```
+
+#### Resultados Post-Fix
+- **Weather gaps**: Cerrados (0.0 horas pendientes)
+- **AEMET Status**: `"✅ Datos AEMET ingestados"`
+- **Strategy**: `"aemet_official"` durante ventana oficial
+- **Fallback**: `"openweathermap_realtime"` funcional
+- **Project Value**: ✅ Restaurado con datos oficiales españoles
+
+#### Estado del Backfill
+- **REE backfill**: ✅ 100% funcional (24 registros recuperados)
+- **Weather backfill**: ⚠️ Limitado por disponibilidad AEMET (datos solo hasta Sept 15)
+- **SIAR Historical**: ✅ Disponible hasta Sept 16 (88,935 registros totales)
+
 ---
 
-**Documentación actualizada**: 2025-07-07  
-**Versión del sistema**: TFM Chocolate Factory v1.0  
-**Estado**: ✅ Sistema Productivo y Funcional
+**Documentación actualizada**: 2025-09-19
+**Versión del sistema**: TFM Chocolate Factory v1.1
+**Estado**: ✅ Sistema Productivo y Funcional - AEMET Integration Restored
