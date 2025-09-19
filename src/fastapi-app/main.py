@@ -866,13 +866,16 @@ async def get_hybrid_weather(force_openweathermap: bool = False):
     """🌤️🌍 Estrategia híbrida: AEMET (00:00-07:00) + OpenWeatherMap (08:00-23:00)"""
     try:
         current_hour = datetime.now().hour
-        use_aemet = (0 <= current_hour <= 7) and not force_openweathermap
+        use_aemet = (0 <= current_hour <= 7) and not force_openweathermap  # AEMET window restored
         
         async with DataIngestionService() as service:
             if use_aemet:
                 # Try AEMET first
                 try:
+                    logger.info("🌤️ Attempting AEMET data ingestion...")
                     aemet_data = await service.ingest_aemet_weather()
+                    logger.info(f"🌤️ AEMET ingestion result: {aemet_data.successful_writes} records")
+
                     if aemet_data.successful_writes > 0:
                         return {
                             "🏭": "Chocolate Factory - Estrategia Híbrida",
@@ -884,8 +887,11 @@ async def get_hybrid_weather(force_openweathermap: bool = False):
                             "strategy": "aemet_official",
                             "fallback": "OpenWeatherMap disponible si falla AEMET"
                         }
-                except Exception:
-                    pass  # Fall through to OpenWeatherMap
+                    else:
+                        logger.warning("🌤️ AEMET returned 0 records, falling back to OpenWeatherMap")
+                except Exception as e:
+                    logger.error(f"🌤️ AEMET ingestion failed: {e}")
+                    # Fall through to OpenWeatherMap
             
             # Use OpenWeatherMap
             owm_data = await service.ingest_openweathermap_weather()
