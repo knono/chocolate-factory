@@ -16,7 +16,7 @@ from loguru import logger
 from .gap_detector import GapDetectionService, DataGap
 from .data_ingestion import DataIngestionService
 from .ree_client import REEClient
-from .siar_etl import DatosClimaETL
+from .siar_etl import SiarETL
 
 
 @dataclass
@@ -248,7 +248,7 @@ class BackfillService:
             # Para gaps pequeños, usar 1 año máximo
             years_to_process = min(len(years_needed), 1)
             
-            etl_service = DatosClimaETL()
+            etl_service = SiarETL()
             async with DataIngestionService() as ingestion_service:
                 
                 total_records = 0

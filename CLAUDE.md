@@ -88,8 +88,9 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - **Primary**: AEMET official observations (00:00-07:00)
 - **Secondary**: OpenWeatherMap real-time (08:00-23:00)
 - **Fallback**: Automatic source switching
-- **Historical**: SIAR system ETL (25+ years, 9,100+ records from 2000-2025)
+- **Historical**: SIAR system ETL (25+ years, 88,935 records from 2000-2025)
 - **Status**: ✅ 24/7 coverage achieved
+- **AEMET OpenData**: https://opendata.aemet.es/dist/index.html
 
 ### Token Management
 - **AEMET**: Auto-renewal every 6 days
@@ -299,3 +300,12 @@ docker compose up -d chocolate-factory
 - **Gap recovery**: Use backfill when necessary to maintain data currency
 - **API updates**: Ensure REE and AEMET data stays current (remember OpenWeather for 08:00-23:00)
 - **Monthly strategy**: Use current month (AEMET) vs historical (SIAR system) approaches
+
+## Recent System Updates
+
+### 🔧 **AEMET Integration Fix (Sept 19, 2025)**
+- **Issue**: System was only using OpenWeatherMap, AEMET integration broken
+- **Root cause**: Import errors (`DatosClimaETL` class didn't exist) + silent error handling
+- **Solution**: Fixed imports to `SiarETL` + enhanced logging + proper error handling
+- **Result**: ✅ AEMET official data restored, hybrid system fully operational
+- **Status**: Weather gaps closed (0.0 hours), project value restored with official Spanish data

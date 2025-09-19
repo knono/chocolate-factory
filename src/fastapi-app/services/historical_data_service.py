@@ -20,7 +20,7 @@ import pandas as pd
 from loguru import logger
 
 from .ree_client import REEClient
-from .siar_etl import DatosClimaETL
+from .siar_etl import SiarETL
 from .data_ingestion import DataIngestionService
 from .gap_detector import GapDetectionService
 
@@ -585,7 +585,7 @@ class HistoricalDataService:
             logger.info(f"🌤️ Procesando datos climáticos año {plan.year}")
 
             # Usar datosclima.es ETL para datos históricos
-            etl_service = DatosClimaETL()
+            etl_service = SiarETL()
 
             # Ejecutar ETL para el año específico
             etl_result = await etl_service.process_station_data(

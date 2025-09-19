@@ -9,6 +9,10 @@ La integración híbrida combina datos oficiales de AEMET con datos en tiempo re
 
 **Solución implementada**: Estrategia híbrida inteligente que selecciona automáticamente la mejor fuente de datos según la hora del día y disponibilidad.
 
+**Estado actual**: ✅ **AEMET Integration Restored** (Sept 19, 2025) - Sistema completamente funcional con datos oficiales españoles + fallback robusto OpenWeatherMap.
+
+**API Reference**: AEMET OpenData - https://opendata.aemet.es/dist/index.html
+
 ---
 
 ## Arquitectura del Sistema
