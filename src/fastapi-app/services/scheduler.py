@@ -257,7 +257,17 @@ class SchedulerService:
         )
         logger.info("Added weekly cleanup job (Sundays at 2:00 AM)")
         
-        # 8. ML Predictions Job - Every 30 minutes
+        # 8. Enhanced ML Training Job - Every 2 hours (new historical data integration)
+        self.scheduler.add_job(
+            func=self._enhanced_ml_training_job,
+            trigger=IntervalTrigger(hours=2),
+            id="enhanced_ml_training",
+            name="Enhanced ML Training (Historical Data)",
+            replace_existing=True
+        )
+        logger.info("✨ Added Enhanced ML training job (every 2 hours)")
+
+        # 9. ML Predictions Job - Every 30 minutes (keep original)
         self.scheduler.add_job(
             func=self._ml_predictions_job,
             trigger=IntervalTrigger(minutes=30),
@@ -654,7 +664,76 @@ class SchedulerService:
                 "ML Training Error", 
                 f"Scheduled model training failed: {str(e)}"
             )
-    
+
+    async def _enhanced_ml_training_job(self):
+        """Scheduled job for Enhanced ML model training with historical data"""
+        job_start = datetime.now()
+
+        try:
+            logger.info("✨ Starting scheduled Enhanced ML training job")
+
+            # Import enhanced ML service
+            from services.enhanced_ml_service import EnhancedMLService
+
+            # Initialize enhanced ML service
+            enhanced_ml = EnhancedMLService()
+
+            # Train enhanced models using historical data
+            training_results = await enhanced_ml.train_enhanced_models()
+
+            if not training_results.get("success"):
+                logger.error(f"❌ Enhanced ML training failed: {training_results.get('error', 'Unknown error')}")
+                return
+
+            # Log enhanced training results
+            logger.info("🚀 Enhanced ML Training Results:")
+
+            # Cost optimization model results
+            if "cost_optimization" in training_results:
+                cost_metrics = training_results["cost_optimization"]
+                logger.info(f"   💰 Cost Model: R² = {cost_metrics.get('r2_score', 0):.4f}, MAE = {cost_metrics.get('mae', 0):.4f}")
+                logger.info(f"   📊 Training samples: {cost_metrics.get('training_samples', 0)}")
+
+                # Log top features
+                feature_importance = cost_metrics.get('feature_importance', {})
+                top_features = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:3]
+                if top_features:
+                    logger.info(f"   🔑 Top features: {', '.join([f'{name}({imp:.3f})' for name, imp in top_features])}")
+
+            # Production efficiency model results
+            if "production_efficiency" in training_results:
+                efficiency_metrics = training_results["production_efficiency"]
+                logger.info(f"   ⚡ Efficiency Model: R² = {efficiency_metrics.get('r2_score', 0):.4f}")
+                logger.info(f"   📊 Training samples: {efficiency_metrics.get('training_samples', 0)}")
+
+            # Price forecast model results
+            if "price_forecast" in training_results:
+                forecast_metrics = training_results["price_forecast"]
+                logger.info(f"   📈 Forecast Model: R² = {forecast_metrics.get('r2_score', 0):.4f}, MAE = {forecast_metrics.get('mae', 0):.4f}")
+                logger.info(f"   📊 Training samples: {forecast_metrics.get('training_samples', 0)}")
+                logger.info(f"   📉 Mean deviation: {forecast_metrics.get('mean_deviation', 0):.4f}")
+
+            logger.info(f"   📊 Total samples used: {training_results.get('total_samples', 0)}")
+            logger.info(f"   🔧 Features: {len(training_results.get('features_used', []))} engineered features")
+
+            # Send success alert for significant improvements
+            cost_metrics = training_results.get("cost_optimization")
+            if cost_metrics and cost_metrics.get("r2_score", 0) > 0.80:
+                await self._send_alert(
+                    "✨ Enhanced ML Training Success",
+                    f"High-performance cost model trained - R²: {cost_metrics.get('r2_score'):.3f} with {training_results.get('total_samples', 0)} historical samples"
+                )
+
+            job_duration = (datetime.now() - job_start).total_seconds()
+            logger.info(f"✅ Enhanced ML training completed in {job_duration:.2f}s")
+
+        except Exception as e:
+            logger.error(f"❌ Enhanced ML training job failed: {e}")
+            await self._send_alert(
+                "Enhanced ML Training Error",
+                f"Scheduled enhanced model training failed: {str(e)}"
+            )
+
     async def _auto_backfill_check_job(self):
         """Scheduled job to detect gaps and execute automatic backfill"""
         job_start = datetime.now()

@@ -314,26 +314,31 @@ class GapDetectionService:
     
     async def get_latest_timestamps(self) -> Dict[str, Optional[datetime]]:
         """Obtener timestamps del último dato de cada measurement"""
+        logger.info("Gap detector: Starting get_latest_timestamps query")
         try:
             async with DataIngestionService() as service:
                 query_api = service.client.query_api()
                 
-                # Último precio REE
+                # Último precio REE - Fix: ordenar por timestamp desc y tomar el más reciente
                 ree_query = f'''
                 from(bucket: "{service.config.bucket}")
                 |> range(start: -30d)
                 |> filter(fn: (r) => r._measurement == "energy_prices")
                 |> filter(fn: (r) => r._field == "price_eur_kwh")
-                |> last()
+                |> group()
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 1)
                 '''
                 
-                # Último dato climático
+                # Último dato climático - Fix: mismo fix para weather data
                 weather_query = f'''
                 from(bucket: "{service.config.bucket}")
                 |> range(start: -30d)
                 |> filter(fn: (r) => r._measurement == "weather_data")
                 |> filter(fn: (r) => r._field == "temperature")
-                |> last()
+                |> group()
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 1)
                 '''
                 
                 results = {}
@@ -344,6 +349,7 @@ class GapDetectionService:
                 for table in ree_tables:
                     for record in table.records:
                         results['latest_ree'] = record.get_time()
+                        logger.info(f"Gap detector: Latest REE timestamp found: {results['latest_ree']}")
                         break
                 
                 # Obtener último Weather
