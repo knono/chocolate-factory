@@ -1,11 +1,13 @@
-# 🍫 Chocolate Factory - Sistema de Monitoreo Personal
+# 🍫 Chocolate Factory - Enhanced ML System
 
-**Sistema autónomo de monitoreo energético y optimización de producción para uso personal**
+**Sistema autónomo de monitoreo energético con Enhanced ML y datos históricos**
 
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)](https://docker.com)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Tailscale](https://img.shields.io/badge/Tailscale-Secure-000000?style=flat&logo=tailscale)](https://tailscale.com)
+[![Enhanced ML](https://img.shields.io/badge/Enhanced_ML-131k_Records-10b981?style=flat&logo=tensorflow)](https://github.com)
+[![SIAR Historical](https://img.shields.io/badge/SIAR-25_Years-059669?style=flat&logo=database)](https://www.mapa.gob.es)
 
 ## 🎯 **Concepto del Proyecto**
 
@@ -31,12 +33,19 @@ Chocolate Factory es un **sistema personal de monitoreo y optimización** diseñ
 - **OpenWeatherMap**: Datos complementarios en tiempo real
 - **✅ SIAR Histórico**: **88,935 registros** de 25+ años (2000-2025) - **COMPLETADO**
 
-### 🤖 **Machine Learning Personal**
-- **Direct ML Training**: sklearn + pickle storage (sin dependencias MLflow)
-- **2 Modelos Productivos**: Energy Optimization (R²=0.89) + Production Classifier (90% accuracy)
-- **Feature Engineering**: 13 características derivadas de datos reales REE+Weather
-- **Predicciones Automáticas**: Recomendaciones cada 30 minutos
-- **🎯 Datos Históricos**: 25+ años de datos SIAR para entrenamiento robusto
+### ✨ **Enhanced ML System** 🆕
+- **Enhanced ML Training**: Modelos avanzados con datos históricos completos
+- **3 Modelos Enhanced**: Cost Optimization (€/kg) + Production Efficiency (0-100) + Price Forecast (REE D-1)
+- **131k+ Registros**: SIAR (88,935 históricos) + REE (42,578) + Real-time
+- **Advanced Features**: 15+ características engineered con business rules
+- **Multi-dimensional Analysis**: Costo + Temporal + Condiciones + Calidad
+- **REE D-1 Tracking**: Análisis de desviaciones para planificación
+- **Automated Training**: Cada 2 horas con APScheduler integration
+
+### 🤖 **Machine Learning Clásico** (Legacy Support)
+- **Direct ML Training**: sklearn + pickle storage (mantenido por compatibilidad)
+- **2 Modelos Legacy**: Energy Optimization + Production Classifier
+- **Backward Compatibility**: Endpoints originales preservados
 
 ### 🔄 **Operación Autónoma**
 - **Sistema Self-Healing**: Recuperación automática de gaps de datos
@@ -207,9 +216,18 @@ curl -X POST http://localhost:8000/gaps/backfill # Recuperar gaps
 curl http://localhost:8000/scheduler/status      # Estado jobs
 curl http://localhost:8000/influxdb/verify      # Verificar DB
 
-# ML personal
-curl http://localhost:8000/models/status        # Estado modelos
+# ML personal (Legacy)
+curl http://localhost:8000/models/status-direct        # Estado modelos legacy
 curl http://localhost:8000/predict/energy-optimization # Predicciones energía
+
+# ✨ Enhanced ML (NUEVO)
+curl http://localhost:8000/models/status-enhanced        # Estado modelos enhanced
+curl http://localhost:8000/models/train-enhanced         # Entrenar con históricos
+curl -X POST http://localhost:8000/predict/cost-optimization \
+  -d '{"price_eur_kwh": 0.12, "temperature": 22, "humidity": 55}'
+curl -X POST http://localhost:8000/recommendations/comprehensive \
+  -d '{"price_eur_kwh": 0.15, "temperature": 21, "humidity": 50}'
+curl http://localhost:8000/analysis/ree-deviation        # Análisis REE D-1
 ```
 
 ## 📖 **Documentación Técnica**
@@ -217,11 +235,38 @@ curl http://localhost:8000/predict/energy-optimization # Predicciones energía
 El proyecto incluye **25+ documentos técnicos** en `/docs/` cubriendo:
 
 - **`SYSTEM_ARCHITECTURE.md`** - Arquitectura completa del sistema
-- **`DIRECT_ML_IMPLEMENTATION.md`** - Pipeline ML simplificado
+- **`DIRECT_ML_IMPLEMENTATION.md`** - Pipeline ML simplificado (legacy)
+- **✨ `ENHANCED_ML_RECOMMENDATIONS.md`** - **Sistema Enhanced ML completo**
+- **✨ `MODEL_MIGRATION_STRATEGY.md`** - **Estrategia migración modelos**
 - **`TAILSCALE_INTEGRATION.md`** - Setup acceso remoto seguro
 - **`AUTOMATIC_BACKFILL_SYSTEM.md`** - Sistema auto-recuperación
 - **✅ `SIAR_ETL_SOLUTION.md`** - **Solución ETL histórico completada**
 - **`QUICK_START_GUIDE.md`** - Guía rápida personalizada
+
+### 🚀 **Hito Técnico NUEVO: Enhanced ML System**
+
+**✅ COMPLETADO (Sept 22, 2025)** - Implementación revolucionaria del **Enhanced ML System** con integración completa de datos históricos:
+
+#### ✨ **Logros Enhanced ML**
+- **131,513+ registros** integrados: SIAR (88,935) + REE (42,578) + Real-time
+- **3 modelos avanzados**: Cost Optimization + Production Efficiency + Price Forecast
+- **Feature engineering**: 15+ características engineered con business rules
+- **Dashboard Enhanced**: Visualización completa con métricas avanzadas
+- **APScheduler integration**: Training automático cada 2 horas
+- **REE D-1 tracking**: Análisis de desviaciones como solicitado
+
+#### 🔧 **Innovaciones Técnicas**
+- **Time series models**: Lag features para pronósticos REE
+- **Multi-dimensional scoring**: Costo + Temporal + Condiciones + Calidad
+- **Business rules integration**: Constraints completos de producción
+- **Backward compatibility**: Coexistencia con sistema legacy
+- **Auto-refresh dashboard**: Enhanced ML visible en tiempo real
+
+#### 📊 **Comparación de Performance**
+```
+ANTES (Direct ML):     14 muestras, R² = -2.8 (terrible)
+DESPUÉS (Enhanced ML): 131k+ registros, modelos validados con históricos reales
+```
 
 ### 🏆 **Hito Técnico: SIAR Historical Data ETL**
 

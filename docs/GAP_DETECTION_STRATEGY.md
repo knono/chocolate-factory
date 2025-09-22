@@ -518,8 +518,66 @@ ALERT_CONFIG = {
 }
 ```
 
+## Actualizaciones Recientes
+
+### 🔧 **Fix Crítico: Gap Detection Query (Sept 22, 2025)**
+
+#### Problema Identificado
+- **Síntoma**: Gap detector reportaba `"🚨 4d atrasado"` para REE cuando datos estaban actualizados
+- **Causa root**: Query `last()` en InfluxDB devolvía múltiples registros con diferentes tags
+- **Impacto**: Backfill innecesario ejecutándose, sistema reportando falsos gaps
+
+#### Análisis Técnico
+**Query problemático**:
+```flux
+from(bucket: "energy_data")
+|> range(start: -30d)
+|> filter(fn: (r) => r._measurement == "energy_prices")
+|> filter(fn: (r) => r._field == "price_eur_kwh")
+|> last()  // ❌ Devuelve múltiples registros con diferentes tags
+```
+
+**Resultado**: Tomaba el primer record del resultado, que no era necesariamente el más reciente:
+- ✅ **2025-09-22T11:00** (data_source=ree_historical) ← Más reciente
+- ✅ **2025-09-22T10:00** (provider=ree, tariff_period=P1)
+- ❌ **2025-09-17T22:00** (tariff_period=P6) ← **Se tomaba este por error**
+
+#### Solución Implementada
+**Query corregido**:
+```flux
+from(bucket: "energy_data")
+|> range(start: -30d)
+|> filter(fn: (r) => r._measurement == "energy_prices")
+|> filter(fn: (r) => r._field == "price_eur_kwh")
+|> group()                           // ✅ Agrupa todos los tags
+|> sort(columns: ["_time"], desc: true)  // ✅ Ordena por timestamp desc
+|> limit(n: 1)                       // ✅ Toma solo el más reciente
+```
+
+#### Mejoras en Desarrollo
+**Bind Mount Completo**:
+- **Antes**: Archivos individuales → Reconstruir contenedor para cada cambio
+- **Después**: `./src/fastapi-app/services:/app/services` → Cambios instantáneos
+- **Beneficio**: Desarrollo 10x más rápido, sin reconstrucciones
+
+#### Archivos Afectados
+- `services/gap_detector.py`: Query fix para REE y weather
+- `docker-compose.yml`: Bind mount completo del directorio services
+- `main.py`: Debug endpoint temporal para testing
+
+#### Resultados Post-Fix
+- **REE Status**: `"✅ Actualizado"` (antes: `"🚨 4d atrasado"`)
+- **Latest Data**: `"2025-09-22T11:00:00+00:00"` (antes: `"2025-09-17T22:00:00+00:00"`)
+- **Gap Hours**: `0.6` (antes: `109.4`)
+- **Backfill**: Ya no se ejecuta innecesariamente
+
+#### Lecciones Aprendidas
+1. **InfluxDB `last()`** no garantiza el timestamp más reciente cuando hay múltiples series
+2. **Bind mounts** son esenciales para desarrollo iterativo rápido
+3. **Debug endpoints** acelerar troubleshooting de queries complejas
+
 ---
 
-**Documentación actualizada**: 2025-07-07  
-**Versión del algoritmo**: v1.0  
-**Estado**: ✅ Implementado y Validado en Producción
+**Documentación actualizada**: 2025-09-22
+**Versión del algoritmo**: v1.2
+**Estado**: ✅ Implementado y Validado en Producción - Gap Detection Fixed
