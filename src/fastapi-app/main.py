@@ -2106,14 +2106,35 @@ async def detect_data_gaps(days_back: int = 7):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/debug/gap-query", tags=["Debug"])
+async def debug_gap_query():
+    """🐛 Debug endpoint for gap query testing"""
+    try:
+        from services.gap_detector import GapDetectionService
+
+        logger.info("🐛 DEBUG: Starting gap query test")
+        gap_detector_service = GapDetectionService()
+        latest = await gap_detector_service.get_latest_timestamps()
+        logger.info(f"🐛 DEBUG: Results: {latest}")
+
+        return {
+            "debug": "gap query test",
+            "latest_timestamps": latest,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"🐛 DEBUG: Error in gap query: {e}")
+        return {"error": str(e)}
+
 @app.get("/gaps/summary", tags=["Data Management"])
 async def get_data_summary():
     """📊 Resumen rápido del estado de los datos"""
     try:
-        from services.gap_detector import gap_detector
-        
-        # Obtener últimos timestamps
-        latest = await gap_detector.get_latest_timestamps()
+        from services.gap_detector import GapDetectionService
+
+        # Obtener últimos timestamps - Using fresh instance
+        gap_detector_service = GapDetectionService()
+        latest = await gap_detector_service.get_latest_timestamps()
         
         # Calcular tiempo desde última actualización
         now = datetime.now(timezone.utc)
