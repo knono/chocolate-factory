@@ -583,7 +583,7 @@ if background_tasks:
 
 #### Problemas Resueltos
 1. **Import Errors Fixed**:
-   - ❌ `from .siar_etl import DatosClimaETL` (clase no existía)
+   - ❌ `from .siar_etl import DatosClimaETL` (clase no existía) + referencias datosclima incorrectas
    - ✅ `from .siar_etl import SiarETL` (clase correcta)
    - **Archivos afectados**: `backfill_service.py`, `historical_data_service.py`
 
@@ -597,6 +597,35 @@ if background_tasks:
    - **API Endpoint**: https://opendata.aemet.es/dist/index.html
    - **Status**: ✅ Token válido y funcional
    - **Test**: Datos disponibles para fechas 10-15 Sept, no para 17-18 Sept
+
+### 🔧 **Corrección Estrategia Backfill (Sept 23, 2025)**
+
+#### Problema Identificado
+- **Issue**: Referencias incorrectas a "datosclima.es" en todo el código de backfill
+- **Causa**: Sistema hacía referencia a fuente inexistente en lugar de usar AEMET + SIAR correctamente
+- **Impacto**: Confusión sobre qué sistema usar para gaps históricos
+
+#### Solución Implementada
+1. **Estrategia Simplificada**:
+   - **Primario**: AEMET API para TODOS los gaps (días, semanas, meses)
+   - **Fallback**: Notificación manual para descarga SIAR solo en gaps >30 días con fallo AEMET
+
+2. **Limpieza Código**:
+   - ❌ Eliminadas todas las referencias a "datosclima"
+   - ❌ Removida función `_backfill_weather_datosclima()` obsoleta
+   - ✅ Lógica unificada con AEMET como principal
+
+3. **Archivos Corregidos**:
+   - `backfill_service.py`: Lógica simplificada a AEMET primario
+   - `gap_detector.py`: `aemet.es` como primary_api
+   - `historical_data_service.py`: `WEATHER_SIAR` en lugar de `WEATHER_DATOSCLIMA`
+   - `main.py`: Mensajes de error corregidos
+
+#### Resultado
+- ✅ **AEMET Oficial**: Fuente primaria para todos los gaps
+- ✅ **SIAR Manual**: Solo notificación cuando AEMET falle >30 días
+- ✅ **Código Limpio**: Sin referencias a fuentes inexistentes
+- ✅ **Estrategia Clara**: AEMET funciona bien para meses anteriores
 
 #### Mejoras Implementadas
 
