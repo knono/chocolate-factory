@@ -299,13 +299,23 @@ docker compose up -d chocolate-factory
 - **Data freshness**: Always check backfill status when container starts (system not always running)
 - **Gap recovery**: Use backfill when necessary to maintain data currency
 - **API updates**: Ensure REE and AEMET data stays current (remember OpenWeather for 08:00-23:00)
-- **Monthly strategy**: Use current month (AEMET) vs historical (SIAR system) approaches
+- **Backfill strategy**: AEMET API primary for all gaps, SIAR manual download only for large failures
 
 ## Recent System Updates
 
 ### 🔧 **AEMET Integration Fix (Sept 19, 2025)**
 - **Issue**: System was only using OpenWeatherMap, AEMET integration broken
-- **Root cause**: Import errors (`DatosClimaETL` class didn't exist) + silent error handling
+- **Root cause**: Import errors + incorrect datosclima references + silent error handling
 - **Solution**: Fixed imports to `SiarETL` + enhanced logging + proper error handling
 - **Result**: ✅ AEMET official data restored, hybrid system fully operational
 - **Status**: Weather gaps closed (0.0 hours), project value restored with official Spanish data
+
+### 🔧 **Backfill Strategy Correction (Sept 23, 2025)**
+- **Issue**: Code had incorrect "datosclima" references despite SIAR ETL implementation
+- **Problem**: Backfill system referenced non-existent datosclima.es instead of using AEMET + SIAR
+- **Solution**:
+  - **Primary**: AEMET API for all gaps (days, weeks, months) - official Spanish weather data
+  - **Fallback**: Manual SIAR download notification only for large gaps (>30 days) where AEMET fails
+  - **Cleanup**: Removed all datosclima references from codebase
+- **Result**: ✅ Simplified, reliable backfill using official AEMET data primarily
+- **Status**: AEMET handles historical data effectively, SIAR reserved for extreme cases only

@@ -1547,7 +1547,7 @@ async def init_siar_etl(station_id: str = "5279X", years: int = 5):
         }
         
     except Exception as e:
-        logger.error(f"DatosClima ETL failed: {e}")
+        logger.error(f"SIAR ETL failed: {e}")
         return {
             "status": "❌ ETL Failed",
             "error": str(e),

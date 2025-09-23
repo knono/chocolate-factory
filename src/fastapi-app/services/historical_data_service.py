@@ -7,7 +7,7 @@ creando series temporales robustas para ML avanzado.
 
 Estrategia:
 - REE: ESIOS API para datos desde 2014
-- Weather: datosclima.es ETL para años históricos
+- Weather: AEMET oficial + SIAR ETL para años históricos
 - Progresión: año por año, con verificación de integridad
 """
 
@@ -29,7 +29,7 @@ class DataSource(Enum):
     """Fuentes de datos históricos"""
     REE_ESIOS = "ree_esios"
     REE_STANDARD = "ree_standard"
-    WEATHER_DATOSCLIMA = "weather_datosclima"
+    WEATHER_SIAR = "weather_siar"
     WEATHER_AEMET = "weather_aemet"
 
 
@@ -228,7 +228,7 @@ class HistoricalDataService:
             else:
                 ree_source = DataSource.REE_ESIOS  # ESIOS histórico (mejor calidad)
 
-            weather_source = DataSource.WEATHER_DATOSCLIMA  # datosclima.es para todo
+            weather_source = DataSource.WEATHER_SIAR  # SIAR ETL para históricos
 
             # Calcular registros esperados
             days_in_year = (end_date - start_date).days + 1
@@ -584,7 +584,7 @@ class HistoricalDataService:
         try:
             logger.info(f"🌤️ Procesando datos climáticos año {plan.year}")
 
-            # Usar datosclima.es ETL para datos históricos
+            # Usar SIAR ETL para datos históricos
             etl_service = SiarETL()
 
             # Ejecutar ETL para el año específico
@@ -608,7 +608,7 @@ class HistoricalDataService:
 
                 return HistoricalIngestionResult(
                     year=plan.year,
-                    data_source=DataSource.WEATHER_DATOSCLIMA,
+                    data_source=DataSource.WEATHER_SIAR,
                     records_requested=plan.expected_weather_records,
                     records_obtained=records_processed,
                     records_written=records_processed,
@@ -623,7 +623,7 @@ class HistoricalDataService:
 
                 return HistoricalIngestionResult(
                     year=plan.year,
-                    data_source=DataSource.WEATHER_DATOSCLIMA,
+                    data_source=DataSource.WEATHER_SIAR,
                     records_requested=plan.expected_weather_records,
                     records_obtained=0,
                     records_written=0,

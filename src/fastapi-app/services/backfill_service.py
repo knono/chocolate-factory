@@ -201,14 +201,15 @@ class BackfillService:
                     
                     is_current_month = (gap_year == current_year and gap_month == current_month)
                     
-                    if is_current_month:
-                        # Estrategia: AEMET API (funciona bien con pequeños batches en mes actual)
-                        logger.info(f"📅 Gap en mes actual ({gap_month}/{gap_year}) - usando AEMET API")
-                        result = await self._backfill_weather_aemet(gap)
-                    else:
-                        # Estrategia: datosclima.es ETL (para meses anteriores)
-                        logger.info(f"📆 Gap en mes anterior ({gap_month}/{gap_year}) - usando datosclima ETL")
-                        result = await self._backfill_weather_datosclima(gap)
+                    # Estrategia principal: AEMET API (oficial y funciona para meses anteriores)
+                    logger.info(f"📅 Gap detectado ({gap_month}/{gap_year}) - usando AEMET API oficial")
+                    result = await self._backfill_weather_aemet(gap)
+
+                    # Si AEMET falla con gap grande (>30 días), notificar para descarga SIAR manual
+                    if result.success_rate < 50 and gap.duration_hours > 720:  # 30 días
+                        logger.warning(f"⚠️ AEMET falló con gap grande ({gap.duration_hours:.1f}h). "
+                                     f"Considerar descarga manual SIAR para {gap_month}/{gap_year}")
+                        # Aquí podrías agregar notificación por email/webhook si la configuras
                     
                     results.append(result)
                     
@@ -235,77 +236,9 @@ class BackfillService:
             logger.error(f"Error general en backfill Weather: {e}")
             return results
     
-    async def _backfill_weather_datosclima(self, gap: DataGap) -> BackfillResult:
-        """Backfill usando datosclima.es (método preferido para datos recientes)"""
-        gap_start = datetime.now()
-        
-        try:
-            # Calcular años a procesar
-            years_needed = [gap.start_time.year]
-            if gap.end_time.year != gap.start_time.year:
-                years_needed.append(gap.end_time.year)
-            
-            # Para gaps pequeños, usar 1 año máximo
-            years_to_process = min(len(years_needed), 1)
-            
-            etl_service = SiarETL()
-            async with DataIngestionService() as ingestion_service:
-                
-                total_records = 0
-                total_written = 0
-                
-                # Procesar datos por año
-                for year in years_needed[:years_to_process]:
-                    try:
-                        # Ejecutar ETL para el año
-                        etl_result = await etl_service.process_station_data(
-                            station_id="5279X",
-                            years=1,  # Solo 1 año para backfill
-                            target_year=year
-                        )
-                        
-                        if etl_result.get("status") == "success":
-                            records = etl_result.get("records_processed", 0)
-                            total_records += records
-                            total_written += records  # Asumimos éxito si ETL dice success
-                        
-                    except Exception as year_error:
-                        logger.warning(f"Error procesando año {year}: {year_error}")
-                
-                duration = (datetime.now() - gap_start).total_seconds()
-                success_rate = (total_written / gap.expected_records * 100) if gap.expected_records > 0 else 0
-                
-                return BackfillResult(
-                    measurement="weather_data",
-                    gap_start=gap.start_time,
-                    gap_end=gap.end_time,
-                    records_requested=gap.expected_records,
-                    records_obtained=total_records,
-                    records_written=total_written,
-                    success_rate=success_rate,
-                    duration_seconds=duration,
-                    method_used="siar_etl",
-                    errors=[]
-                )
-                
-        except Exception as e:
-            logger.error(f"Error en backfill datosclima: {e}")
-            
-            return BackfillResult(
-                measurement="weather_data",
-                gap_start=gap.start_time,
-                gap_end=gap.end_time,
-                records_requested=gap.expected_records,
-                records_obtained=0,
-                records_written=0,
-                success_rate=0,
-                duration_seconds=(datetime.now() - gap_start).total_seconds(),
-                method_used="siar_etl",
-                errors=[str(e)]
-            )
     
     async def _backfill_weather_aemet(self, gap: DataGap) -> BackfillResult:
-        """Backfill usando AEMET API (para gaps en mes actual)"""
+        """Backfill usando AEMET API oficial (método principal para cualquier fecha)"""
         gap_start = datetime.now()
         
         try:

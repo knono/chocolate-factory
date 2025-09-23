@@ -274,8 +274,8 @@ class GapDetectionService:
                 "total_missing_hours": sum(gap.gap_duration_hours for gap in ree_gaps)
             },
             "weather_strategy": {
-                "primary_api": "datosclima.es", 
-                "fallback_api": "AEMET_historical",
+                "primary_api": "aemet.es",
+                "fallback_api": "SIAR_manual_download",
                 "method": "gap_specific",
                 "gaps_count": len(weather_gaps),
                 "total_missing_hours": sum(gap.gap_duration_hours for gap in weather_gaps)
