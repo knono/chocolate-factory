@@ -34,7 +34,7 @@ tailscale_*.key
 ssl/
 certs/
 certificates/
-*.azules-elver.ts.net.*
+*.ts.net.*
 
 # -----------------------------------------------------------------------------
 # 💾 DOCKER DATA VOLUMES (CRÍTICO - CONTIENEN DATOS SENSIBLES)

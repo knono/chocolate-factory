@@ -287,7 +287,7 @@ docker compose up -d chocolate-factory
 ```
 
 ### Access URLs
-- **External dashboard**: `https://chocolate-factory.azules-elver.ts.net/dashboard`
+- **External dashboard**: `https://${TAILSCALE_DOMAIN}/dashboard` (configurar TAILSCALE_DOMAIN en .env)
 - **Local dashboard**: `http://localhost:8000/dashboard` (with weekly heatmap)
 - **Local dev API**: `http://localhost:8000/docs` (complete API access)
 - **JSON data**: `http://localhost:8000/dashboard/complete`

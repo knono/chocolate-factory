@@ -79,10 +79,10 @@ fi
 # Solicitar certificados SSL automáticos
 log "🔒 Requesting SSL certificates from Tailscale..."
 mkdir -p /var/lib/tailscale/certs
-tailscale cert "${TAILSCALE_HOSTNAME:-chocolate-factory}.azules-elver.ts.net"
+tailscale cert "${TAILSCALE_DOMAIN:-${TAILSCALE_HOSTNAME:-chocolate-factory}.ts.net}"
 
 # Verificar que los certificados se generaron
-if [ -f "/var/lib/tailscale/certs/${TAILSCALE_HOSTNAME:-chocolate-factory}.azules-elver.ts.net.crt" ]; then
+if [ -f "/var/lib/tailscale/certs/${TAILSCALE_DOMAIN:-${TAILSCALE_HOSTNAME:-chocolate-factory}.ts.net}.crt" ]; then
     log "✅ SSL certificates obtained successfully"
 else
     log "❌ ERROR: Failed to obtain SSL certificates"
@@ -116,7 +116,7 @@ if ! pgrep -f nginx > /dev/null; then
 fi
 
 log "✅ All services started successfully!"
-log "🌐 Dashboard available at: https://${TAILSCALE_HOSTNAME:-chocolate-factory}.azules-elver.ts.net/dashboard"
+log "🌐 Dashboard available at: https://${TAILSCALE_DOMAIN:-${TAILSCALE_HOSTNAME:-chocolate-factory}.ts.net}/dashboard"
 log "📊 Proxying to: ${NGINX_UPSTREAM:-chocolate_factory_brain:8000}"
 log "🔒 Only /dashboard endpoint is exposed"
 
