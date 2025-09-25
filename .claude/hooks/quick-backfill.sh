@@ -29,17 +29,23 @@ case $MODE in
         ;;
     "auto")
         echo "🚀 Executing auto backfill..."
-        curl -s -X POST "$API_BASE/gaps/backfill/auto" | jq -r '.status // .'
+        curl -s -X POST "$API_BASE/gaps/backfill/auto" \
+            -H "Content-Type: application/json" \
+            -d '{"max_gap_hours": 6.0}' | jq -r '.status // .'
         echo -e "${GREEN}✅ Auto backfill completed${NC}"
         ;;
     "ree")
         echo "⚡ Executing REE backfill..."
-        curl -s -X POST "$API_BASE/gaps/backfill/ree" | jq -r '.status // .'
+        curl -s -X POST "$API_BASE/gaps/backfill" \
+            -H "Content-Type: application/json" \
+            -d '{"days_back": 7, "data_types": ["ree"]}' | jq -r '.status // .'
         echo -e "${GREEN}✅ REE backfill completed${NC}"
         ;;
     "weather")
         echo "🌤️ Executing weather backfill..."
-        curl -s -X POST "$API_BASE/gaps/backfill/weather" | jq -r '.status // .'
+        curl -s -X POST "$API_BASE/gaps/backfill" \
+            -H "Content-Type: application/json" \
+            -d '{"days_back": 7, "data_types": ["weather"]}' | jq -r '.status // .'
         echo -e "${GREEN}✅ Weather backfill completed${NC}"
         ;;
     *)

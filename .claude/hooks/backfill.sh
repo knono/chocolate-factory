@@ -116,22 +116,28 @@ execute_backfill() {
     local endpoint=""
     local description=""
 
+    local payload=""
+
     case $mode in
         "auto")
             endpoint="/gaps/backfill/auto"
             description="Backfill automático inteligente"
+            payload='{"max_gap_hours": 6.0}'
             ;;
         "full")
             endpoint="/gaps/backfill"
             description="Backfill completo"
+            payload='{"days_back": 10}'
             ;;
         "ree")
-            endpoint="/gaps/backfill/ree"
+            endpoint="/gaps/backfill"
             description="Backfill solo REE"
+            payload='{"days_back": 7, "data_types": ["ree"]}'
             ;;
         "weather")
-            endpoint="/gaps/backfill/weather"
+            endpoint="/gaps/backfill"
             description="Backfill solo meteorológicos"
+            payload="{\"days_back\": $DAYS_BACK, \"data_types\": [\"weather\"]}"
             ;;
         *)
             print_error "Modo desconocido: $mode"
@@ -142,17 +148,15 @@ execute_backfill() {
 
     echo "🚀 Ejecutando: $description"
     echo "📡 Endpoint: POST $API_BASE$endpoint"
-
-    if [ "$mode" = "weather" ] && [ "$DAYS_BACK" != "7" ]; then
-        echo "📅 Días hacia atrás: $DAYS_BACK"
-        endpoint="$endpoint?days_back=$DAYS_BACK"
-    fi
+    echo "📋 Payload: $payload"
 
     echo
     echo "⏳ Iniciando backfill..."
 
     # Execute backfill
-    RESULT=$(curl -s -X POST "$API_BASE$endpoint")
+    RESULT=$(curl -s -X POST "$API_BASE$endpoint" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
 
     # Check if result contains error
     if echo "$RESULT" | grep -q "error\|Error\|ERROR"; then
