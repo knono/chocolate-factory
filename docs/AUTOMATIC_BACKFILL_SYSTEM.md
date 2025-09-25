@@ -479,7 +479,41 @@ curl -X POST "http://localhost:8000/gaps/backfill/auto?max_gap_hours=1"
 docker restart chocolate_factory_brain
 ```
 
-#### 3. **AEMET API Limitaciones**
+#### 3. **Hooks Devuelven 404 - Endpoints Incorrectos**
+
+**Síntomas**:
+```bash
+❯ .claude/hooks/backfill.sh weather
+# Returns: HTTP 404 Not Found
+INFO: 192.168.100.1:50254 - "POST /gaps/backfill/weather HTTP/1.1" 404 Not Found
+```
+
+**Causa**: Scripts usan endpoints que no existen en la API:
+- `/gaps/backfill/weather` ❌
+- `/gaps/backfill/ree` ❌
+- `/gaps/backfill/auto` (sin JSON payload) ❌
+
+**Solución**: Usar endpoints correctos con payloads JSON:
+```bash
+# ✅ Correcto - Weather específico
+curl -X POST "http://localhost:8000/gaps/backfill" \
+  -H "Content-Type: application/json" \
+  -d '{"days_back": 7, "data_types": ["weather"]}'
+
+# ✅ Correcto - REE específico
+curl -X POST "http://localhost:8000/gaps/backfill" \
+  -H "Content-Type: application/json" \
+  -d '{"days_back": 7, "data_types": ["ree"]}'
+
+# ✅ Correcto - Auto backfill
+curl -X POST "http://localhost:8000/gaps/backfill/auto" \
+  -H "Content-Type: application/json" \
+  -d '{"max_gap_hours": 6.0}'
+```
+
+**Verificación**: Los hooks corregidos (versión Sept 25, 2025) ya incluyen estos fixes.
+
+#### 4. **AEMET API Limitaciones**
 
 **Síntomas**:
 ```json
@@ -577,7 +611,127 @@ if background_tasks:
 - Implementar round-robin entre estaciones para rate limiting
 - Cache inteligente de datos ETL por región
 
+## CLI Hooks y Scripts de Automatización
+
+### Hooks Disponibles
+
+El sistema incluye scripts de conveniencia en `.claude/hooks/` para facilitar operaciones de backfill:
+
+#### `backfill.sh` - Script Completo con Confirmación
+```bash
+# Backfill automático inteligente
+.claude/hooks/backfill.sh auto
+
+# Backfill solo weather con días específicos
+.claude/hooks/backfill.sh weather 14
+
+# Backfill solo REE
+.claude/hooks/backfill.sh ree
+
+# Solo verificar gaps sin ejecutar
+.claude/hooks/backfill.sh check
+```
+
+#### `quick-backfill.sh` - Ejecución Directa Sin Confirmación
+```bash
+# Ejecución rápida sin prompts
+.claude/hooks/quick-backfill.sh auto
+.claude/hooks/quick-backfill.sh weather
+.claude/hooks/quick-backfill.sh ree
+.claude/hooks/quick-backfill.sh check
+```
+
+### Implementación Técnica de Hooks
+
+#### Endpoints y Payloads Correctos
+
+Los hooks han sido corregidos para usar los endpoints reales de la API:
+
+**backfill.sh (con payloads JSON):**
+```bash
+# Auto backfill
+curl -X POST "$API_BASE/gaps/backfill/auto" \
+  -H "Content-Type: application/json" \
+  -d '{"max_gap_hours": 6.0}'
+
+# Weather específico
+curl -X POST "$API_BASE/gaps/backfill" \
+  -H "Content-Type: application/json" \
+  -d '{"days_back": 7, "data_types": ["weather"]}'
+
+# REE específico
+curl -X POST "$API_BASE/gaps/backfill" \
+  -H "Content-Type: application/json" \
+  -d '{"days_back": 7, "data_types": ["ree"]}'
+
+# Full backfill
+curl -X POST "$API_BASE/gaps/backfill" \
+  -H "Content-Type: application/json" \
+  -d '{"days_back": 10}'
+```
+
+#### Error Handling y Logging
+
+```bash
+# Verificar resultado y mostrar errores
+RESULT=$(curl -s -X POST "$API_BASE$endpoint" \
+    -H "Content-Type: application/json" \
+    -d "$payload")
+
+if echo "$RESULT" | grep -q "error\|Error\|ERROR"; then
+    print_error "Error en backfill:"
+    echo "$RESULT" | jq -r '.' 2>/dev/null || echo "$RESULT"
+    exit 1
+fi
+```
+
 ## Actualizaciones Recientes
+
+### 🔧 **Fix Crítico: CLI Hooks Endpoints (Sept 25, 2025)**
+
+#### Problema Identificado
+- **Issue**: Hooks usaban endpoints inexistentes que retornaban 404
+  - ❌ `/gaps/backfill/weather` (no existe)
+  - ❌ `/gaps/backfill/ree` (no existe)
+  - ❌ `/gaps/backfill/auto` (sin JSON payload)
+- **Impacto**: Scripts de conveniencia completamente rotos
+- **Síntomas**: Usuario reporta "13h de retraso" después de ejecutar hooks
+
+#### Solución Implementada
+
+1. **Endpoints Corregidos**:
+   - ✅ **Auto**: `/gaps/backfill/auto` + `{"max_gap_hours": 6.0}` payload
+   - ✅ **Weather**: `/gaps/backfill` + `{"data_types": ["weather"]}` payload
+   - ✅ **REE**: `/gaps/backfill` + `{"data_types": ["ree"]}` payload
+   - ✅ **Full**: `/gaps/backfill` + `{"days_back": 10}` payload
+
+2. **Headers JSON Añadidos**:
+   ```bash
+   # Antes: Sin headers, sin payload
+   curl -s -X POST "$API_BASE/gaps/backfill/weather"
+
+   # Después: Headers correctos + JSON payload
+   curl -s -X POST "$API_BASE/gaps/backfill" \
+     -H "Content-Type: application/json" \
+     -d '{"days_back": 7, "data_types": ["weather"]}'
+   ```
+
+3. **Archivos Corregidos**:
+   - ✅ `.claude/hooks/backfill.sh`: Todos los modos funcionales
+   - ✅ `.claude/hooks/quick-backfill.sh`: Ejecución directa corregida
+   - ✅ Permisos de ejecución verificados
+
+#### Resultado Post-Fix
+- **Estado Weather**: ✅ 0.0 horas de gap (era 13.1h)
+- **Estado REE**: ✅ 0.5 horas de gap (normal)
+- **Hooks funcionales**: ✅ 100% operativos
+- **Control granular**: ✅ REE solo, Weather solo, Auto inteligente
+
+#### Beneficios Obtenidos
+- **Hooks 100% funcionales**: Ya no fallan con 404
+- **Control granular**: Backfill específico por tipo de datos
+- **Workflow mejorado**: Scripts de conveniencia realmente útiles
+- **No más "medio gas"**: Sistema completo operativo
 
 ### 🔧 **Fix Crítico: AEMET Integration (Sept 19, 2025)**
 
