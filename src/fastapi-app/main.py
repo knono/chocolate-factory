@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Chocolate Factory - Enhanced ML System",
     description="Sistema autónomo con Enhanced ML, datos históricos (SIAR 88k + REE 42k) y predicciones avanzadas",
-    version="0.27.0",
+    version="0.31.0",
     lifespan=lifespan
 )
 
@@ -138,7 +138,7 @@ async def root():
     return {
         "service": "Chocolate Factory Enhanced ML Brain",
         "status": "✨ Enhanced ML System con datos históricos operativo",
-        "version": "0.27.0",
+        "version": "0.31.0",
         "endpoints": {
             "health": "/health",
             "predict": "/predict (pendiente)",
@@ -2987,6 +2987,40 @@ async def get_dashboard_recommendations():
         raise HTTPException(status_code=500, detail=f"Dashboard recommendations error: {str(e)}")
 
 
+@app.get("/dashboard/human-recommendation", tags=["Dashboard"])
+async def get_human_recommendation():
+    """🧠 Recomendación humanizada basada en ML + Reglas de Negocio"""
+    try:
+        from services.business_logic_service import get_business_logic_service
+        from services.enhanced_ml_service import get_enhanced_ml_service
+        from services.data_ingestion import DataIngestionService
+
+        # Get current data
+        async with DataIngestionService() as data_service:
+            current_data = await data_service.get_current_conditions()
+
+        # Get ML prediction
+        ml_service = get_enhanced_ml_service()
+        ml_results = await ml_service.get_predictions_for_conditions(current_data)
+
+        # Extract ML score (use energy optimization score as primary)
+        ml_score = ml_results.get('energy_optimization', {}).get('score', 50)
+
+        # Get human recommendation
+        business_service = get_business_logic_service()
+        human_rec = business_service.generate_human_recommendation(
+            ml_score=ml_score,
+            conditions=current_data,
+            context={'timestamp': datetime.now(), 'ml_results': ml_results}
+        )
+
+        return human_rec
+
+    except Exception as e:
+        logger.error(f"Human recommendation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Human recommendation error: {str(e)}")
+
+
 # === BACKGROUND TASKS ===
 
 
@@ -3199,6 +3233,7 @@ async def serve_enhanced_dashboard():
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
+                color: #333;
             }
             
             .calendar-day:hover {
@@ -3216,22 +3251,26 @@ async def serve_enhanced_dashboard():
                 font-size: 0.8rem;
                 opacity: 0.8;
                 margin-bottom: 0.25rem;
+                color: #333;
             }
-            
+
             .day-number {
                 font-size: 1.1rem;
                 font-weight: 600;
                 margin-bottom: 0.25rem;
+                color: #333;
             }
-            
+
             .day-price {
                 font-size: 0.75rem;
                 opacity: 0.9;
+                color: #333;
             }
-            
+
             .day-recommendation {
                 font-size: 1.2rem;
                 margin-top: 0.25rem;
+                color: #333;
             }
             
             .heatmap-summary {
@@ -3673,15 +3712,124 @@ async def serve_enhanced_dashboard():
                 .container {
                     padding: 1rem;
                 }
-                
+
                 .header h1 {
-                    font-size: 2rem;
+                    font-size: 1.8rem;
                 }
-                
+
                 .status-bar {
                     flex-direction: column;
                     align-items: stretch;
+                    gap: 0.5rem;
                 }
+
+                /* === RESPONSIVE GRID FIXES === */
+                .grid {
+                    grid-template-columns: 1fr !important;
+                    gap: 1rem !important;
+                }
+
+                /* Ensure all cards have consistent width */
+                .card {
+                    width: 100%;
+                    min-width: 0;
+                    box-sizing: border-box;
+                }
+
+                /* Fix text overflow in cards */
+                .card-title {
+                    font-size: 1rem !important;
+                    line-height: 1.3;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                }
+
+                .metric-value {
+                    font-size: 1.2rem !important;
+                    word-wrap: break-word;
+                }
+
+                .metric-label {
+                    font-size: 0.85rem !important;
+                    line-height: 1.2;
+                    word-wrap: break-word;
+                }
+
+                /* Fix unified REE card responsive */
+                #unified-human-recommendation-content {
+                    padding: 1rem !important;
+                    font-size: 0.9rem !important;
+                }
+
+                #unified-human-recommendation-content h3 {
+                    font-size: 1.1rem !important;
+                }
+
+                /* Fix enhanced badge positioning */
+                .enhanced-badge {
+                    display: block !important;
+                    margin-top: 0.5rem;
+                    font-size: 0.7rem !important;
+                }
+
+                /* Fix analytics sections */
+                .analytics-section, .insights-section {
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                }
+
+                .analytics-section h4, .insights-section h4 {
+                    font-size: 0.9rem !important;
+                }
+
+                /* Fix status indicators */
+                .status-indicator {
+                    flex-wrap: wrap;
+                }
+
+                .status-text {
+                    font-size: 0.9rem !important;
+                }
+
+                /* Fix calendar grid for mobile */
+                .calendar-grid {
+                    grid-template-columns: repeat(auto-fit, minmax(40px, 1fr)) !important;
+                    gap: 0.3rem !important;
+                }
+
+                .calendar-day {
+                    min-height: 35px !important;
+                    font-size: 0.7rem !important;
+                    padding: 0.2rem !important;
+                }
+            }
+
+            /* Additional responsive breakpoint for very small screens */
+            @media (max-width: 480px) {
+                .header h1 {
+                    font-size: 1.5rem;
+                }
+
+                .card {
+                    margin: 0.5rem 0;
+                    padding: 1rem;
+                }
+
+                .card-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 0.5rem;
+                }
+
+                #unified-human-recommendation-content {
+                    padding: 0.8rem !important;
+                }
+
+                .calendar-day {
+                    min-height: 30px !important;
+                    font-size: 0.6rem !important;
+                }
+            }
                 
                 .metric-value {
                     font-size: 2rem;
@@ -3742,14 +3890,55 @@ async def serve_enhanced_dashboard():
                     </div>
                 </div>
                 
-                <div class="card">
+                <!-- Tarjeta Información del Sistema Unificada -->
+                <div class="card system-info-unified">
                     <div class="card-header">
                         <span class="card-icon">🏭</span>
-                        <span class="card-title">Estado Fábrica</span>
+                        <span class="card-title">Información del Sistema</span>
                     </div>
-                    <div class="metric-value" id="production-status">--</div>
-                    <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
-                        <div>📊 Eficiencia: <span id="factory-efficiency">--%</span></div>
+
+                    <div class="unified-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                        <!-- Ubicación -->
+                        <div>
+                            <strong style="display: block; margin-bottom: 0.5rem; color: #f59e0b;">📍 Fábrica</strong>
+                            <div style="font-size: 0.9rem; line-height: 1.3;">
+                                <div>🏭 Linares, Andalucía</div>
+                                <div>⛰️ 515m • 🕐 CET</div>
+                                <div style="font-size: 0.8rem; opacity: 0.7;">38.151°N, -3.629°W</div>
+                            </div>
+                        </div>
+
+                        <!-- Estado Operativo -->
+                        <div>
+                            <strong style="display: block; margin-bottom: 0.5rem; color: #10b981;">🏭 Estado</strong>
+                            <div style="font-size: 0.9rem; line-height: 1.3;">
+                                <div id="production-status">🟢 Operativo</div>
+                                <div>📊 Eficiencia: <span id="factory-efficiency">85%</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="unified-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2);">
+                        <!-- Sistema -->
+                        <div>
+                            <strong style="display: block; margin-bottom: 0.5rem; color: #3b82f6;">⚙️ Sistema</strong>
+                            <div style="font-size: 0.85rem; line-height: 1.3;">
+                                <div>⚡ <span id="ree-status">✅ REE + Históricos</span></div>
+                                <div>🌡️ <span id="weather-status">✅ AEMET/OpenWeather</span></div>
+                                <div>🤖 <span id="ml-models-status">✅ Enhanced ML</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Fuentes de Datos -->
+                        <div>
+                            <strong style="display: block; margin-bottom: 0.5rem; color: #8b5cf6;">📊 Fuentes</strong>
+                            <div style="font-size: 0.85rem; line-height: 1.3;">
+                                <div>⚡ REE (Precios)</div>
+                                <div>🌡️ AEMET 5279X (00-07h)</div>
+                                <div>☁️ OpenWeather (08-23h)</div>
+                                <div>🤖 ML Direct</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3832,11 +4021,19 @@ async def serve_enhanced_dashboard():
                 </div>
             </div>
 
-            <!-- Inteligencia de Fábrica Basada en Datos Reales -->
+            <!-- Análisis REE Unificado - Inteligencia + Históricos -->
             <div class="card smart-insights" style="margin-top: 1.5rem;">
                 <div class="card-header">
-                    <span class="card-icon">🧠</span>
-                    <span class="card-title">Inteligencia de Fábrica - Análisis REE en Tiempo Real</span>
+                    <span class="card-icon">⚡</span>
+                    <span class="card-title">Análisis REE Inteligente - Tiempo Real + Históricos</span>
+                    <span class="enhanced-badge">UNIFICADO</span>
+                </div>
+
+                <!-- Recomendación Humanizada Principal -->
+                <div id="unified-human-recommendation-section" style="margin-top: 1.5rem; display: none;">
+                    <div id="unified-human-recommendation-content" style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(255,107,53,0.3);">
+                        <!-- Se llena dinámicamente con BusinessLogicService -->
+                    </div>
                 </div>
                 <div class="grid grid-3" style="gap: 1.5rem; margin-top: 1.5rem;">
                     <!-- Momento Óptimo Actual -->
@@ -3944,130 +4141,46 @@ async def serve_enhanced_dashboard():
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Analytics Históricos -->
-            <div class="card ml-prediction" style="margin-top: 2rem;">
-                <div class="card-header">
-                    <span class="card-icon">📊</span>
-                    <span class="card-title">Analytics Históricos - Datos REE 2024</span>
-                </div>
-                <div class="grid grid-3" style="gap: 1.5rem; margin-top: 1.5rem;">
-                    <!-- Métricas de Fábrica -->
+
+                <!-- Métricas Históricas Integradas -->
+                <div class="grid grid-3" style="gap: 1.5rem; margin-top: 1.5rem; padding: 1.5rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
                     <div class="analytics-section">
-                        <h4 style="color: #66BB6A; margin-bottom: 1rem; font-size: 1rem;">🏭 Métricas de Consumo</h4>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Consumo Total:</span>
-                            <span class="metric-value" style="color: white;" id="total-consumption">-- kWh</span>
+                        <h4 style="color: #66BB6A; margin-bottom: 1rem; font-size: 0.9rem;">📊 Históricos 2024</h4>
+                        <div class="analytics-metric" style="margin-bottom: 0.5rem;">
+                            <span class="metric-label" style="font-size: 0.8rem; color: #333;">Costo Total:</span>
+                            <span class="metric-value" style="color: #333; font-size: 0.9rem;" id="total-cost">-- €</span>
                         </div>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Costo Diario Promedio:</span>
-                            <span class="metric-value" style="color: white;" id="avg-daily-cost">-- €</span>
-                        </div>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Pico de Demanda:</span>
-                            <span class="metric-value" style="color: white;" id="peak-consumption">-- kW</span>
-                        </div>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Costo Total:</span>
-                            <span class="metric-value" style="color: white;" id="total-cost">-- €</span>
+                        <div class="analytics-metric" style="margin-bottom: 0.5rem;">
+                            <span class="metric-label" style="font-size: 0.8rem; color: #333;">Min/Max:</span>
+                            <span class="metric-value" style="color: #333; font-size: 0.9rem;" id="min-max-price">--/-- €/kWh</span>
                         </div>
                     </div>
 
-                    <!-- Análisis de Precios -->
                     <div class="analytics-section">
-                        <h4 style="color: #FF9800; margin-bottom: 1rem; font-size: 1rem;">⚡ Análisis de Precios</h4>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Precio Mínimo:</span>
-                            <span class="metric-value" style="color: white;" id="min-price">-- €/kWh</span>
+                        <h4 style="color: #2196F3; margin-bottom: 1rem; font-size: 0.9rem;">🎯 Potencial</h4>
+                        <div class="analytics-metric" style="margin-bottom: 0.5rem;">
+                            <span class="metric-label" style="font-size: 0.8rem; color: #333;">Ahorro Anual:</span>
+                            <span class="metric-value" style="color: #333; font-size: 0.9rem;" id="annual-projection">-- €</span>
                         </div>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Precio Máximo:</span>
-                            <span class="metric-value" style="color: white;" id="max-price">-- €/kWh</span>
-                        </div>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Precio Promedio:</span>
-                            <span class="metric-value" style="color: white;" id="avg-price">-- €/kWh</span>
-                        </div>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Volatilidad:</span>
-                            <span class="metric-value" style="color: white;" id="price-volatility">--</span>
+                        <div class="analytics-metric" style="margin-bottom: 0.5rem;">
+                            <span class="metric-label" style="font-size: 0.8rem; color: #333;">Horas Óptimas:</span>
+                            <span class="metric-value" style="color: #333; font-size: 0.9rem;" id="optimal-hours">-- h</span>
                         </div>
                     </div>
 
-                    <!-- Potencial de Optimización -->
                     <div class="analytics-section">
-                        <h4 style="color: #2196F3; margin-bottom: 1rem; font-size: 1rem;">🎯 Potencial de Ahorro</h4>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Ahorro Potencial:</span>
-                            <span class="metric-value" style="color: white;" id="savings-potential">-- €</span>
+                        <h4 style="color: #FF9800; margin-bottom: 1rem; font-size: 0.9rem;">💡 Recomendaciones</h4>
+                        <div id="unified-optimization-recommendations" style="font-size: 0.8rem; line-height: 1.4; color: #333;">
+                            <!-- Recomendaciones unificadas -->
                         </div>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Horas Óptimas:</span>
-                            <span class="metric-value" style="color: white;" id="optimal-hours">--</span>
-                        </div>
-                        <div class="analytics-metric">
-                            <span class="metric-label">Proyección Anual:</span>
-                            <span class="metric-value" style="color: white;" id="annual-projection">-- €</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Recomendaciones -->
-                <div style="margin-top: 1.5rem;">
-                    <h4 style="color: #9C27B0; margin-bottom: 1rem; font-size: 1rem;">💡 Recomendaciones de Optimización</h4>
-                    <div id="optimization-recommendations" style="font-size: 0.9rem; line-height: 1.6;">
-                        <!-- Se llena dinámicamente -->
                     </div>
                 </div>
             </div>
             
-            <!-- Información Compacta -->
-            <div class="grid grid-2" style="gap: 1rem;">
-                <!-- Localización Minimalista -->
-                <div class="card location-info-compact">
-                    <div class="card-header">
-                        <span class="card-icon">📍</span>
-                        <span class="card-title">Fábrica</span>
-                    </div>
-                    <div class="compact-info">
-                        <div class="info-line">🏭 Linares, Andalucía</div>
-                        <div class="info-line">⛰️ 515m • 🕐 CET</div>
-                        <div class="info-line" style="font-size: 0.8rem; color: rgba(255,255,255,0.7);">38.151°N, -3.629°W</div>
-                    </div>
-                </div>
-
-                <!-- Estado del Sistema Minimalista -->
-                <div class="card system-status-compact">
-                    <div class="card-header">
-                        <span class="card-icon">⚙️</span>
-                        <span class="card-title">Sistema</span>
-                    </div>
-                    <div class="compact-status">
-                        <div class="status-line">⚡ <span id="ree-status">--</span></div>
-                        <div class="status-line">🌡️ <span id="weather-status">--</span></div>
-                        <div class="status-line">🤖 <span id="ml-models-status">--</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Fuentes de Datos Compacto -->
-            <div class="card sources-compact" style="margin-top: 1rem;">
-                <div class="card-header">
-                    <span class="card-icon">📊</span>
-                    <span class="card-title">Fuentes de Datos</span>
-                </div>
-                <div class="sources-grid">
-                    <div class="source-item">⚡ REE (Precios)</div>
-                    <div class="source-item">🌡️ AEMET 5279X (00-07h)</div>
-                    <div class="source-item">☁️ OpenWeather (08-23h)</div>
-                    <div class="source-item">🤖 ML Direct</div>
-                </div>
-            </div>
         </div>
         
         <div class="footer">
-            Chocolate Factory - Linares, Andalucía | Dashboard v0.27.0 Enhanced ML |
+            Chocolate Factory - Linares, Andalucía | Dashboard v0.31.0 Enhanced ML |
             Powered by FastAPI + Enhanced ML (131k+ Historical Records)
         </div>
         
@@ -4385,14 +4498,11 @@ Recomendación: ${day.production_recommendation}`;
                         renderHeatmap(data.weekly_forecast);
                     }
                     
-                    // Renderizar analytics históricos
-                    renderHistoricalAnalytics(data);
-                    
-                    // Renderizar inteligencia de fábrica
-                    renderSmartInsights(data);
-
-                    // ✨ NUEVO: Renderizar Enhanced ML data
+                    // ✨ Renderizar Enhanced ML data
                     renderEnhancedMLData(data);
+
+                    // 🔄 Renderizar REE Unificado (reemplaza analytics históricos + smart insights)
+                    renderUnifiedREEAnalysis(data);
 
                 } catch (error) {
                     document.getElementById('status').textContent = '❌ Error de conexión';
@@ -4401,6 +4511,290 @@ Recomendación: ${day.production_recommendation}`;
                 }
             }
             
+            // ⚡ Función Unificada REE con BusinessLogicService
+            function renderUnifiedREEAnalysis(data) {
+                try {
+                    const analytics = data.historical_analytics;
+                    const currentEnergy = data.current_info?.energy;
+                    const recommendations = data.recommendations || {};
+                    const humanRecUnified = recommendations.human_recommendation;
+
+                    if (!analytics || !currentEnergy) {
+                        console.log('⚠️ Missing data for unified REE analysis');
+                        return;
+                    }
+
+                    // === RECOMENDACIÓN HUMANIZADA PRINCIPAL ===
+                    if (humanRecUnified && !humanRecUnified.error) {
+                        const unifiedSection = document.getElementById('unified-human-recommendation-section');
+                        const unifiedContent = document.getElementById('unified-human-recommendation-content');
+
+                        if (unifiedSection && unifiedContent) {
+                            const message = humanRecUnified.main_message || {};
+                            const economicImpact = humanRecUnified.economic_impact || {};
+                            const metadata = humanRecUnified.metadata || {};
+
+                            let content = `
+                                <div style="margin-bottom: 1rem;">
+                                    <h3 style="margin: 0; font-size: 1.3rem; color: white;">${message.title || 'RECOMENDACIÓN INTELIGENTE'}</h3>
+                                    <div style="margin-top: 0.5rem; opacity: 0.95; font-size: 1rem;">
+                                        <strong>📊 Análisis:</strong> ${message.situation || 'Evaluando condiciones actuales...'}
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-2" style="gap: 1rem; margin-bottom: 1rem;">
+                                    <div>
+                                        <strong style="display: block; margin-bottom: 0.5rem;">🎯 Acciones:</strong>
+                                        <ul style="margin: 0; padding-left: 1rem; font-size: 0.95rem;">
+                            `;
+
+                            if (message.priority_actions && Array.isArray(message.priority_actions)) {
+                                message.priority_actions.slice(0, 3).forEach(action => {
+                                    content += `<li>${action}</li>`;
+                                });
+                            }
+
+                            content += `
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <strong style="display: block; margin-bottom: 0.5rem;">💰 Impacto:</strong>
+                                        <div style="font-size: 0.95rem; line-height: 1.4;">
+                                            <div><strong>Costo/kg:</strong> ${economicImpact.current_cost_per_kg || '13,90'}€</div>
+                                            <div><strong>Categoría:</strong> ${economicImpact.cost_category || 'normal'}</div>
+                                            <div><strong>Confianza:</strong> ${message.confidence_level || metadata.confidence || 'media'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+
+                            unifiedContent.innerHTML = content;
+                            unifiedSection.style.display = 'block';
+                        }
+                    }
+
+                    // === MÉTRICAS DE LA TARJETA UNIFICADA ===
+
+                    // Current energy status
+                    const currentPrice = currentEnergy.price_eur_kwh;
+                    const statusTextEl = document.getElementById('energy-status-text');
+                    const statusDetailEl = document.getElementById('energy-status-detail');
+                    const actionRecommendationEl = document.getElementById('energy-action-recommendation');
+
+                    if (statusTextEl && statusDetailEl && actionRecommendationEl) {
+                        // === USE SAME LOGIC AS ENHANCED ML ANALYTICS ===
+                        if (humanRecUnified && humanRecUnified.recommendation_level) {
+                            const level = humanRecUnified.recommendation_level;
+                            const levelNames = {
+                                'maximize': 'Óptimo',
+                                'standard': 'Normal',
+                                'reduced': 'Subóptimo',
+                                'minimal': 'Crítico',
+                                'critical': 'Emergencia'
+                            };
+                            statusTextEl.textContent = levelNames[level] || 'Evaluando';
+
+                            // Use humanized recommendation level instead of raw Enhanced ML action
+                            const levelToAction = {
+                                'maximize': 'Maximize Production',
+                                'standard': 'Standard Production',
+                                'reduced': 'Reduce Production',
+                                'minimal': 'Minimal Production',
+                                'critical': 'Emergency Procedures'
+                            };
+                            const actionDisplay = levelToAction[level] || 'Standard Production';
+                            actionRecommendationEl.textContent = actionDisplay;
+                        } else {
+                            // Fallback to price-based logic only if no human recommendation
+                            if (currentPrice < 0.12) {
+                                statusTextEl.textContent = 'Óptimo';
+                                actionRecommendationEl.textContent = 'Standard Production';
+                            } else if (currentPrice < 0.20) {
+                                statusTextEl.textContent = 'Normal';
+                                actionRecommendationEl.textContent = 'Standard Production';
+                            } else if (currentPrice < 0.30) {
+                                statusTextEl.textContent = 'Alto';
+                                actionRecommendationEl.textContent = 'Reduce Production';
+                            } else {
+                                statusTextEl.textContent = 'Crítico';
+                                actionRecommendationEl.textContent = 'Halt Production';
+                            }
+                        }
+
+                        statusDetailEl.textContent = formatSpanishNumber(currentPrice, 4) + ' €/kWh';
+                    }
+
+                    // Historical metrics
+                    if (analytics.price_analysis) {
+                        const priceAnalysis = analytics.price_analysis;
+                        document.getElementById('avg-price').textContent = formatSpanishNumber(priceAnalysis.average_price || 0, 4) + ' €/kWh';
+                        document.getElementById('total-cost').textContent = formatSpanishNumber(analytics.factory_metrics?.total_cost || 0, 0) + ' €';
+
+                        const minPrice = priceAnalysis.min_price_eur_kwh || 0;
+                        const maxPrice = priceAnalysis.max_price_eur_kwh || 0;
+                        document.getElementById('min-max-price').textContent = formatSpanishNumber(minPrice, 4) + '/' + formatSpanishNumber(maxPrice, 4) + ' €/kWh';
+                    }
+
+                    // Optimization metrics
+                    if (analytics.optimization_potential) {
+                        const optimization = analytics.optimization_potential;
+                        document.getElementById('annual-projection').textContent = formatSpanishNumber(optimization.annual_savings_projection || 0, 0) + ' €';
+                        document.getElementById('optimal-hours').textContent = optimization.optimal_production_hours || '--';
+                    }
+
+                    // Current savings potential
+                    const avgPrice = analytics.price_analysis?.average_price || 0.15;
+                    const savingsPerHour = (avgPrice - currentPrice) * 2.4; // 2.4 kW approx consumption
+                    const savingsPotentialEl = document.getElementById('current-savings-potential');
+                    if (savingsPotentialEl) {
+                        if (savingsPerHour > 0) {
+                            savingsPotentialEl.textContent = '+' + formatSpanishNumber(savingsPerHour, 2) + ' €/h';
+                            savingsPotentialEl.style.color = '#4CAF50';
+                        } else {
+                            savingsPotentialEl.textContent = formatSpanishNumber(savingsPerHour, 2) + ' €/h';
+                            savingsPotentialEl.style.color = '#F44336';
+                        }
+                    }
+
+                    // Price ranking (simplified)
+                    const pricePosition = currentPrice / (avgPrice * 1.5); // Relative position
+                    const ranking = Math.ceil(Math.min(pricePosition * 24, 24));
+                    document.getElementById('price-ranking').textContent = ranking + '/24';
+
+                    // Strategic recommendations (sync with Enhanced ML Analytics)
+                    const strategicEl = document.getElementById('strategic-recommendation');
+                    if (strategicEl) {
+                        const enhanced = data.predictions || {};
+                        const enhancedRec = enhanced.enhanced_recommendations || {};
+
+                        if (enhancedRec.main_action) {
+                            const mainAction = enhancedRec.main_action;
+                            const actionIcons = {
+                                'maximize_production': '🚀 Maximizar producción',
+                                'increase_production': '📈 Incrementar producción',
+                                'standard_production': '⚖️ Producción estándar',
+                                'reduce_production': '📉 Reducir operaciones',
+                                'minimize_production': '⚠️ Producción mínima',
+                                'halt_production': '🚨 Parar nueva producción'
+                            };
+                            strategicEl.textContent = actionIcons[mainAction] || `🔧 ${mainAction.replace('_', ' ')}`;
+                        } else if (humanRecUnified && humanRecUnified.recommendation_level) {
+                            const level = humanRecUnified.recommendation_level;
+                            const levelNames = {
+                                'maximize': '🚀 Maximizar producción',
+                                'standard': '⚖️ Producción estándar',
+                                'reduced': '📉 Reducir operaciones',
+                                'minimal': '⚠️ Producción mínima',
+                                'critical': '🚨 Parar nueva producción'
+                            };
+                            strategicEl.textContent = levelNames[level] || 'Evaluando...';
+                        } else {
+                            strategicEl.textContent = 'Usar criterio operacional';
+                        }
+                    }
+
+                    // === LLENAR DATOS FALTANTES ===
+
+                    // Process recommendations
+                    const processEl = document.getElementById('recommended-process');
+                    const processCostEl = document.getElementById('process-cost');
+                    const processActionEl = document.getElementById('process-action');
+
+                    if (processEl && processCostEl && processActionEl) {
+                        const enhanced = data.predictions || {};
+                        const enhancedRec = enhanced.enhanced_recommendations || {};
+
+                        if (enhancedRec.main_action) {
+                            const processMap = {
+                                'maximize_production': 'Conchado extendido + Templado premium',
+                                'increase_production': 'Conchado intensivo + Mezclado',
+                                'standard_production': 'Conchado estándar + Moldeado',
+                                'reduce_production': 'Solo conchado básico',
+                                'minimize_production': 'Completar lotes actuales',
+                                'halt_production': 'Ningún proceso nuevo'
+                            };
+
+                            const costMap = {
+                                'maximize_production': (currentPrice * 4.8).toFixed(2),
+                                'increase_production': (currentPrice * 3.6).toFixed(2),
+                                'standard_production': (currentPrice * 2.4).toFixed(2),
+                                'reduce_production': (currentPrice * 1.2).toFixed(2),
+                                'minimize_production': (currentPrice * 0.6).toFixed(2),
+                                'halt_production': '0.00'
+                            };
+
+                            processEl.textContent = processMap[enhancedRec.main_action] || 'Proceso estándar';
+                            processCostEl.textContent = (costMap[enhancedRec.main_action] || currentPrice * 2.4) + ' €/h';
+
+                            if (enhancedRec.main_action.includes('halt')) {
+                                processActionEl.textContent = 'Detener nuevos procesos ahora';
+                            } else if (enhancedRec.main_action.includes('maximize')) {
+                                processActionEl.textContent = 'Aprovechar ventana energética';
+                            } else if (enhancedRec.main_action.includes('reduce')) {
+                                processActionEl.textContent = 'Reducir intensidad energética';
+                            } else {
+                                processActionEl.textContent = 'Mantener operación normal';
+                            }
+                        } else {
+                            processEl.textContent = 'Conchado estándar + Moldeado';
+                            processCostEl.textContent = (currentPrice * 2.4).toFixed(2) + ' €/h';
+                            processActionEl.textContent = 'Evaluando mejores procesos...';
+                        }
+                    }
+
+                    // Optimal time window
+                    const optimalTimeEl = document.getElementById('optimal-time-window');
+                    if (optimalTimeEl) {
+                        const currentHour = new Date().getHours();
+                        if (currentPrice < avgPrice) {
+                            optimalTimeEl.textContent = `Ahora (hasta ${(currentHour + 2) % 24}:00h)`;
+                        } else {
+                            optimalTimeEl.textContent = '00:00-06:00 (hora valle)';
+                        }
+                    }
+
+                    // Price range
+                    const priceRangeEl = document.getElementById('price-range');
+                    if (priceRangeEl && analytics.price_analysis) {
+                        const minPrice = analytics.price_analysis.min_price || 0;
+                        const maxPrice = analytics.price_analysis.max_price || 0;
+                        priceRangeEl.textContent = `${formatSpanishNumber(minPrice, 4)} - ${formatSpanishNumber(maxPrice, 4)} €/kWh`;
+                    }
+
+                    // Unified recommendations
+                    const unifiedRecsEl = document.getElementById('unified-optimization-recommendations');
+                    if (unifiedRecsEl) {
+                        let recsText = '';
+                        if (humanRecUnified && humanRecUnified.situation_context) {
+                            recsText = humanRecUnified.situation_context.slice(0, 2).map(ctx => `• ${ctx}`).join('<br>');
+                        } else {
+                            // Fallback recommendations based on Enhanced ML data
+                            const enhanced = data.predictions || {};
+                            const enhancedRec = enhanced.enhanced_recommendations || {};
+                            if (enhancedRec.main_action) {
+                                const actionRecs = {
+                                    'maximize_production': '• Momento óptimo para maximizar volumen<br>• Aprovechar precio energético favorable',
+                                    'increase_production': '• Incrementar producción moderadamente<br>• Condiciones favorables detectadas',
+                                    'standard_production': '• Mantener ritmo normal de producción<br>• Condiciones estables para operación',
+                                    'reduce_production': '• Reducir operaciones no críticas<br>• Precio energético elevado detectado',
+                                    'minimize_production': '• Solo completar lotes comprometidos<br>• Condiciones subóptimas',
+                                    'halt_production': '• Parar nueva producción inmediatamente<br>• Condiciones críticas detectadas'
+                                };
+                                recsText = actionRecs[enhancedRec.main_action] || '• Sistema híbrido activado<br>• Consultar recomendación principal arriba';
+                            } else {
+                                recsText = '• Sistema híbrido activado<br>• Consultar recomendación principal arriba';
+                            }
+                        }
+                        unifiedRecsEl.innerHTML = recsText;
+                    }
+
+                    console.log('✅ Unified REE analysis rendered successfully');
+
+                } catch (error) {
+                    console.error('❌ Error rendering unified REE analysis:', error);
+                }
+            }
+
             // Cargar datos al inicializar
             loadData();
             
@@ -4423,11 +4817,26 @@ Recomendación: ${day.production_recommendation}`;
                     const percentage = vsTarget.percentage || 0;
                     document.getElementById('vs-target').textContent = percentage > 0 ? `+${percentage}%` : `${percentage}%`;
 
-                    // Enhanced Recommendations
-                    const mainAction = enhancedRec.main_action || 'standard_production';
-                    const actionDisplay = mainAction.replace('_', ' ').split(' ').map(word =>
-                        word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(' ');
+                    // Enhanced Recommendations - use humanized recommendation if available
+                    const humanRecEnhanced = recommendations.human_recommendation;
+                    let actionDisplay = 'Standard Production';
+
+                    if (humanRecEnhanced && humanRecEnhanced.recommendation_level) {
+                        const levelToAction = {
+                            'maximize': 'Maximize Production',
+                            'standard': 'Standard Production',
+                            'reduced': 'Reduce Production',
+                            'minimal': 'Minimal Production',
+                            'critical': 'Emergency Procedures'
+                        };
+                        actionDisplay = levelToAction[humanRecEnhanced.recommendation_level] || 'Standard Production';
+                    } else {
+                        // Fallback to raw Enhanced ML if humanized not available
+                        const mainAction = enhancedRec.main_action || 'standard_production';
+                        actionDisplay = mainAction.replace('_', ' ').split(' ').map(word =>
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                        ).join(' ');
+                    }
 
                     document.getElementById('enhanced-main-action').textContent = actionDisplay;
                     document.getElementById('enhanced-priority').textContent = enhancedRec.priority || 'medium';
@@ -4479,6 +4888,79 @@ Recomendación: ${day.production_recommendation}`;
                         actionEl.style.color = '#d97706';
                     } else {
                         actionEl.style.color = '#059669';
+                    }
+
+                    // === RECOMENDACIÓN HUMANIZADA ===
+                    const humanRecDetails = recommendations.human_recommendation;
+                    if (humanRecDetails && !humanRecDetails.error) {
+                        const humanSection = document.getElementById('human-recommendation-section');
+                        const humanContent = document.getElementById('human-recommendation-content');
+
+                        if (humanSection && humanContent) {
+                            const message = humanRecDetails.main_message || {};
+                            const economicImpact = humanRecDetails.economic_impact || {};
+                            const metadata = humanRecDetails.metadata || {};
+
+                            // Build human-friendly content
+                            let content = `
+                                <div style="margin-bottom: 1rem;">
+                                    <h3 style="margin: 0; font-size: 1.2rem; color: white;">${message.title || 'RECOMENDACIÓN DEL SISTEMA'}</h3>
+                                    <div style="margin-top: 0.5rem; opacity: 0.9; font-size: 0.95rem;">
+                                        <strong>Situación actual:</strong> ${message.situation || 'Evaluando condiciones...'}
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 1rem;">
+                                    <strong style="display: block; margin-bottom: 0.5rem;">📋 Acciones prioritarias:</strong>
+                                    <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.4;">
+                            `;
+
+                            if (message.priority_actions && Array.isArray(message.priority_actions)) {
+                                message.priority_actions.forEach(action => {
+                                    content += `<li>${action}</li>`;
+                                });
+                            }
+
+                            content += `
+                                    </ul>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; font-size: 0.9rem;">
+                                    <div>
+                                        <strong>⏱️ Duración:</strong><br>
+                                        ${message.estimated_duration || 'Por definir'}
+                                    </div>
+                                    <div>
+                                        <strong>💰 Impacto:</strong><br>
+                                        ${economicImpact.cost_category || 'normal'} (${economicImpact.current_cost_per_kg || '13,90'}€/kg)
+                                    </div>
+                                    <div>
+                                        <strong>🎯 Confianza:</strong><br>
+                                        ${message.confidence_level || metadata.confidence || 'media'}
+                                    </div>
+                                    <div>
+                                        <strong>🔄 Revisar en:</strong><br>
+                                        ${Math.round((metadata.review_in_minutes || 180) / 60)} horas
+                                    </div>
+                                </div>
+                            `;
+
+                            // Add contextual messages if available
+                            if (humanRecDetails.situation_context && Array.isArray(humanRecDetails.situation_context)) {
+                                content += `
+                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.3);">
+                                        <strong style="display: block; margin-bottom: 0.5rem;">💡 Contexto:</strong>
+                                        <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.9rem; opacity: 0.95;">
+                                `;
+                                humanRecDetails.situation_context.forEach(context => {
+                                    content += `<li>${context}</li>`;
+                                });
+                                content += `</ul></div>`;
+                            }
+
+                            humanContent.innerHTML = content;
+                            humanSection.style.display = 'block';
+                        }
                     }
 
                     console.log('✨ Enhanced ML data rendered successfully');
