@@ -24,8 +24,8 @@ class BusinessLogicService:
     """Servicio de lógica de negocio que consulta reglas de .claude y humaniza recomendaciones"""
 
     def __init__(self):
-        self.project_root = Path(__file__).parent.parent.parent.parent
-        self.rules_file = self.project_root / ".claude" / "rules" / "business-logic-suggestions.md"
+        # Use direct path to mounted .claude directory in Docker
+        self.rules_file = Path("/app/.claude/rules/business-logic-suggestions.md")
 
         # Cache para reglas leídas
         self._rules_cache = None
@@ -208,6 +208,31 @@ class BusinessLogicService:
 
             # Determine recommendation level
             level = self._determine_recommendation_level(ml_score)
+
+            # === HUMANIZACIÓN DE RECOMENDACIONES TÉCNICAS ===
+            # Si tenemos contexto de Enhanced ML, humanizamos las recomendaciones drásticas
+            if context and context.get('humanize_from_technical'):
+                enhanced_action = context.get('enhanced_ml_action', '')
+                enhanced_priority = context.get('enhanced_ml_priority', '')
+
+                # Humanizar recomendaciones muy drásticas
+                if enhanced_action == 'halt_production' and enhanced_priority == 'critical':
+                    # En lugar de "parar todo", recomendamos reducción gradual
+                    level = 'minimal'  # En lugar de 'critical'
+                    logger.info(f"🔄 Humanized: halt_production -> minimal (gradual approach)")
+
+                elif enhanced_action == 'minimize_production' and enhanced_priority == 'high':
+                    # En lugar de "minimizar", reducir gradualmente
+                    level = 'reduced'  # En lugar de 'minimal'
+                    logger.info(f"🔄 Humanized: minimize_production -> reduced")
+
+                elif enhanced_action == 'reduce_production':
+                    # Mantener como reduced pero con mensaje más suave
+                    level = 'reduced'
+
+                elif enhanced_action == 'maximize_production':
+                    # Mantener maximize pero con prudencia
+                    level = 'maximize'
 
             # Get base template
             template = rules['templates'].get(level, '')

@@ -474,11 +474,22 @@ class DashboardService:
                 # Get ML score (use energy optimization score as primary)
                 ml_score = predictions.get("energy_optimization", {}).get("score", 50)
 
-                # Generate human recommendation
+                # Get Enhanced ML recommendation for context
+                enhanced_rec = predictions.get("enhanced_recommendations", {})
+                enhanced_action = enhanced_rec.get("main_action", "standard_production")
+                enhanced_priority = enhanced_rec.get("priority", "medium")
+
+                # Generate human recommendation with Enhanced ML context
                 human_rec = business_service.generate_human_recommendation(
                     ml_score=ml_score,
                     conditions=conditions,
-                    context={'timestamp': datetime.now(), 'predictions': predictions}
+                    context={
+                        'timestamp': datetime.now(),
+                        'predictions': predictions,
+                        'enhanced_ml_action': enhanced_action,
+                        'enhanced_ml_priority': enhanced_priority,
+                        'humanize_from_technical': True  # Flag to humanize technical recommendation
+                    }
                 )
 
                 recommendations["human_recommendation"] = human_rec
@@ -623,7 +634,8 @@ class DashboardService:
             
             try:
                 # Intentar obtener precios REE recientes para generar tendencias
-                recent_prices = await self.ree_client.get_prices_last_hours(48)
+                async with self.ree_client as ree:
+                    recent_prices = await ree.get_prices_last_hours(48)
                 if recent_prices:
                     recent_avg = sum(p.price_eur_mwh for p in recent_prices) / len(recent_prices)
                     

@@ -38,6 +38,7 @@ services:
       - ./docker/services/fastapi/logs:/app/logs
       - ./models:/app/models
       - ./scripts:/app/scripts
+      - ./.claude:/app/.claude  # Business logic rules and settings
     depends_on:
       - influxdb
     networks:
