@@ -18,6 +18,7 @@ from .ree_client import REEClient
 from .openweathermap_client import OpenWeatherMapClient
 from .ml_models import ChocolateMLModels
 from .feature_engineering import ChocolateFeatureEngine
+from .business_logic_service import get_business_logic_service
 
 logger = logging.getLogger(__name__)
 
@@ -285,7 +286,10 @@ class DashboardService:
             "enhanced_cost_insights": [],
             "enhanced_timing": [],
             "enhanced_quality_mix": [],
-            "enhanced_alerts": []
+            "enhanced_alerts": [],
+
+            # === SECCIÓN HUMANIZADA ===
+            "human_recommendation": None
         }
         
         try:
@@ -454,6 +458,38 @@ class DashboardService:
                 recommendations["enhanced_quality_mix"].append("🍫 CALIDAD PREMIUM: Condiciones favorables para conchado extendido")
             elif enhanced_cost.get("cost_category") == "high":
                 recommendations["enhanced_quality_mix"].append("📦 CALIDAD ESTÁNDAR: Priorizar volumen sobre tiempo de conchado")
+
+            # === RECOMENDACIÓN HUMANIZADA ===
+            try:
+                # Generate human recommendation using BusinessLogicService
+                business_service = get_business_logic_service()
+
+                # Prepare conditions for business logic
+                conditions = {
+                    'price_eur_kwh': current_info.get("energy", {}).get("price_eur_kwh", 0.15),
+                    'temperature': current_info.get("weather", {}).get("temperature", 20),
+                    'humidity': current_info.get("weather", {}).get("humidity", 50)
+                }
+
+                # Get ML score (use energy optimization score as primary)
+                ml_score = predictions.get("energy_optimization", {}).get("score", 50)
+
+                # Generate human recommendation
+                human_rec = business_service.generate_human_recommendation(
+                    ml_score=ml_score,
+                    conditions=conditions,
+                    context={'timestamp': datetime.now(), 'predictions': predictions}
+                )
+
+                recommendations["human_recommendation"] = human_rec
+                logger.info(f"✅ Human recommendation generated successfully")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Could not generate human recommendation: {e}")
+                recommendations["human_recommendation"] = {
+                    "error": "Human recommendation service not available",
+                    "fallback": "Using technical recommendations"
+                }
 
             return recommendations
             

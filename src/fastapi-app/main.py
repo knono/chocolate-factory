@@ -2987,6 +2987,40 @@ async def get_dashboard_recommendations():
         raise HTTPException(status_code=500, detail=f"Dashboard recommendations error: {str(e)}")
 
 
+@app.get("/dashboard/human-recommendation", tags=["Dashboard"])
+async def get_human_recommendation():
+    """🧠 Recomendación humanizada basada en ML + Reglas de Negocio"""
+    try:
+        from services.business_logic_service import get_business_logic_service
+        from services.enhanced_ml_service import get_enhanced_ml_service
+        from services.data_ingestion import get_data_ingestion_service
+
+        # Get current data
+        data_service = get_data_ingestion_service()
+        current_data = await data_service.get_current_conditions()
+
+        # Get ML prediction
+        ml_service = get_enhanced_ml_service()
+        ml_results = await ml_service.get_predictions_for_conditions(current_data)
+
+        # Extract ML score (use energy optimization score as primary)
+        ml_score = ml_results.get('energy_optimization', {}).get('score', 50)
+
+        # Get human recommendation
+        business_service = get_business_logic_service()
+        human_rec = business_service.generate_human_recommendation(
+            ml_score=ml_score,
+            conditions=current_data,
+            context={'timestamp': datetime.now(), 'ml_results': ml_results}
+        )
+
+        return human_rec
+
+    except Exception as e:
+        logger.error(f"Human recommendation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Human recommendation error: {str(e)}")
+
+
 # === BACKGROUND TASKS ===
 
 
@@ -4020,6 +4054,14 @@ async def serve_enhanced_dashboard():
                         <!-- Se llena dinámicamente -->
                     </div>
                 </div>
+
+                <!-- Recomendación Humanizada -->
+                <div id="human-recommendation-section" style="margin-top: 2rem; display: none;">
+                    <h4 style="color: #FF6B35; margin-bottom: 1rem; font-size: 1.1rem;">🧠 Recomendación del Sistema</h4>
+                    <div id="human-recommendation-content" style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(255,107,53,0.3);">
+                        <!-- Se llena dinámicamente -->
+                    </div>
+                </div>
             </div>
             
             <!-- Información Compacta -->
@@ -4479,6 +4521,79 @@ Recomendación: ${day.production_recommendation}`;
                         actionEl.style.color = '#d97706';
                     } else {
                         actionEl.style.color = '#059669';
+                    }
+
+                    // === RECOMENDACIÓN HUMANIZADA ===
+                    const humanRec = recommendations.human_recommendation;
+                    if (humanRec && !humanRec.error) {
+                        const humanSection = document.getElementById('human-recommendation-section');
+                        const humanContent = document.getElementById('human-recommendation-content');
+
+                        if (humanSection && humanContent) {
+                            const message = humanRec.main_message || {};
+                            const economicImpact = humanRec.economic_impact || {};
+                            const metadata = humanRec.metadata || {};
+
+                            // Build human-friendly content
+                            let content = `
+                                <div style="margin-bottom: 1rem;">
+                                    <h3 style="margin: 0; font-size: 1.2rem; color: white;">${message.title || 'RECOMENDACIÓN DEL SISTEMA'}</h3>
+                                    <div style="margin-top: 0.5rem; opacity: 0.9; font-size: 0.95rem;">
+                                        <strong>Situación actual:</strong> ${message.situation || 'Evaluando condiciones...'}
+                                    </div>
+                                </div>
+
+                                <div style="margin-bottom: 1rem;">
+                                    <strong style="display: block; margin-bottom: 0.5rem;">📋 Acciones prioritarias:</strong>
+                                    <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.4;">
+                            `;
+
+                            if (message.priority_actions && Array.isArray(message.priority_actions)) {
+                                message.priority_actions.forEach(action => {
+                                    content += `<li>${action}</li>`;
+                                });
+                            }
+
+                            content += `
+                                    </ul>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; font-size: 0.9rem;">
+                                    <div>
+                                        <strong>⏱️ Duración:</strong><br>
+                                        ${message.estimated_duration || 'Por definir'}
+                                    </div>
+                                    <div>
+                                        <strong>💰 Impacto:</strong><br>
+                                        ${economicImpact.cost_category || 'normal'} (${economicImpact.current_cost_per_kg || '13,90'}€/kg)
+                                    </div>
+                                    <div>
+                                        <strong>🎯 Confianza:</strong><br>
+                                        ${message.confidence_level || metadata.confidence || 'media'}
+                                    </div>
+                                    <div>
+                                        <strong>🔄 Revisar en:</strong><br>
+                                        ${Math.round((metadata.review_in_minutes || 180) / 60)} horas
+                                    </div>
+                                </div>
+                            `;
+
+                            // Add contextual messages if available
+                            if (humanRec.situation_context && Array.isArray(humanRec.situation_context)) {
+                                content += `
+                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.3);">
+                                        <strong style="display: block; margin-bottom: 0.5rem;">💡 Contexto:</strong>
+                                        <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.9rem; opacity: 0.95;">
+                                `;
+                                humanRec.situation_context.forEach(context => {
+                                    content += `<li>${context}</li>`;
+                                });
+                                content += `</ul></div>`;
+                            }
+
+                            humanContent.innerHTML = content;
+                            humanSection.style.display = 'block';
+                        }
                     }
 
                     console.log('✨ Enhanced ML data rendered successfully');
