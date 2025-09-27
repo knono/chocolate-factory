@@ -319,3 +319,66 @@ docker compose up -d chocolate-factory
   - **Cleanup**: Removed all datosclima references from codebase
 - **Result**: ✅ Simplified, reliable backfill using official AEMET data primarily
 - **Status**: AEMET handles historical data effectively, SIAR reserved for extreme cases only
+
+### 🎨 **Dashboard Enhancement & BusinessLogicService Integration (Sept 26-27, 2025)**
+
+#### **BusinessLogicService Implementation**
+- **Purpose**: Bridge technical ML outputs with human-friendly recommendations
+- **Location**: `src/fastapi-app/services/business_logic_service.py`
+- **Rules Source**: `.claude/rules/business-logic-suggestions.md`
+- **Key Features**:
+  - Humanizes drastic ML recommendations (e.g., "halt_production" → "minimal production")
+  - Provides context-aware Spanish business messages
+  - Integrates with Enhanced ML predictions for gradual operational guidance
+
+#### **Critical Technical Fixes Applied**
+1. **BusinessLogicService Integration**:
+   - **Docker Mount**: Added `./.claude:/app/.claude` to docker-compose.yml
+   - **Path Fix**: Corrected rules file path to `/app/.claude/rules/business-logic-suggestions.md`
+   - **Result**: ✅ Business rules now load correctly and generate human recommendations
+
+2. **REE Client Connection Issues**:
+   - **Problem**: `RuntimeError: Cannot send a request, as the client has been closed`
+   - **Fix**: Corrected context manager usage in dashboard.py line 637
+   - **Result**: ✅ REE API calls now work properly with `async with self.ree_client as ree:`
+
+3. **JavaScript Variable Conflicts**:
+   - **Problem**: `Identifier 'humanRec' has already been declared` causing dashboard failures
+   - **Solution**: Renamed variables to unique names:
+     - `renderUnifiedREEAnalysis`: `humanRecUnified`
+     - `renderEnhancedMLData`: `humanRecEnhanced` and `humanRecDetails`
+   - **Result**: ✅ JavaScript executes without syntax errors
+
+4. **Historical Data Display Issues**:
+   - **Problem**: Costo Total showing 0€ instead of 7,902€, Min/Max showing 0.0000
+   - **Cause**: JavaScript accessing wrong data properties
+   - **Fix**: Corrected property paths:
+     - `analytics.total_cost` → `analytics.factory_metrics.total_cost`
+     - `priceAnalysis.min_price` → `priceAnalysis.min_price_eur_kwh`
+   - **Result**: ✅ Displays correct values: 7,902€, 0.0331-0.3543 €/kWh
+
+5. **Visual Contrast Issues**:
+   - **Problem**: White text on white background in metrics cards
+   - **Fix**: Changed all color styles from `color: white` to `color: #333` in historical metrics
+   - **Result**: ✅ Text fully visible with proper contrast
+
+#### **Dashboard Unification Completed**
+- **4 → 1 Card**: Combined location, system status, data sources, and factory state into single "Información del Sistema" card
+- **Grid Layout**: 2x2 organized sections with color-coded categories
+- **Information Preserved**: All original data maintained in compact, organized format
+
+#### **Recommendation System Architecture**
+```
+Enhanced ML (Technical) → BusinessLogicService → Human-Friendly Output
+     ↓                           ↓                      ↓
+"halt_production"         Humanization Layer      "PRODUCCIÓN MÍNIMA"
+"critical priority"       Business Rules          Gradual guidance
+Raw ML scores            Context-aware            Spanish messages
+```
+
+#### **Quality Assurance Status**
+- ✅ **No JavaScript Errors**: Console completely clean
+- ✅ **Data Accuracy**: All metrics showing correct values
+- ✅ **Visual Clarity**: All text properly visible
+- ✅ **Dual Access**: Local + Tailscale working perfectly
+- ✅ **Recommendation Consistency**: Unified source of truth implemented
