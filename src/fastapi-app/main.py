@@ -8,7 +8,7 @@ El Cerebro Autónomo: FastAPI + APScheduler para automatización completa
 - Simulación: SimPy/SciPy para lógica de fábrica
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -57,18 +57,44 @@ from services.enhanced_ml_service import EnhancedMLService
 from services.enhanced_recommendations import EnhancedRecommendationEngine
 from services.dashboard import DashboardService
 
-# Global service instances (initialized once, shared across the app)
-global_direct_ml = None
-global_dashboard_service = None
-global_model_registry = None
-
-# Configurar logging
+# Configurar logging ANTES de usarlo
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-
 logger = logging.getLogger(__name__)
+
+# Sprint 03: Service Layer imports
+# Necesita bind mounts adicionales en docker-compose.yml:
+#   - ./src/api:/app/api
+#   - ./src/services:/app/src_services
+#   - ./src/repositories:/app/repositories
+#   - ./src/core:/app/core
+SPRINT03_ENABLED = False
+try:
+    import sys
+    import os
+    # Agregar path para imports de src/
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from api.dependencies import get_production_service
+    from api.v1.schemas.production import (
+        ProductionBatchCreate,
+        ProductionBatchResponse,
+        ProductionStats
+    )
+    SPRINT03_ENABLED = True
+    logger.info("✅ Sprint 03: Service Layer enabled")
+except ImportError as e:
+    logger.warning(f"⚠️  Sprint 03 Service Layer not available: {e}")
+    logger.debug("    Add bind mounts in docker-compose.yml to enable Sprint 03 features")
+
+# Global service instances (initialized once, shared across the app)
+global_direct_ml = None
+global_dashboard_service = None
+global_model_registry = None
 
 
 def get_global_direct_ml():
@@ -5321,6 +5347,133 @@ async def reload_model_endpoint(model_name: str):
     except Exception as e:
         logger.error(f"Failed to reload model {model_name}: {e}")
         raise HTTPException(status_code=500, detail=f"Reload failed: {str(e)}")
+
+
+# =====================================================
+# Sprint 03: Service Layer Endpoints
+# =====================================================
+
+if SPRINT03_ENABLED:
+    @app.get("/api/production-data", response_model=List[Dict[str, Any]])
+    async def get_production_data(
+        limit: int = 10,
+        service = Depends(get_production_service)
+    ):
+        """
+        Get recent production data using service layer.
+
+        Args:
+            limit: Maximum number of batches to return
+            service: Injected production service
+
+        Returns:
+            List of production batch data
+        """
+        try:
+            data = await service.get_recent_production_data(limit=limit)
+            return data
+        except Exception as e:
+            logger.error(f"Failed to get production data: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    @app.get("/api/quality-metrics")
+    async def get_quality_metrics_endpoint(
+        service = Depends(get_production_service)
+    ):
+        """
+        Get quality metrics with business logic applied.
+
+        Returns:
+            Quality metrics dictionary
+        """
+        try:
+            metrics = await service.get_quality_metrics()
+            return metrics
+        except Exception as e:
+            logger.error(f"Failed to get quality metrics: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    @app.post("/api/production/batch", response_model=ProductionBatchResponse)
+    async def create_production_batch(
+        batch: ProductionBatchCreate,
+        service = Depends(get_production_service)
+    ):
+        """
+        Create a new production batch with quality prediction.
+
+        Args:
+            batch: Production batch data
+            service: Injected production service
+
+        Returns:
+            Created batch with quality prediction
+        """
+        try:
+            batch_dict = batch.dict()
+            created = await service.create_production_batch(batch_dict)
+            return ProductionBatchResponse(**created)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Failed to create batch: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    @app.get("/api/production/stats", response_model=ProductionStats)
+    async def get_production_stats(
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        service = Depends(get_production_service)
+    ):
+        """
+        Get production statistics with insights.
+
+        Args:
+            start_date: Start of date range
+            end_date: End of date range
+            service: Injected production service
+
+        Returns:
+            Production statistics
+        """
+        try:
+            stats = await service.get_production_stats(start_date, end_date)
+            return ProductionStats(**stats)
+        except Exception as e:
+            logger.error(f"Failed to get production stats: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    @app.get("/api/production/{batch_id}/analysis")
+    async def analyze_batch(
+        batch_id: str,
+        service = Depends(get_production_service)
+    ):
+        """
+        Perform detailed analysis of a specific batch.
+
+        Args:
+            batch_id: Batch identifier
+            service: Injected production service
+
+        Returns:
+            Batch analysis with recommendations
+        """
+        try:
+            analysis = await service.analyze_batch(batch_id)
+            return analysis
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            logger.error(f"Failed to analyze batch {batch_id}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+    logger.info("✅ Sprint 03 Production API endpoints registered")
+else:
+    logger.warning("⚠️  Sprint 03 Service Layer disabled - endpoints not available")
 
 
 if __name__ == "__main__":
