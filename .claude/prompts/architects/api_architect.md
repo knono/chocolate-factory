@@ -393,3 +393,47 @@ class ProductionService(BaseService):
             'batch_count': len(raw_data),
             'period': {'from': date_from, 'to': date_to}
         }
+```
+
+
+## Migration from Monolith
+
+### Phase 1: Setup Structure (Sprint 1)
+```bash
+# Create directory structure
+mkdir -p src/{api,core,services,repositories,models,tasks}
+mkdir -p src/api/{v1,middleware}
+mkdir -p src/api/v1/{endpoints,schemas}
+
+# Move and split main.py
+# Extract configurations -> core/config.py
+# Extract models -> models/
+# Extract business logic -> services/
+```
+
+### Phase 2: Implement Core (Sprint 2)
+1. Create base classes (Repository, Service)
+2. Setup dependency injection
+3. Configure database and cache
+4. Add error handling middleware
+
+### Phase 3: Migrate Endpoints (Sprint 3)
+1. Convert each endpoint to new structure
+2. Add Pydantic validation
+3. Implement service layer
+4. Add unit tests
+
+### Phase 4: Add Features (Sprint 4)
+1. Implement caching
+2. Add background tasks
+3. Setup monitoring
+4. Add API documentation
+
+## Success Metrics
+- API response time < 200ms (p95)
+- Test coverage > 85%
+- Zero business logic in route handlers
+- All endpoints documented with OpenAPI
+- Rate limiting implemented
+- Structured logging in place
+- Database queries optimized with indexes
