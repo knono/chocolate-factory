@@ -24,6 +24,34 @@ from services.aemet_client import AEMETClient
 from services.openweathermap_client import OpenWeatherMapClient
 from services.initialization import InitializationService
 from services.initialization.historical_ingestion import HistoricalDataIngestion
+# Import ML modules - Sprint 02 Nueva Arquitectura (Temporary disable for Sprint 02)
+# TODO Sprint 03: Fix container path structure for ml/ imports
+# import sys
+# import os
+# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# from ml.models.model_registry import model_registry
+# from ml.config import ML_CONFIG
+
+# Temporary placeholders - Sprint 02
+model_registry = None
+ML_CONFIG = {
+    'models': {
+        'quality_predictor': {
+            'version': '1.0.0',
+            'features': ['temperature', 'humidity', 'roasting_time', 'bean_origin_encoded', 'cocoa_percentage'],
+            'model_type': 'RandomForestClassifier'
+        }
+    },
+    'quality_thresholds': {
+        'Grade_A': {'min': 85, 'max': 100},
+        'Grade_B': {'min': 70, 'max': 84},
+        'Grade_C': {'min': 50, 'max': 69},
+        'Grade_D': {'min': 0, 'max': 49}
+    }
+}
+import pandas as pd
+import numpy as np
+
 from services.direct_ml import DirectMLService
 from services.enhanced_ml_service import EnhancedMLService
 from services.enhanced_recommendations import EnhancedRecommendationEngine
@@ -32,6 +60,7 @@ from services.dashboard import DashboardService
 # Global service instances (initialized once, shared across the app)
 global_direct_ml = None
 global_dashboard_service = None
+global_model_registry = None
 
 # Configurar logging
 logging.basicConfig(
@@ -58,17 +87,31 @@ def get_global_dashboard_service():
     return global_dashboard_service
 
 
+def get_global_model_registry():
+    """Get the global model registry instance - Sprint 02"""
+    global global_model_registry
+    if global_model_registry is None:
+        # TODO Sprint 03: Initialize real model_registry
+        global_model_registry = model_registry  # None for Sprint 02
+    return global_model_registry
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gestión del ciclo de vida de la aplicación"""
     logger.info("🧠 Iniciando El Cerebro Autónomo - Chocolate Factory Brain")
     
-    # Initialize global services (simplified)
-    global global_direct_ml, global_dashboard_service
+    # Initialize global services - Sprint 02 Architecture
+    global global_direct_ml, global_dashboard_service, global_model_registry
     try:
+        # Initialize new ML architecture first (placeholder Sprint 02)
+        global_model_registry = model_registry  # None for now
+        logger.info("🧠 Sprint 02: Model Registry placeholder initialized")
+
+        # Initialize legacy services (maintain compatibility)
         global_direct_ml = DirectMLService()
         global_dashboard_service = DashboardService()
-        logger.info("🤖 Global direct ML services initialized")
+        logger.info("🤖 Global ML services initialized (hybrid architecture)")
     except Exception as e:
         logger.error(f"❌ Failed to initialize global services: {e}")
     
@@ -129,7 +172,27 @@ class RangeBackfillRequest(BaseModel):
     start_date: str  # ISO format: 2025-09-08T00:00:00Z
     end_date: str    # ISO format: 2025-09-17T23:59:59Z
     data_source: str = "both"  # "ree", "weather", "both"
-    chunk_hours: int = 24  # Process in chunks to avoid timeouts
+
+# =====================================================
+# Sprint 02: Nueva Arquitectura ML - Pydantic Models
+# =====================================================
+
+class TrainingData(BaseModel):
+    data: List[Dict[str, Any]]
+    target_column: str
+    model_name: str = "quality_predictor"
+
+class PredictionRequest(BaseModel):
+    temperature: float
+    humidity: float
+    roasting_time: float
+    cocoa_percentage: float
+    bean_origin: Optional[str] = "Unknown"
+
+class PredictionResponse(BaseModel):
+    prediction: str
+    confidence: float
+    insights: Optional[Dict[str, Any]] = None
 
 
 @app.get("/")
@@ -5113,6 +5176,151 @@ async def debug_training_data():
         }
 
 
+# =====================================================
+# Sprint 02: Nueva Arquitectura ML - Endpoints
+# =====================================================
+
+@app.post("/ml/models/train", response_model=Dict[str, Any])
+async def train_model_endpoint(training_data: TrainingData):
+    """🎯 Train ML model using new modular architecture (Sprint 02 placeholder)"""
+    try:
+        registry = get_global_model_registry()
+
+        # TODO Sprint 03: Implement real training when registry is available
+        if registry is None:
+            return {
+                "🧠": "Sprint 02 ML Training (Placeholder)",
+                "status": "⚠️ Model registry not available yet",
+                "model_name": training_data.model_name,
+                "message": "Training will be implemented in Sprint 03",
+                "data_received": {
+                    "records": len(training_data.data),
+                    "target_column": training_data.target_column
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+
+        # Real implementation for Sprint 03
+        df = pd.DataFrame(training_data.data)
+        if training_data.target_column not in df.columns:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Target column '{training_data.target_column}' not found in data"
+            )
+
+        X = df.drop(columns=[training_data.target_column])
+        y = df[training_data.target_column]
+        result = registry.train_model(training_data.model_name, X, y)
+
+        return {
+            "🧠": "Sprint 02 ML Training",
+            "status": "✅ Model trained successfully",
+            "model_name": training_data.model_name,
+            "training_result": result,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to train model {training_data.model_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
+
+
+@app.post("/ml/models/predict", response_model=PredictionResponse)
+async def predict_endpoint(request: PredictionRequest) -> PredictionResponse:
+    """🎯 Make predictions using new modular architecture"""
+    try:
+        registry = get_global_model_registry()
+        model = registry.get("quality_predictor")
+
+        if not model:
+            raise HTTPException(status_code=404, detail="Quality predictor model not found")
+
+        # Prepare input data
+        input_data = pd.DataFrame([{
+            'temperature': request.temperature,
+            'humidity': request.humidity,
+            'roasting_time': request.roasting_time,
+            'cocoa_percentage': request.cocoa_percentage,
+            'bean_origin': request.bean_origin
+        }])
+
+        # Make prediction
+        prediction = model.predict(input_data)
+        confidence = float(np.max(model.predict_proba(input_data))) if hasattr(model, 'predict_proba') else 0.95
+
+        # Generate insights
+        insights = {
+            "model_version": model.config.get('version', '1.0.0'),
+            "input_features": input_data.to_dict('records')[0],
+            "quality_thresholds": ML_CONFIG.get('quality_thresholds', {}),
+            "recommendation": f"Based on your input parameters, the predicted quality is {prediction[0]}"
+        }
+
+        return PredictionResponse(
+            prediction=str(prediction[0]),
+            confidence=confidence,
+            insights=insights
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to make prediction: {e}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+
+@app.get("/ml/models/status")
+async def get_ml_models_status():
+    """📊 Get status of all models in registry"""
+    try:
+        registry = get_global_model_registry()
+
+        loaded_models = registry.list_models()
+        available_models = registry.list_available_models()
+
+        model_details = {}
+        for name in set(loaded_models + available_models):
+            info = registry.get_model_info(name)
+            if info:
+                model_details[name] = info
+
+        return {
+            "🧠": "Sprint 02 ML Status",
+            "status": "✅ Registry operational",
+            "loaded_models": loaded_models,
+            "available_models": available_models,
+            "model_details": model_details,
+            "ml_config": ML_CONFIG,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get ML status: {e}")
+        raise HTTPException(status_code=500, detail=f"ML status check failed: {str(e)}")
+
+
+@app.post("/ml/models/{model_name}/reload")
+async def reload_model_endpoint(model_name: str):
+    """🔄 Reload a specific model from disk"""
+    try:
+        registry = get_global_model_registry()
+
+        success = registry.reload_model(model_name)
+
+        if success:
+            return {
+                "🔄": "Model Reload",
+                "status": f"✅ Model '{model_name}' reloaded successfully",
+                "model_name": model_name,
+                "timestamp": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{model_name}' could not be reloaded"
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to reload model {model_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Reload failed: {str(e)}")
 
 
 if __name__ == "__main__":
