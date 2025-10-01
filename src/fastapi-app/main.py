@@ -11,11 +11,15 @@ El Cerebro Autónomo: FastAPI + APScheduler para automatización completa
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
+import sys
+import os
 
 from services.scheduler import get_scheduler_service, start_scheduler, stop_scheduler
 from services.data_ingestion import DataIngestionService, run_current_ingestion, run_daily_ingestion
@@ -63,6 +67,23 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Sprint 05: Optimization imports
+SPRINT05_ENABLED = False
+try:
+    # Add project root to path for Sprint 05 imports
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from api.middleware.rate_limiter import RateLimitMiddleware, default_rate_limiter, ml_rate_limiter
+    from core.cache.cache_manager import CacheMiddleware, cache_manager
+    from core.health.health_checks import health_checker
+    SPRINT05_ENABLED = True
+    logger.info("✅ Sprint 05: Optimization features enabled")
+except ImportError as e:
+    logger.warning(f"⚠️  Sprint 05 Optimization not available: {e}")
+    logger.debug("    Sprint 05 features (cache, rate limiting, health checks) disabled")
 
 # Sprint 03: Service Layer imports
 # Necesita bind mounts adicionales en docker-compose.yml:
@@ -164,7 +185,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configurar CORS para Node-RED dashboard
+# =====================================================
+# Sprint 05: Middlewares (Order matters!)
+# =====================================================
+
+# 1. GZip Compression (should be first)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+logger.info("✅ GZip compression middleware enabled")
+
+# 2. CORS (before rate limiting)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # En producción, especificar dominios
@@ -172,6 +201,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 3. Rate Limiting (Sprint 05 - if enabled)
+# Note: Rate limiting and cache middleware are implemented as callable classes
+# They will be used via Depends() in endpoints that need protection
+if SPRINT05_ENABLED:
+    logger.info("✅ Rate limiting available (use via Depends)")
+    logger.info("✅ Cache system available (use via decorators)")
+
+# Mount static files for dashboard (Sprint 05)
+static_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static")
+if os.path.exists(static_path):
+    app.mount("/static", StaticFiles(directory=static_path), name="static")
+    logger.info(f"✅ Static files mounted from: {static_path}")
+else:
+    logger.warning(f"⚠️  Static directory not found: {static_path}")
 
 # Modelos Pydantic para requests
 class IngestionRequest(BaseModel):
@@ -223,18 +267,26 @@ class PredictionResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    """Endpoint raíz - Estado del sistema"""
+    """Endpoint raíz - Redirige al dashboard estático"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/static/index.html")
+
+@app.get("/api")
+async def api_root():
+    """API root - Estado del sistema"""
     return {
         "service": "Chocolate Factory Enhanced ML Brain",
         "status": "✨ Enhanced ML System con datos históricos operativo",
         "version": "0.31.0",
         "endpoints": {
+            "dashboard": "/static/index.html",
+            "dashboard_data": "/dashboard/complete",
             "health": "/health",
             "predict": "/predict (pendiente)",
             "ingest": "/ingest-now",
             "scheduler": "/scheduler/status",
             "ree_prices": "/ree/prices",
-            "aemet_weather": "/aemet/weather", 
+            "aemet_weather": "/aemet/weather",
             "openweather": "/weather/openweather",
             "openweather_forecast": "/weather/openweather/forecast",
             "openweather_status": "/weather/openweather/status",
@@ -261,12 +313,59 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check para Docker"""
-    return {
-        "status": "healthy",
-        "service": "chocolate_factory_brain",
-        "message": "🧠 Sistema operativo"
-    }
+    """Health check completo - Sprint 05"""
+    if SPRINT05_ENABLED:
+        try:
+            health_result = await health_checker.run_all_checks()
+            return health_result
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+    else:
+        # Fallback básico si Sprint 05 no está habilitado
+        return {
+            "status": "healthy",
+            "service": "chocolate_factory_brain",
+            "message": "🧠 Sistema operativo"
+        }
+
+@app.get("/health/ready")
+async def readiness_check():
+    """Readiness probe - K8s compatible (Sprint 05)"""
+    if SPRINT05_ENABLED:
+        try:
+            result = await health_checker.get_readiness()
+            status_code = 200 if result.get('ready') else 503
+            return JSONResponse(content=result, status_code=status_code)
+        except Exception as e:
+            return JSONResponse(
+                content={"ready": False, "error": str(e)},
+                status_code=503
+            )
+    else:
+        return {"ready": True, "message": "Sprint 05 not enabled"}
+
+@app.get("/health/live")
+async def liveness_check():
+    """Liveness probe - K8s compatible (Sprint 05)"""
+    if SPRINT05_ENABLED:
+        try:
+            result = await health_checker.get_liveness()
+            return result
+        except Exception as e:
+            return JSONResponse(
+                content={"alive": False, "error": str(e)},
+                status_code=503
+            )
+    else:
+        return {
+            "alive": True,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
 
 
 @app.get("/debug/raw-ml-data")
@@ -5474,6 +5573,148 @@ if SPRINT03_ENABLED:
     logger.info("✅ Sprint 03 Production API endpoints registered")
 else:
     logger.warning("⚠️  Sprint 03 Service Layer disabled - endpoints not available")
+
+
+# =============================================================================
+# SPRINT 05: OPTIMIZATION & MONITORING ENDPOINTS
+# =============================================================================
+
+@app.get("/metrics")
+async def get_metrics():
+    """📊 Métricas de la aplicación (Sprint 05)"""
+    if SPRINT05_ENABLED:
+        try:
+            cache_stats = cache_manager.get_stats()
+            rate_limit_stats = default_rate_limiter.get_stats()
+
+            return {
+                "service": "Chocolate Factory - Metrics",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "cache": cache_stats,
+                "rate_limiting": rate_limit_stats,
+                "sprint05_enabled": True
+            }
+        except Exception as e:
+            logger.error(f"Failed to get metrics: {e}")
+            return {
+                "error": str(e),
+                "sprint05_enabled": True
+            }
+    else:
+        return {
+            "message": "Sprint 05 not enabled",
+            "sprint05_enabled": False
+        }
+
+
+@app.get("/api/cache/stats")
+async def get_cache_stats():
+    """📊 Estadísticas del sistema de caché (Sprint 05)"""
+    if SPRINT05_ENABLED:
+        try:
+            stats = cache_manager.get_stats()
+            return {
+                "service": "Cache Manager",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "statistics": stats,
+                "recommendations": {
+                    "hit_rate": "Good" if stats['hit_rate'] >= 70 else "Consider increasing TTL",
+                    "memory_usage": f"{stats['entries']} entries cached"
+                }
+            }
+        except Exception as e:
+            logger.error(f"Failed to get cache stats: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    else:
+        return {
+            "error": "Sprint 05 not enabled",
+            "sprint05_enabled": False
+        }
+
+
+@app.post("/api/cache/clear")
+async def clear_cache(pattern: Optional[str] = None):
+    """🗑️ Limpiar caché (completo o por patrón) - Sprint 05"""
+    if SPRINT05_ENABLED:
+        try:
+            if pattern:
+                count = cache_manager.invalidate_pattern(pattern)
+                message = f"Invalidated {count} cache entries matching pattern: {pattern}"
+            else:
+                cache_manager.clear()
+                message = "All cache cleared"
+
+            return {
+                "service": "Cache Manager",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "action": "clear",
+                "message": message,
+                "pattern": pattern
+            }
+        except Exception as e:
+            logger.error(f"Failed to clear cache: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    else:
+        raise HTTPException(status_code=501, detail="Sprint 05 not enabled")
+
+
+@app.get("/api/rate-limit/stats")
+async def get_rate_limit_stats():
+    """📊 Estadísticas de rate limiting (Sprint 05)"""
+    if SPRINT05_ENABLED:
+        try:
+            stats = default_rate_limiter.get_stats()
+            ml_stats = ml_rate_limiter.get_stats()
+
+            return {
+                "service": "Rate Limiter",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "default_limiter": stats,
+                "ml_limiter": ml_stats,
+                "configuration": {
+                    "default": {
+                        "requests_per_minute": default_rate_limiter.requests_per_minute,
+                        "burst_size": default_rate_limiter.burst_size
+                    },
+                    "ml": {
+                        "requests_per_minute": ml_rate_limiter.requests_per_minute,
+                        "burst_size": ml_rate_limiter.burst_size
+                    }
+                }
+            }
+        except Exception as e:
+            logger.error(f"Failed to get rate limit stats: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    else:
+        return {
+            "error": "Sprint 05 not enabled",
+            "sprint05_enabled": False
+        }
+
+
+@app.post("/api/rate-limit/reset/{client_id}")
+async def reset_rate_limit(client_id: str):
+    """🔄 Resetear rate limit para un cliente específico (Sprint 05)"""
+    if SPRINT05_ENABLED:
+        try:
+            default_rate_limiter.reset_client(client_id)
+            ml_rate_limiter.reset_client(client_id)
+
+            return {
+                "service": "Rate Limiter",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "action": "reset",
+                "client_id": client_id,
+                "message": f"Rate limit reset for client: {client_id}"
+            }
+        except Exception as e:
+            logger.error(f"Failed to reset rate limit: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    else:
+        raise HTTPException(status_code=501, detail="Sprint 05 not enabled")
+
+
+logger.info("✅ Sprint 05 Optimization & Monitoring endpoints registered")
 
 
 if __name__ == "__main__":

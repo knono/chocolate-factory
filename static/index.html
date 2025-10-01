@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chocolate Factory - Dashboard Completo</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components/cards.css">
+    <link rel="stylesheet" href="css/components/heatmap.css">
+    <link rel="stylesheet" href="css/components/alerts.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <h1>🍫 Chocolate Factory - Enhanced Dashboard</h1>
+            <p class="subtitle">El Monitor Avanzado - Enhanced ML con Datos Históricos (SIAR 88k + REE 42k)</p>
+            <div class="status-indicator" id="systemStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Conectando...</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- System Status Card -->
+            <section class="card" id="systemCard">
+                <h2>📊 Información del Sistema</h2>
+                <div class="system-grid" id="systemInfo">
+                    <div class="loading">Cargando información del sistema...</div>
+                </div>
+            </section>
+
+            <!-- Current Info Card -->
+            <section class="card" id="currentInfoCard">
+                <h2>⚡ Información Actual</h2>
+                <div class="current-info-grid" id="currentInfo">
+                    <div class="loading">Cargando datos actuales...</div>
+                </div>
+            </section>
+
+            <!-- Weekly Forecast Heatmap -->
+            <section class="card" id="weeklyForecastCard">
+                <h2>📅 Pronóstico Semanal - Precios Energía</h2>
+                <div id="weeklyHeatmap">
+                    <div class="loading">Cargando heatmap semanal...</div>
+                </div>
+            </section>
+
+            <!-- ML Predictions Card -->
+            <section class="card" id="predictionsCard">
+                <h2>🤖 Predicciones ML Enhanced</h2>
+                <div class="predictions-grid" id="predictions">
+                    <div class="loading">Cargando predicciones ML...</div>
+                </div>
+            </section>
+
+            <!-- Recommendations Card -->
+            <section class="card" id="recommendationsCard">
+                <h2>💡 Recomendaciones Operativas</h2>
+                <div id="recommendations">
+                    <div class="loading">Generando recomendaciones...</div>
+                </div>
+            </section>
+
+            <!-- Alerts Card -->
+            <section class="card" id="alertsCard">
+                <h2>⚠️ Alertas y Notificaciones</h2>
+                <div id="alerts">
+                    <div class="loading">Verificando alertas...</div>
+                </div>
+            </section>
+
+            <!-- Historical Analytics Card -->
+            <section class="card" id="analyticsCard">
+                <h2>📈 Análisis Histórico</h2>
+                <div class="analytics-grid" id="analytics">
+                    <div class="loading">Cargando análisis histórico...</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <p>Última actualización: <span id="lastUpdate">--</span></p>
+            <p>Auto-refresh: <span id="autoRefreshStatus">Activo (30s)</span></p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/utils/api.js"></script>
+    <script src="js/utils/formatters.js"></script>
+    <script src="js/services/dashboard-service.js"></script>
+    <script src="js/components/heatmap.js"></script>
+    <script src="js/components/alerts.js"></script>
+    <script src="js/components/recommendations.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

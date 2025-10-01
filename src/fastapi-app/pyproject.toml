@@ -40,6 +40,7 @@ dependencies = [
     
     # Logging and Monitoring
     "loguru>=0.7.2",
+    "psutil>=5.9.0",  # Sprint 05: System monitoring
     
     # Data Validation and Processing
     "python-multipart>=0.0.6",
