@@ -1,0 +1,208 @@
+/* Weekly Heatmap Component Styles */
+
+.heatmap-container {
+    width: 100%;
+    overflow-x: auto;
+    padding: var(--spacing-md) 0;
+}
+
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: var(--spacing-md);
+    min-width: 700px;
+}
+
+.heatmap-day {
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.heatmap-day::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
+}
+
+/* Price Zone Colors */
+.heatmap-day.optimal::before {
+    background-color: var(--success-color);
+}
+
+.heatmap-day.moderate::before {
+    background-color: var(--info-color);
+}
+
+.heatmap-day.expensive::before {
+    background-color: var(--warning-color);
+}
+
+.heatmap-day.very-expensive::before {
+    background-color: var(--danger-color);
+}
+
+.heatmap-day:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+.heatmap-day:hover::before {
+    opacity: 0.5;
+}
+
+.heatmap-day-header {
+    position: relative;
+    z-index: 1;
+    margin-bottom: var(--spacing-sm);
+}
+
+.heatmap-day-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+}
+
+.heatmap-day-date {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.heatmap-day-content {
+    position: relative;
+    z-index: 1;
+}
+
+.heatmap-price {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: var(--spacing-sm) 0;
+}
+
+.heatmap-price-unit {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.heatmap-weather {
+    margin: var(--spacing-sm) 0;
+    padding: var(--spacing-sm);
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.heatmap-weather-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    margin: 4px 0;
+}
+
+.heatmap-recommendation {
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Heatmap Legend */
+.heatmap-legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: var(--border-radius);
+}
+
+.heatmap-legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.heatmap-legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+
+.heatmap-legend-color.optimal {
+    background-color: var(--success-color);
+}
+
+.heatmap-legend-color.moderate {
+    background-color: var(--info-color);
+}
+
+.heatmap-legend-color.expensive {
+    background-color: var(--warning-color);
+}
+
+.heatmap-legend-color.very-expensive {
+    background-color: var(--danger-color);
+}
+
+.heatmap-legend-label {
+    font-size: 0.9rem;
+}
+
+/* Tooltip */
+.heatmap-tooltip {
+    position: fixed;
+    background-color: rgba(0, 0, 0, 0.95);
+    color: var(--text-primary);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 1000;
+    max-width: 300px;
+    display: none;
+}
+
+.heatmap-tooltip.active {
+    display: block;
+}
+
+.heatmap-tooltip-title {
+    font-weight: bold;
+    margin-bottom: var(--spacing-sm);
+    color: var(--secondary-color);
+}
+
+.heatmap-tooltip-content {
+    font-size: 0.9rem;
+}
+
+.heatmap-tooltip-item {
+    margin: 4px 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .heatmap-grid {
+        grid-template-columns: 1fr;
+        min-width: auto;
+    }
+
+    .heatmap-legend {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+}

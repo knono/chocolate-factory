@@ -1,0 +1,165 @@
+/* Cards Component Styles */
+
+.info-card {
+    background: linear-gradient(135deg, rgba(111, 78, 55, 0.1), rgba(139, 111, 71, 0.1));
+    border-left: 4px solid var(--secondary-color);
+}
+
+.warning-card {
+    background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 152, 0, 0.05));
+    border-left: 4px solid var(--warning-color);
+}
+
+.success-card {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05));
+    border-left: 4px solid var(--success-color);
+}
+
+.danger-card {
+    background: linear-gradient(135deg, rgba(244, 67, 54, 0.1), rgba(244, 67, 54, 0.05));
+    border-left: 4px solid var(--danger-color);
+}
+
+/* Metric Cards */
+.metric-card {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+
+.metric-card:hover::before {
+    transform: scaleX(1);
+}
+
+.metric-card-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-sm);
+    opacity: 0.8;
+}
+
+.metric-card-change {
+    font-size: 0.85rem;
+    margin-top: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.metric-card-change.positive {
+    color: var(--success-color);
+}
+
+.metric-card-change.negative {
+    color: var(--danger-color);
+}
+
+/* Data Source Card */
+.data-source-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.data-source-name {
+    font-weight: 500;
+}
+
+.data-source-status {
+    font-size: 0.9rem;
+}
+
+/* Enhanced Features Card */
+.feature-item {
+    padding: var(--spacing-sm);
+    background-color: rgba(139, 111, 71, 0.1);
+    border-radius: 4px;
+    margin-bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.feature-icon {
+    font-size: 1.2rem;
+}
+
+.feature-text {
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+/* Stat Cards */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.stat-item {
+    text-align: center;
+    padding: var(--spacing-md);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: var(--border-radius);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: var(--spacing-sm);
+}
+
+/* Info Badge */
+.info-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-badge.success {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: var(--success-color);
+}
+
+.info-badge.warning {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: var(--warning-color);
+}
+
+.info-badge.danger {
+    background-color: rgba(244, 67, 54, 0.2);
+    color: var(--danger-color);
+}
+
+.info-badge.info {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: var(--info-color);
+}

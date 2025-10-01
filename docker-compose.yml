@@ -46,6 +46,8 @@ services:
       - ./src/core:/app/core
       - ./src/models:/app/src_models
       - ./src/ml:/app/ml
+      # Sprint 05: Static dashboard files
+      - ./static:/app/static
     depends_on:
       - influxdb
     networks:
