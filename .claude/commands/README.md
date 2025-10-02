@@ -33,6 +33,22 @@ Detecta información comprometida antes de commits.
 
 **[Ver documentación completa →](./security-check.md)**
 
+### 🗄️ `/influxdb-admin` - Administración InfluxDB
+Administrador especializado de InfluxDB para operaciones, backups y troubleshooting.
+
+```bash
+/influxdb-admin
+```
+
+**Capacidades:**
+- Exploración de buckets y measurements
+- Análisis de datos y detección de gaps
+- Backup/restore automatizado
+- Performance monitoring
+- Troubleshooting guiado
+
+**[Ver documentación completa →](./influxdb-admin.md)** | **[Arquitectura InfluxDB →](../../docs/influxdb-architecture.md)**
+
 ## 🔧 Configuración de Hooks
 
 Los scripts también pueden ejecutarse automáticamente mediante hooks configurados en `../settings.json`:
@@ -69,12 +85,16 @@ Editar `.claude/settings.json` y cambiar `"enabled": true` para los hooks desead
 │   ├── backfill.md
 │   ├── quick-backfill.md
 │   ├── security-check.md
+│   ├── influxdb-admin.md    # Nuevo: Admin InfluxDB
 │   └── README.md
 ├── hooks/              # Scripts ejecutables
 │   ├── backfill.sh
 │   ├── quick-backfill.sh
 │   └── security-check.sh
 └── settings.json       # Configuración de hooks y comandos
+
+docs/
+└── influxdb-architecture.md    # Documentación técnica completa InfluxDB
 ```
 
 ## 🛠️ Prerrequisitos

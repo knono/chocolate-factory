@@ -1,26 +1,27 @@
 #!/bin/bash
 
 # =============================================================================
-# Chocolate Factory - Security Check Script
+# Chocolate Factory - Security Check Hook (Claude Code Integration)
 # =============================================================================
-# Script para detectar información comprometida antes de commits
-# Uso: ./security-check.sh [options]
+# Hook inteligente para Claude Code que recibe contexto JSON por stdin
 #
-# Opciones:
-#   --trufflehog      Solo ejecutar TruffleHog
-#   --patterns        Solo ejecutar búsqueda por patrones
-#   --all             Ejecutar todas las verificaciones (default)
-#   --fix             Mostrar sugerencias de corrección
-#   --staged          Solo verificar archivos en staging
+# Input JSON esperado:
+# {
+#   "tool": "Edit|Write|Bash",
+#   "parameters": {
+#     "file_path": "/path/to/file",
+#     "old_string": "...",
+#     "new_string": "...",
+#     "content": "..."
+#   }
+# }
 #
-# Ejemplos:
-#   ./security-check.sh                  # Verificación completa
-#   ./security-check.sh --staged         # Solo archivos staged
-#   ./security-check.sh --trufflehog     # Solo TruffleHog
-#   ./security-check.sh --fix            # Con sugerencias de fix
+# Output:
+#   - Exit 0: Permitir operación
+#   - Exit 1: Bloquear operación (con mensaje explicativo)
 # =============================================================================
 
-set -e  # Exit on error
+set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -28,415 +29,173 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Configuration
-PROJECT_ROOT="$(pwd)"
-MODE=${1:-all}
-SHOW_FIXES=false
-STAGED_ONLY=false
+# Helper functions
+print_success() { echo -e "${GREEN}✅ $1${NC}" >&2; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}" >&2; }
+print_error() { echo -e "${RED}❌ $1${NC}" >&2; }
+print_info() { echo -e "${BLUE}ℹ️  $1${NC}" >&2; }
 
-# Parse arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --trufflehog)
-            MODE="trufflehog"
-            shift
+# Check if jq is available
+if ! command -v jq >/dev/null 2>&1; then
+    print_warning "jq no está instalado - ejecutando verificación completa del repo"
+    exec "$(dirname "$0")/security-check-legacy.sh" --all
+fi
+
+# Read JSON input from stdin (with timeout for safety)
+INPUT=$(timeout 2s cat || echo "{}")
+
+# Parse JSON input
+TOOL=$(echo "$INPUT" | jq -r '.tool // "unknown"')
+FILE_PATH=$(echo "$INPUT" | jq -r '.parameters.file_path // empty')
+NEW_CONTENT=$(echo "$INPUT" | jq -r '.parameters.new_string // .parameters.content // empty')
+
+# Determine verification strategy
+if [ "$TOOL" == "unknown" ] || [ -z "$FILE_PATH" ]; then
+    # No context available - skip hook (allow operation)
+    print_info "Sin contexto JSON - hook pasivo"
+    exit 0
+fi
+
+print_info "Hook activado - Tool: $TOOL | File: $FILE_PATH"
+
+# =============================================================================
+# SECURITY CHECKS
+# =============================================================================
+
+check_file_extension() {
+    local file="$1"
+    case "$file" in
+        *.env|*.key|*.pem|*.token)
+            print_error "Intentando editar archivo sensible: $file"
+            print_error "Estos archivos deben estar en .gitignore y no ser editados directamente"
+            return 1
             ;;
-        --patterns)
-            MODE="patterns"
-            shift
-            ;;
-        --all)
-            MODE="all"
-            shift
-            ;;
-        --fix)
-            SHOW_FIXES=true
-            shift
-            ;;
-        --staged)
-            STAGED_ONLY=true
-            shift
-            ;;
-        *)
-            echo "Unknown option: $1"
-            exit 1
+        *.example)
+            # Verificar placeholders en archivos de ejemplo
+            if [ -n "$NEW_CONTENT" ]; then
+                if ! echo "$NEW_CONTENT" | grep -q "<.*>"; then
+                    print_warning "Archivo .example sin placeholders detectado"
+                    print_error "Los archivos .example deben usar formato: <your_value_here>"
+                    return 1
+                fi
+            fi
             ;;
     esac
-done
-
-# Functions
-print_header() {
-    echo -e "${BLUE}"
-    echo "🔒 ============================================="
-    echo "   Chocolate Factory - Security Check Tool"
-    echo "=============================================${NC}"
-    echo
-}
-
-print_section() {
-    echo -e "${PURPLE}🔍 $1${NC}"
-    echo "----------------------------------------"
-}
-
-print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
-
-print_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-print_fix() {
-    if [ "$SHOW_FIXES" = true ]; then
-        echo -e "${BLUE}💡 Fix: $1${NC}"
-    fi
-}
-
-# Check if TruffleHog is available
-check_trufflehog() {
-    if ! command -v trufflehog >/dev/null 2>&1; then
-        print_warning "TruffleHog no está instalado"
-        echo "Para instalarlo:"
-        echo "  # Con Go:"
-        echo "  go install github.com/trufflesecurity/trufflehog/v3@latest"
-        echo "  # Con Homebrew:"
-        echo "  brew install trufflehog"
-        echo "  # Con Docker:"
-        echo "  docker pull trufflesecurity/trufflehog:latest"
-        return 1
-    fi
     return 0
 }
 
-# Run TruffleHog scan
-run_trufflehog() {
-    print_section "TruffleHog - Detector de Secretos"
+check_secrets_in_content() {
+    local content="$1"
 
-    if ! check_trufflehog; then
-        return 1
-    fi
+    # Skip if content is empty
+    [ -z "$content" ] && return 0
 
-    echo "🔍 Ejecutando TruffleHog scan..."
+    # Pattern-based detection (respecting placeholders)
+    local secret_patterns=(
+        "password.*=.*['\"][^<][^>]{3,}['\"]"
+        "secret.*=.*['\"][^<][^>]{3,}['\"]"
+        "token.*=.*['\"][A-Za-z0-9]{20,}['\"]"
+        "api[_-]?key.*=.*['\"][A-Za-z0-9]{15,}['\"]"
+    )
 
-    # TruffleHog command
-    if [ "$STAGED_ONLY" = true ]; then
-        # Scan only staged files
-        STAGED_FILES=$(git diff --cached --name-only)
-        if [ -z "$STAGED_FILES" ]; then
-            print_success "No hay archivos en staging para verificar"
-            return 0
-        fi
-        echo "📋 Archivos en staging: $(echo "$STAGED_FILES" | wc -l)"
-        echo "$STAGED_FILES" | while read -r file; do
-            if [ -f "$file" ]; then
-                trufflehog filesystem "$file" --no-update 2>/dev/null || true
-            fi
-        done
-    else
-        # Full repository scan
-        trufflehog git "file://$(pwd)" --no-update 2>/dev/null || {
-            print_warning "TruffleHog encontró posibles secretos"
-            print_fix "Revisa los archivos mencionados arriba y reemplaza valores reales con placeholders"
+    for pattern in "${secret_patterns[@]}"; do
+        if echo "$content" | grep -qE "$pattern" && ! echo "$content" | grep -q "placeholder"; then
+            print_error "Patrón sospechoso de secreto detectado: $pattern"
+            print_error "Contenido sospechoso encontrado (usa placeholders con <...>)"
             return 1
-        }
-    fi
-
-    print_success "TruffleHog scan completado - No se encontraron secretos"
-    return 0
-}
-
-# Get files respecting gitignore
-get_files_to_check() {
-    local files_to_check
-    if [ "$STAGED_ONLY" = true ]; then
-        files_to_check=$(git diff --cached --name-only | grep -E '\.(md|py|sh|yml|yaml|json|js|ts)$' || true)
-    else
-        # Use git ls-files to respect .gitignore automatically
-        files_to_check=$(git ls-files | grep -E '\.(md|py|sh|yml|yaml|json|js|ts)$' || true)
-    fi
-    echo "$files_to_check"
-}
-
-# Pattern-based detection
-run_pattern_detection() {
-    print_section "Búsqueda por Patrones - Información Sensible"
-
-    local found_issues=false
-
-    # Define files to check (respecting .gitignore)
-    local files_to_check
-    files_to_check=$(get_files_to_check)
-
-    if [ -z "$files_to_check" ]; then
-        print_success "No hay archivos relevantes para verificar"
-        return 0
-    fi
-
-    echo "📁 Verificando archivos por patrones sospechosos..."
-
-    # Check for potential API keys (but avoid false positives and respect placeholders)
-    echo "🔑 Buscando posibles API keys..."
-    if echo "$files_to_check" | xargs grep -l "token.*[A-Za-z0-9]\{20,\}" 2>/dev/null | grep -v ".example" | head -5; then
-        # Additional check for placeholders
-        suspicious_files=$(echo "$files_to_check" | xargs grep -l "token.*[A-Za-z0-9]\{20,\}" 2>/dev/null | grep -v ".example")
-        real_tokens=false
-        for file in $suspicious_files; do
-            if grep "token.*[A-Za-z0-9]\{20,\}" "$file" | grep -v "<.*>" | grep -v "placeholder" >/dev/null 2>&1; then
-                print_warning "Token real encontrado en: $file"
-                real_tokens=true
-            fi
-        done
-        if [ "$real_tokens" = true ]; then
-            print_fix "Verificar que no sean credenciales reales - usar formato <your_token_here>"
-            found_issues=true
-        fi
-    fi
-
-    # Check for hardcoded secrets patterns (respecting placeholders)
-    echo "🔐 Buscando secretos hardcodeados..."
-    SECRET_PATTERNS=(
-        "password.*=.*[^<].*[^>]"
-        "secret.*=.*[^<].*[^>]"
-        "key.*=.*[A-Za-z0-9]{15,}"
-        "token.*=.*[A-Za-z0-9]{15,}"
-    )
-
-    for pattern in "${SECRET_PATTERNS[@]}"; do
-        suspicious_files=$(echo "$files_to_check" | xargs grep -l "$pattern" 2>/dev/null | grep -v ".example" | head -3)
-        if [ -n "$suspicious_files" ]; then
-            real_secrets=false
-            for file in $suspicious_files; do
-                if grep "$pattern" "$file" | grep -v "<.*>" | grep -v "placeholder" >/dev/null 2>&1; then
-                    print_warning "Patrón sospechoso en $file: $pattern"
-                    real_secrets=true
-                fi
-            done
-            if [ "$real_secrets" = true ]; then
-                found_issues=true
-            fi
         fi
     done
 
-    # Check for real-looking URLs (excluding placeholders)
-    echo "🌐 Verificando URLs reales..."
-    suspicious_urls=$(echo "$files_to_check" | xargs grep -l "https://[a-zA-Z0-9.-]*\.ts\.net" 2>/dev/null | head -3)
-    if [ -n "$suspicious_urls" ]; then
-        real_urls=false
-        for file in $suspicious_urls; do
-            if grep "https://[a-zA-Z0-9.-]*\.ts\.net" "$file" | grep -v "<.*>" | grep -v "placeholder" | grep -v "your-domain" >/dev/null 2>&1; then
-                print_warning "URL real de Tailscale encontrada en: $file"
-                real_urls=true
-            fi
-        done
-        if [ "$real_urls" = true ]; then
-            print_fix "Reemplazar con: https://<your-domain>.ts.net"
-            found_issues=true
-        fi
-    fi
-
-    # Check for IP addresses (excluding common placeholders)
-    echo "🖥️ Buscando direcciones IP..."
-    ip_files=$(echo "$files_to_check" | xargs grep -l "[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}" 2>/dev/null | head -3)
-    if [ -n "$ip_files" ]; then
-        real_ips=false
-        for file in $ip_files; do
-            # Exclude common placeholder IPs and localhost
-            if grep "[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}" "$file" | grep -v "127.0.0.1" | grep -v "localhost" | grep -v "0.0.0.0" | grep -v "255.255.255" | grep -v "<.*>" | grep -v "placeholder" >/dev/null 2>&1; then
-                print_warning "Dirección IP real encontrada en: $file"
-                real_ips=true
-            fi
-        done
-        if [ "$real_ips" = true ]; then
-            print_fix "Verificar que no sean IPs privadas reales - usar <your_ip_here>"
-            found_issues=true
-        fi
-    fi
-
-    # Check .env files are not tracked (respecting .gitignore)
-    echo "📄 Verificando archivos .env..."
-    TRACKED_ENV_FILES=$(git ls-files | grep "\.env$" | grep -v "\.env\.example$")
-    if [ -n "$TRACKED_ENV_FILES" ]; then
-        print_error "Archivos .env reales están siendo trackeados por git"
-        echo "$TRACKED_ENV_FILES"
-        print_fix "Ejecutar: git rm --cached .env && verificar .gitignore"
-        found_issues=true
-    fi
-
-    if [ "$found_issues" = false ]; then
-        print_success "Búsqueda por patrones completada - No se encontraron problemas"
-    fi
-
-    return 0
-}
-
-# Check gitignore patterns
-check_gitignore() {
-    print_section "Verificación de .gitignore"
-
-    local required_patterns=(
-        ".env"
-        ".env.local"
-        ".env.production"
-        "*.token"
-        "*.key"
-        "*.pem"
-        "docker/services/influxdb/data/"
-    )
-
-    if [ ! -f ".gitignore" ]; then
-        print_error "Archivo .gitignore no encontrado"
-        print_fix "Crear .gitignore con patrones de seguridad"
+    # Check for Tailscale URLs (excluding placeholders)
+    if echo "$content" | grep -qE "https://[a-zA-Z0-9.-]+\.ts\.net" && \
+       ! echo "$content" | grep -q "<.*>" && \
+       ! echo "$content" | grep -q "your-domain"; then
+        print_error "URL real de Tailscale detectada"
+        print_error "Usar: https://<your-domain>.ts.net"
         return 1
     fi
 
-    local missing_patterns=()
-    for pattern in "${required_patterns[@]}"; do
-        # Check exact pattern or more general pattern that covers it
-        if ! grep -q "$pattern" .gitignore && ! grep -q "$(echo $pattern | sed 's/\*//g')" .gitignore; then
-            # Special cases for patterns already covered
-            case "$pattern" in
-                ".env.local"|"env.production")
-                    if grep -q "\.env\*" .gitignore; then
-                        continue  # Already covered by .env*
-                    fi
-                    ;;
-                "*.token")
-                    if grep -q "\*token\*" .gitignore; then
-                        continue  # Already covered by *token*
-                    fi
-                    ;;
-            esac
-            missing_patterns+=("$pattern")
-        fi
-    done
-
-    if [ ${#missing_patterns[@]} -gt 0 ]; then
-        print_warning "Patrones faltantes en .gitignore:"
-        for pattern in "${missing_patterns[@]}"; do
-            echo "  - $pattern"
-        done
-        print_fix "Añadir estos patrones a .gitignore"
-    else
-        print_success "Archivo .gitignore contiene los patrones de seguridad necesarios"
+    # Check for IP addresses (excluding common safe ones)
+    if echo "$content" | grep -qE "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}" && \
+       ! echo "$content" | grep -qE "127\.0\.0\.1|localhost|0\.0\.0\.0|<.*>"; then
+        print_warning "Dirección IP detectada - verificar si es privada"
+        # Warning only, not blocking
     fi
+
+    return 0
 }
 
-# Verify example files
-check_example_files() {
-    print_section "Verificación de Archivos de Ejemplo"
+check_gitignore_coverage() {
+    local file="$1"
 
-    local example_files=(
-        ".env.example"
-        ".env.tailscale.example"
-    )
-
-    for file in "${example_files[@]}"; do
-        if [ -f "$file" ]; then
-            echo "📄 Verificando $file..."
-            if grep -q "<.*>" "$file"; then
-                print_success "$file usa placeholders correctos"
+    # Check if file should be in .gitignore
+    case "$file" in
+        */.env|*/.env.local|*/.env.production)
+            if git check-ignore -q "$file" 2>/dev/null; then
+                print_success "Archivo protegido por .gitignore"
+                return 0
             else
-                print_warning "$file podría contener valores reales"
-                print_fix "Usar formato <your_value_here> en $file"
+                print_error "Archivo sensible NO está en .gitignore: $file"
+                print_error "Añadir patrón a .gitignore antes de continuar"
+                return 1
             fi
-        else
-            print_warning "Archivo $file no encontrado"
-            print_fix "Crear $file con placeholders para usuarios"
-        fi
-    done
+            ;;
+    esac
+    return 0
 }
 
-# Main security check
-run_security_check() {
+# =============================================================================
+# MAIN VERIFICATION LOGIC
+# =============================================================================
+
+main() {
     local issues_found=false
 
-    case $MODE in
-        "trufflehog")
-            if ! run_trufflehog; then
-                issues_found=true
-            fi
-            ;;
-        "patterns")
-            if ! run_pattern_detection; then
-                issues_found=true
-            fi
-            ;;
-        "all")
-            if ! run_trufflehog; then
-                issues_found=true
-            fi
-            echo
-            if ! run_pattern_detection; then
-                issues_found=true
-            fi
-            echo
-            check_gitignore
-            echo
-            check_example_files
-            ;;
-    esac
-
-    echo
-    if [ "$issues_found" = true ]; then
-        print_error "Se encontraron problemas de seguridad"
-        echo
-        echo "📋 Pasos recomendados:"
-        echo "1. Revisar los archivos mencionados arriba"
-        echo "2. Reemplazar valores reales con placeholders"
-        echo "3. Verificar que archivos sensibles están en .gitignore"
-        echo "4. Ejecutar de nuevo: ./security-check.sh"
-        return 1
-    else
-        print_success "Verificación de seguridad completada - No se encontraron problemas"
-        echo
-        echo "🚀 El proyecto está listo para commit/push"
-        return 0
+    # 1. Check file extension and type
+    if ! check_file_extension "$FILE_PATH"; then
+        issues_found=true
     fi
-}
 
-# Show usage
-show_usage() {
-    echo "Uso: $0 [options]"
-    echo
-    echo "Opciones:"
-    echo "  --trufflehog    Solo ejecutar TruffleHog"
-    echo "  --patterns      Solo ejecutar búsqueda por patrones"
-    echo "  --all           Ejecutar todas las verificaciones (default)"
-    echo "  --fix           Mostrar sugerencias de corrección"
-    echo "  --staged        Solo verificar archivos en staging"
-    echo
-    echo "Ejemplos:"
-    echo "  $0                    # Verificación completa"
-    echo "  $0 --staged           # Solo archivos staged"
-    echo "  $0 --trufflehog       # Solo TruffleHog"
-    echo "  $0 --fix              # Con sugerencias"
-}
+    # 2. Check content for secrets (if available)
+    if [ -n "$NEW_CONTENT" ]; then
+        if ! check_secrets_in_content "$NEW_CONTENT"; then
+            issues_found=true
+        fi
+    fi
 
-# Main execution
-main() {
-    print_header
+    # 3. Verify gitignore coverage
+    if ! check_gitignore_coverage "$FILE_PATH"; then
+        issues_found=true
+    fi
 
-    if [ "$1" = "help" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-        show_usage
+    # 4. TruffleHog check on specific file (if available and file exists)
+    if command -v trufflehog >/dev/null 2>&1 && [ -f "$FILE_PATH" ]; then
+        print_info "Ejecutando TruffleHog en: $FILE_PATH"
+        if ! trufflehog filesystem "$FILE_PATH" --no-update 2>/dev/null; then
+            print_error "TruffleHog detectó posibles secretos en: $FILE_PATH"
+            issues_found=true
+        else
+            print_success "TruffleHog: sin secretos detectados"
+        fi
+    fi
+
+    # Decision
+    if [ "$issues_found" = true ]; then
+        echo  # Blank line for readability
+        print_error "🔒 OPERACIÓN BLOQUEADA - Problemas de seguridad detectados"
+        echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}" >&2
+        echo -e "${YELLOW}Correcciones necesarias:${NC}" >&2
+        echo "  1. Reemplazar valores reales con placeholders: <your_value_here>" >&2
+        echo "  2. Verificar que archivos sensibles estén en .gitignore" >&2
+        echo "  3. Ejecutar manualmente: .claude/hooks/security-check-legacy.sh --fix" >&2
+        exit 1
+    else
+        print_success "Verificación de seguridad OK - operación permitida"
         exit 0
     fi
-
-    echo "🔍 Modo: $MODE"
-    if [ "$STAGED_ONLY" = true ]; then
-        echo "📋 Alcance: Solo archivos en staging"
-    else
-        echo "📋 Alcance: Todo el repositorio"
-    fi
-    echo
-
-    run_security_check
 }
 
-# Execute main function
-main "$@"
+# Execute main verification
+main

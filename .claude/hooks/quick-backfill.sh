@@ -1,58 +1,117 @@
 #!/bin/bash
 
 # =============================================================================
-# Quick Backfill - Chocolate Factory
+# Quick Backfill Hook - Chocolate Factory (Claude Code Integration)
 # =============================================================================
-# Script rápido para backfill automático sin confirmaciones
-# Uso: ./quick-backfill.sh [auto|ree|weather|check]
+# Hook inteligente para backfill automático basado en contexto JSON
+#
+# Input JSON esperado:
+# {
+#   "tool": "Edit|Write|SessionStart",
+#   "parameters": {
+#     "file_path": "/path/to/file"
+#   }
+# }
+#
+# Estrategia:
+# - SessionStart: Verificar gaps al iniciar sesión
+# - Edit/Write en archivos de config: Auto backfill si hay gaps
+# - Otros casos: Skip hook (sin backfill innecesario)
 # =============================================================================
 
+set -e
+
 API_BASE="http://localhost:8000"
-MODE=${1:-auto}
 
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${BLUE}🍫 Chocolate Factory - Quick Backfill${NC}"
+# Helper functions
+print_success() { echo -e "${GREEN}✅ $1${NC}" >&2; }
+print_info() { echo -e "${BLUE}ℹ️  $1${NC}" >&2; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}" >&2; }
 
-case $MODE in
-    "check")
-        echo "📊 Checking data gaps..."
-        curl -s "$API_BASE/gaps/summary" | jq -r '
-            "🏭 " + .["🏭"] + "\n" +
-            "• REE: " + .ree_prices.status + " (gap: " + (.ree_prices.gap_hours | tostring) + "h)" +
-            "\n• Weather: " + .weather_data.status + " (gap: " + (.weather_data.gap_hours | tostring) + "h)"
-        '
+# Check if jq is available
+if ! command -v jq >/dev/null 2>&1; then
+    print_warning "jq no instalado - hook deshabilitado"
+    exit 0
+fi
+
+# Read JSON input from stdin (with timeout)
+INPUT=$(timeout 2s cat 2>/dev/null || echo "{}")
+
+# Parse JSON context
+TOOL=$(echo "$INPUT" | jq -r '.tool // "unknown"')
+FILE_PATH=$(echo "$INPUT" | jq -r '.parameters.file_path // empty')
+
+# =============================================================================
+# DECISION LOGIC
+# =============================================================================
+
+# Check if API is reachable
+if ! curl -s --max-time 2 "$API_BASE/health" >/dev/null 2>&1; then
+    print_warning "API no disponible - skip backfill hook"
+    exit 0
+fi
+
+case "$TOOL" in
+    "SessionStart")
+        # Al iniciar sesión, verificar gaps
+        print_info "SessionStart detectado - verificando gaps..."
+
+        GAPS=$(curl -s --max-time 5 "$API_BASE/gaps/summary" 2>/dev/null)
+        REE_GAP=$(echo "$GAPS" | jq -r '.ree_prices.gap_hours // 0')
+        WEATHER_GAP=$(echo "$GAPS" | jq -r '.weather_data.gap_hours // 0')
+
+        if (( $(echo "$REE_GAP > 6" | bc -l 2>/dev/null || echo 0) )) || \
+           (( $(echo "$WEATHER_GAP > 6" | bc -l 2>/dev/null || echo 0) )); then
+            print_warning "Gaps detectados - REE: ${REE_GAP}h, Weather: ${WEATHER_GAP}h"
+            print_info "Ejecutando auto backfill..."
+
+            curl -s -X POST "$API_BASE/gaps/backfill/auto" \
+                -H "Content-Type: application/json" \
+                -d '{"max_gap_hours": 6.0}' >/dev/null 2>&1
+
+            print_success "Backfill automático completado"
+        else
+            print_success "No hay gaps significativos"
+        fi
         ;;
-    "auto")
-        echo "🚀 Executing auto backfill..."
-        curl -s -X POST "$API_BASE/gaps/backfill/auto" \
-            -H "Content-Type: application/json" \
-            -d '{"max_gap_hours": 6.0}' | jq -r '.status // .'
-        echo -e "${GREEN}✅ Auto backfill completed${NC}"
+
+    "Edit"|"Write")
+        # Si se edita config, verificar si hay gaps
+        case "$FILE_PATH" in
+            *docker-compose*.yml|*.env*|*pyproject.toml)
+                print_info "Archivo de config modificado: $FILE_PATH"
+
+                # Quick gap check
+                GAPS=$(curl -s --max-time 3 "$API_BASE/gaps/summary" 2>/dev/null)
+                TOTAL_GAP=$(echo "$GAPS" | jq -r '(.ree_prices.gap_hours // 0) + (.weather_data.gap_hours // 0)')
+
+                if (( $(echo "$TOTAL_GAP > 3" | bc -l 2>/dev/null || echo 0) )); then
+                    print_info "Gap detectado post-config: ${TOTAL_GAP}h total"
+                    curl -s -X POST "$API_BASE/gaps/backfill/auto" \
+                        -H "Content-Type: application/json" \
+                        -d '{"max_gap_hours": 3.0}' >/dev/null 2>&1
+                    print_success "Auto backfill post-config ejecutado"
+                fi
+                ;;
+            *)
+                # Otros archivos: skip
+                print_info "Archivo no crítico - skip backfill"
+                ;;
+        esac
         ;;
-    "ree")
-        echo "⚡ Executing REE backfill..."
-        curl -s -X POST "$API_BASE/gaps/backfill" \
-            -H "Content-Type: application/json" \
-            -d '{"days_back": 7, "data_types": ["ree"]}' | jq -r '.status // .'
-        echo -e "${GREEN}✅ REE backfill completed${NC}"
-        ;;
-    "weather")
-        echo "🌤️ Executing weather backfill..."
-        curl -s -X POST "$API_BASE/gaps/backfill" \
-            -H "Content-Type: application/json" \
-            -d '{"days_back": 7, "data_types": ["weather"]}' | jq -r '.status // .'
-        echo -e "${GREEN}✅ Weather backfill completed${NC}"
-        ;;
+
     *)
-        echo "Usage: $0 [auto|ree|weather|check]"
-        echo "  auto    - Automatic intelligent backfill"
-        echo "  ree     - REE data only"
-        echo "  weather - Weather data only"
-        echo "  check   - Check gaps only"
+        # Sin contexto o herramienta no relevante
+        print_info "Hook pasivo - sin acción de backfill"
         ;;
 esac
+
+# Always allow operation (exit 0)
+exit 0
