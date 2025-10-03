@@ -28,31 +28,6 @@ from services.aemet_client import AEMETClient
 from services.openweathermap_client import OpenWeatherMapClient
 from services.initialization import InitializationService
 from services.initialization.historical_ingestion import HistoricalDataIngestion
-# Import ML modules - Sprint 02 Nueva Arquitectura (Temporary disable for Sprint 02)
-# TODO Sprint 03: Fix container path structure for ml/ imports
-# import sys
-# import os
-# sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-# from ml.models.model_registry import model_registry
-# from ml.config import ML_CONFIG
-
-# Temporary placeholders - Sprint 02
-model_registry = None
-ML_CONFIG = {
-    'models': {
-        'quality_predictor': {
-            'version': '1.0.0',
-            'features': ['temperature', 'humidity', 'roasting_time', 'bean_origin_encoded', 'cocoa_percentage'],
-            'model_type': 'RandomForestClassifier'
-        }
-    },
-    'quality_thresholds': {
-        'Grade_A': {'min': 85, 'max': 100},
-        'Grade_B': {'min': 70, 'max': 84},
-        'Grade_C': {'min': 50, 'max': 69},
-        'Grade_D': {'min': 0, 'max': 49}
-    }
-}
 import pandas as pd
 import numpy as np
 
@@ -115,7 +90,6 @@ except ImportError as e:
 # Global service instances (initialized once, shared across the app)
 global_direct_ml = None
 global_dashboard_service = None
-global_model_registry = None
 
 
 def get_global_direct_ml():
@@ -134,28 +108,15 @@ def get_global_dashboard_service():
     return global_dashboard_service
 
 
-def get_global_model_registry():
-    """Get the global model registry instance - Sprint 02"""
-    global global_model_registry
-    if global_model_registry is None:
-        # TODO Sprint 03: Initialize real model_registry
-        global_model_registry = model_registry  # None for Sprint 02
-    return global_model_registry
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gestión del ciclo de vida de la aplicación"""
     logger.info("🧠 Iniciando El Cerebro Autónomo - Chocolate Factory Brain")
-    
-    # Initialize global services - Sprint 02 Architecture
-    global global_direct_ml, global_dashboard_service, global_model_registry
-    try:
-        # Initialize new ML architecture first (placeholder Sprint 02)
-        global_model_registry = model_registry  # None for now
-        logger.info("🧠 Sprint 02: Model Registry placeholder initialized")
 
-        # Initialize legacy services (maintain compatibility)
+    # Initialize global services
+    global global_direct_ml, global_dashboard_service
+    try:
+        # Initialize services
         global_direct_ml = DirectMLService()
         global_dashboard_service = DashboardService()
         logger.info("🤖 Global ML services initialized (hybrid architecture)")
@@ -2236,6 +2197,152 @@ async def get_models_status():
         }
 
 
+# === PRICE FORECASTING ENDPOINTS (Sprint 06) ===
+
+@app.get("/predict/prices/weekly", tags=["Price Forecasting"])
+async def get_weekly_price_forecast():
+    """
+    🔮 Predicción de precios REE para próximas 168 horas (7 días)
+
+    Returns:
+        Lista de predicciones con intervalos de confianza 95%
+    """
+    try:
+        from services.price_forecasting_service import get_price_forecasting_service
+
+        forecast_service = get_price_forecasting_service()
+        predictions = await forecast_service.predict_weekly()
+
+        return {
+            "🏢": "Chocolate Factory - REE Price Forecast",
+            "status": "✅ Forecast generated",
+            "forecast_horizon": "168 hours (7 days)",
+            "model_type": "Prophet (Facebook)",
+            "predictions_count": len(predictions),
+            "predictions": predictions,
+            "model_metrics": forecast_service.metrics if forecast_service.metrics else None,
+            "last_training": forecast_service.last_training.isoformat() if forecast_service.last_training else None,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except ValueError as e:
+        logger.warning(f"Price forecast unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Model not available: {str(e)}")
+    except Exception as e:
+        logger.error(f"Price forecast failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Forecast failed: {str(e)}")
+
+
+@app.get("/predict/prices/hourly", tags=["Price Forecasting"])
+async def get_hourly_price_forecast(hours: int = 24):
+    """
+    🔮 Predicción de precios REE para N horas específicas
+
+    Args:
+        hours: Número de horas a predecir (1-168)
+
+    Returns:
+        Lista de predicciones para las próximas N horas
+    """
+    if hours < 1 or hours > 168:
+        raise HTTPException(status_code=400, detail="hours debe estar entre 1 y 168")
+
+    try:
+        from services.price_forecasting_service import get_price_forecasting_service
+
+        forecast_service = get_price_forecasting_service()
+        predictions = await forecast_service.predict_hours(hours=hours)
+
+        return {
+            "🏢": "Chocolate Factory - REE Price Forecast",
+            "status": "✅ Forecast generated",
+            "forecast_horizon": f"{hours} hours",
+            "predictions_count": len(predictions),
+            "predictions": predictions,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except ValueError as e:
+        logger.warning(f"Price forecast unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Model not available: {str(e)}")
+    except Exception as e:
+        logger.error(f"Price forecast failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Forecast failed: {str(e)}")
+
+
+@app.get("/models/price-forecast/status", tags=["Price Forecasting"])
+async def get_price_forecast_model_status():
+    """📊 Estado del modelo de predicción de precios"""
+    try:
+        from services.price_forecasting_service import get_price_forecasting_service
+
+        forecast_service = get_price_forecasting_service()
+        status = forecast_service.get_model_status()
+
+        return {
+            "🏢": "Chocolate Factory - Price Forecast Model",
+            "status": "✅ Model status retrieved",
+            "model_status": status,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Model status check failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
+
+
+@app.post("/models/price-forecast/train", tags=["Price Forecasting"])
+async def train_price_forecast_model(months_back: int = 12, background_tasks: BackgroundTasks = None):
+    """
+    🤖 Entrenar modelo de predicción de precios REE
+
+    Args:
+        months_back: Meses de datos históricos para entrenamiento (default: 12)
+
+    Returns:
+        Resultado del entrenamiento con métricas
+    """
+    if months_back < 1 or months_back > 36:
+        raise HTTPException(status_code=400, detail="months_back debe estar entre 1 y 36")
+
+    try:
+        from services.price_forecasting_service import get_price_forecasting_service
+
+        logger.info(f"🤖 Iniciando entrenamiento modelo Prophet ({months_back} meses)")
+
+        forecast_service = get_price_forecasting_service()
+        result = await forecast_service.train_model(months_back=months_back)
+
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Training failed"))
+
+        # Si el entrenamiento fue exitoso, generar y almacenar predicciones
+        if background_tasks:
+            async def generate_and_store():
+                try:
+                    predictions = await forecast_service.predict_weekly()
+                    await forecast_service.store_predictions_influxdb(predictions)
+                    logger.info("✅ Predicciones generadas y almacenadas automáticamente")
+                except Exception as e:
+                    logger.error(f"❌ Error generando predicciones post-training: {e}")
+
+            background_tasks.add_task(generate_and_store)
+
+        return {
+            "🏢": "Chocolate Factory - Price Forecast Training",
+            "status": "✅ Model trained successfully",
+            "training_result": result,
+            "next_step": "Predictions will be generated and stored automatically",
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Model training failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
+
+
 # === GAP DETECTION & BACKFILL ENDPOINTS ===
 
 @app.get("/gaps/detect", tags=["Data Management"])
@@ -2941,12 +3048,6 @@ async def _execute_progressive_ingestion_background(historical_data_service,
 
 # === DASHBOARD ENDPOINTS ===
 
-@app.get("/test-heatmap")
-async def test_heatmap():
-    """Test endpoint for heatmap"""
-    return {"status": "success", "message": "Heatmap endpoint working", "timestamp": datetime.now().isoformat()}
-
-
 @app.get("/dashboard/complete", tags=["Dashboard"])
 async def get_complete_dashboard():
     """🎯 Dashboard completo con información, predicciones y recomendaciones"""
@@ -2954,14 +3055,14 @@ async def get_complete_dashboard():
         dashboard_service = get_global_dashboard_service()
         dashboard_data = await dashboard_service.get_complete_dashboard_data()
         
-        # Añadir heatmap semanal directamente
+        # Añadir heatmap semanal con predicciones Prophet
         try:
-            weekly_heatmap = await _generate_weekly_heatmap()
+            weekly_heatmap = await dashboard_service._get_weekly_forecast_heatmap()
             dashboard_data["weekly_forecast"] = weekly_heatmap
         except Exception as e:
             logger.warning(f"Failed to add weekly heatmap: {e}")
             dashboard_data["weekly_forecast"] = {
-                "status": "error", 
+                "status": "error",
                 "message": f"Heatmap generation failed: {str(e)}"
             }
         
@@ -2985,115 +3086,7 @@ async def get_complete_dashboard():
         raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)}")
 
 
-async def _generate_weekly_heatmap():
-    """Genera el heatmap semanal de forma independiente"""
-    try:
-        from datetime import datetime, timedelta
-        import random
-        
-        start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # Generar datos simplificados para el heatmap
-        calendar_days = []
-        
-        # Precios base simulados (más realistas)
-        base_prices = [0.12, 0.08, 0.15, 0.18, 0.09, 0.06, 0.11]  # 7 días
-        
-        for day in range(7):
-            forecast_date = start_date + timedelta(days=day)
-            date_str = forecast_date.strftime("%Y-%m-%d")
-            
-            # Precio para este día
-            price = base_prices[day]
-            
-            # Zona de calor basada en precio
-            if price <= 0.10:
-                heat_zone = "low"
-                heat_color = "#4CAF50"  # Verde
-                recommendation = "Optimal"
-                icon = "🟢"
-            elif price <= 0.20:
-                heat_zone = "medium"
-                heat_color = "#FF9800"  # Naranja
-                recommendation = "Moderate" 
-                icon = "🟡"
-            else:
-                heat_zone = "high"
-                heat_color = "#F44336"  # Rojo
-                recommendation = "Reduced"
-                icon = "🔴"
-            
-            # Temperatura simulada
-            base_temp = 22 + (day - 3) * 2  # Variación simple
-            
-            calendar_days.append({
-                "date": date_str,
-                "day_name": forecast_date.strftime("%A"),
-                "day_short": forecast_date.strftime("%a"),
-                "day_number": forecast_date.day,
-                "is_today": day == 0,
-                "is_weekend": forecast_date.weekday() >= 5,
-                
-                # Datos de precio
-                "avg_price_eur_kwh": price,
-                "price_trend": "stable",
-                
-                # Datos meteorológicos
-                "avg_temperature": base_temp,
-                "avg_humidity": 45 + day * 2,
-                
-                # Heatmap visual
-                "heat_zone": heat_zone,
-                "heat_color": heat_color,
-                "heat_intensity": min(price * 10, 10),
-                
-                # Recomendación
-                "production_recommendation": recommendation,
-                "recommendation_icon": icon
-            })
-        
-        # Estadísticas
-        prices = [day["avg_price_eur_kwh"] for day in calendar_days]
-        temps = [day["avg_temperature"] for day in calendar_days]
-        
-        return {
-            "status": "success",
-            "title": "📅 Pronóstico Semanal - Mini Calendario Heatmap",
-            "calendar_days": calendar_days,
-            "summary": {
-                "period": {
-                    "start_date": start_date.strftime("%Y-%m-%d"),
-                    "end_date": (start_date + timedelta(days=6)).strftime("%Y-%m-%d"),
-                    "total_days": 7
-                },
-                "price_summary": {
-                    "min_price": round(min(prices), 4),
-                    "max_price": round(max(prices), 4),
-                    "avg_price": round(sum(prices) / len(prices), 4)
-                },
-                "weather_summary": {
-                    "min_temp": round(min(temps), 1),
-                    "max_temp": round(max(temps), 1), 
-                    "avg_temp": round(sum(temps) / len(temps), 1)
-                },
-                "optimal_days": len([d for d in calendar_days if d["production_recommendation"] == "Optimal"]),
-                "warning_days": len([d for d in calendar_days if d["heat_zone"] == "high"])
-            },
-            "heatmap_legend": {
-                "low": {"color": "#4CAF50", "label": "Precio Bajo (≤0.10 €/kWh)", "icon": "🟢"},
-                "medium": {"color": "#FF9800", "label": "Precio Medio (0.10-0.20 €/kWh)", "icon": "🟡"},
-                "high": {"color": "#F44336", "label": "Precio Alto (>0.20 €/kWh)", "icon": "🔴"}
-            },
-            "last_update": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Error generating weekly heatmap: {e}")
-        return {
-            "status": "error",
-            "message": f"Heatmap generation failed: {str(e)}",
-            "calendar_days": []
-        }
+# DEPRECATED: _generate_weekly_heatmap removed - now using DashboardService._get_weekly_forecast_heatmap() with Prophet predictions
 
 
 @app.get("/dashboard/summary", tags=["Dashboard"])
@@ -3422,12 +3415,61 @@ async def serve_enhanced_dashboard():
                 flex-direction: column;
                 justify-content: space-between;
                 color: #333;
+                position: relative;
             }
-            
+
             .calendar-day:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
                 border-color: rgba(255, 255, 255, 0.4);
+            }
+
+            /* Tooltip personalizado compatible con Safari/Brave */
+            .calendar-day[data-tooltip]::after {
+                content: attr(data-tooltip);
+                position: absolute;
+                bottom: 120%;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.95);
+                color: white;
+                padding: 0.75rem 1rem;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                white-space: pre-line;
+                z-index: 1000;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s, visibility 0.3s;
+                pointer-events: none;
+                min-width: 200px;
+                text-align: left;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
+
+            .calendar-day[data-tooltip]:hover::after {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            /* Flecha del tooltip */
+            .calendar-day[data-tooltip]::before {
+                content: '';
+                position: absolute;
+                bottom: 110%;
+                left: 50%;
+                transform: translateX(-50%);
+                border: 6px solid transparent;
+                border-top-color: rgba(0, 0, 0, 0.95);
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s, visibility 0.3s;
+                z-index: 1001;
+            }
+
+            .calendar-day[data-tooltip]:hover::before {
+                opacity: 1;
+                visibility: visible;
             }
             
             .calendar-day.today {
@@ -4416,13 +4458,16 @@ async def serve_enhanced_dashboard():
                         <div class="day-recommendation">${day.recommendation_icon}</div>
                     `;
                     
-                    // Tooltip en hover
+                    // Tooltip compatible con Safari/Brave usando data-attribute
+                    dayElement.setAttribute('data-tooltip', `${day.day_name} ${day.day_number}\\nPrecio: ${formatSpanishNumber(day.avg_price_eur_kwh, 3)} €/kWh\\nTemperatura: ${day.avg_temperature}°C\\nHumedad: ${day.avg_humidity}%\\nRecomendación: ${day.production_recommendation}`);
+
+                    // Fallback: title nativo para navegadores que lo soporten
                     dayElement.title = `${day.day_name} ${day.day_number}
 Precio: ${formatSpanishNumber(day.avg_price_eur_kwh, 3)} €/kWh
 Temperatura: ${day.avg_temperature}°C
 Humedad: ${day.avg_humidity}%
 Recomendación: ${day.production_recommendation}`;
-                    
+
                     calendarGrid.appendChild(dayElement);
                 });
                 
@@ -5299,280 +5344,6 @@ async def debug_training_data():
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
-
-
-# =====================================================
-# Sprint 02: Nueva Arquitectura ML - Endpoints
-# =====================================================
-
-@app.post("/ml/models/train", response_model=Dict[str, Any])
-async def train_model_endpoint(training_data: TrainingData):
-    """🎯 Train ML model using new modular architecture (Sprint 02 placeholder)"""
-    try:
-        registry = get_global_model_registry()
-
-        # TODO Sprint 03: Implement real training when registry is available
-        if registry is None:
-            return {
-                "🧠": "Sprint 02 ML Training (Placeholder)",
-                "status": "⚠️ Model registry not available yet",
-                "model_name": training_data.model_name,
-                "message": "Training will be implemented in Sprint 03",
-                "data_received": {
-                    "records": len(training_data.data),
-                    "target_column": training_data.target_column
-                },
-                "timestamp": datetime.now().isoformat()
-            }
-
-        # Real implementation for Sprint 03
-        df = pd.DataFrame(training_data.data)
-        if training_data.target_column not in df.columns:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Target column '{training_data.target_column}' not found in data"
-            )
-
-        X = df.drop(columns=[training_data.target_column])
-        y = df[training_data.target_column]
-        result = registry.train_model(training_data.model_name, X, y)
-
-        return {
-            "🧠": "Sprint 02 ML Training",
-            "status": "✅ Model trained successfully",
-            "model_name": training_data.model_name,
-            "training_result": result,
-            "timestamp": datetime.now().isoformat()
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to train model {training_data.model_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
-
-
-@app.post("/ml/models/predict", response_model=PredictionResponse)
-async def predict_endpoint(request: PredictionRequest) -> PredictionResponse:
-    """🎯 Make predictions using new modular architecture"""
-    try:
-        registry = get_global_model_registry()
-        model = registry.get("quality_predictor")
-
-        if not model:
-            raise HTTPException(status_code=404, detail="Quality predictor model not found")
-
-        # Prepare input data
-        input_data = pd.DataFrame([{
-            'temperature': request.temperature,
-            'humidity': request.humidity,
-            'roasting_time': request.roasting_time,
-            'cocoa_percentage': request.cocoa_percentage,
-            'bean_origin': request.bean_origin
-        }])
-
-        # Make prediction
-        prediction = model.predict(input_data)
-        confidence = float(np.max(model.predict_proba(input_data))) if hasattr(model, 'predict_proba') else 0.95
-
-        # Generate insights
-        insights = {
-            "model_version": model.config.get('version', '1.0.0'),
-            "input_features": input_data.to_dict('records')[0],
-            "quality_thresholds": ML_CONFIG.get('quality_thresholds', {}),
-            "recommendation": f"Based on your input parameters, the predicted quality is {prediction[0]}"
-        }
-
-        return PredictionResponse(
-            prediction=str(prediction[0]),
-            confidence=confidence,
-            insights=insights
-        )
-
-    except Exception as e:
-        logger.error(f"Failed to make prediction: {e}")
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-
-@app.get("/ml/models/status")
-async def get_ml_models_status():
-    """📊 Get status of all models in registry"""
-    try:
-        registry = get_global_model_registry()
-
-        loaded_models = registry.list_models()
-        available_models = registry.list_available_models()
-
-        model_details = {}
-        for name in set(loaded_models + available_models):
-            info = registry.get_model_info(name)
-            if info:
-                model_details[name] = info
-
-        return {
-            "🧠": "Sprint 02 ML Status",
-            "status": "✅ Registry operational",
-            "loaded_models": loaded_models,
-            "available_models": available_models,
-            "model_details": model_details,
-            "ml_config": ML_CONFIG,
-            "timestamp": datetime.now().isoformat()
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to get ML status: {e}")
-        raise HTTPException(status_code=500, detail=f"ML status check failed: {str(e)}")
-
-
-@app.post("/ml/models/{model_name}/reload")
-async def reload_model_endpoint(model_name: str):
-    """🔄 Reload a specific model from disk"""
-    try:
-        registry = get_global_model_registry()
-
-        success = registry.reload_model(model_name)
-
-        if success:
-            return {
-                "🔄": "Model Reload",
-                "status": f"✅ Model '{model_name}' reloaded successfully",
-                "model_name": model_name,
-                "timestamp": datetime.now().isoformat()
-            }
-        else:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Model '{model_name}' could not be reloaded"
-            )
-
-    except Exception as e:
-        logger.error(f"Failed to reload model {model_name}: {e}")
-        raise HTTPException(status_code=500, detail=f"Reload failed: {str(e)}")
-
-
-# =====================================================
-# Sprint 03: Service Layer Endpoints
-# =====================================================
-
-if SPRINT03_ENABLED:
-    @app.get("/api/production-data", response_model=List[Dict[str, Any]])
-    async def get_production_data(
-        limit: int = 10,
-        service = Depends(get_production_service)
-    ):
-        """
-        Get recent production data using service layer.
-
-        Args:
-            limit: Maximum number of batches to return
-            service: Injected production service
-
-        Returns:
-            List of production batch data
-        """
-        try:
-            data = await service.get_recent_production_data(limit=limit)
-            return data
-        except Exception as e:
-            logger.error(f"Failed to get production data: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-
-    @app.get("/api/quality-metrics")
-    async def get_quality_metrics_endpoint(
-        service = Depends(get_production_service)
-    ):
-        """
-        Get quality metrics with business logic applied.
-
-        Returns:
-            Quality metrics dictionary
-        """
-        try:
-            metrics = await service.get_quality_metrics()
-            return metrics
-        except Exception as e:
-            logger.error(f"Failed to get quality metrics: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-
-    @app.post("/api/production/batch", response_model=ProductionBatchResponse)
-    async def create_production_batch(
-        batch: ProductionBatchCreate,
-        service = Depends(get_production_service)
-    ):
-        """
-        Create a new production batch with quality prediction.
-
-        Args:
-            batch: Production batch data
-            service: Injected production service
-
-        Returns:
-            Created batch with quality prediction
-        """
-        try:
-            batch_dict = batch.dict()
-            created = await service.create_production_batch(batch_dict)
-            return ProductionBatchResponse(**created)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logger.error(f"Failed to create batch: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-
-    @app.get("/api/production/stats", response_model=ProductionStats)
-    async def get_production_stats(
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        service = Depends(get_production_service)
-    ):
-        """
-        Get production statistics with insights.
-
-        Args:
-            start_date: Start of date range
-            end_date: End of date range
-            service: Injected production service
-
-        Returns:
-            Production statistics
-        """
-        try:
-            stats = await service.get_production_stats(start_date, end_date)
-            return ProductionStats(**stats)
-        except Exception as e:
-            logger.error(f"Failed to get production stats: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-
-    @app.get("/api/production/{batch_id}/analysis")
-    async def analyze_batch(
-        batch_id: str,
-        service = Depends(get_production_service)
-    ):
-        """
-        Perform detailed analysis of a specific batch.
-
-        Args:
-            batch_id: Batch identifier
-            service: Injected production service
-
-        Returns:
-            Batch analysis with recommendations
-        """
-        try:
-            analysis = await service.analyze_batch(batch_id)
-            return analysis
-        except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
-        except Exception as e:
-            logger.error(f"Failed to analyze batch {batch_id}: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-
-    logger.info("✅ Sprint 03 Production API endpoints registered")
-else:
-    logger.warning("⚠️  Sprint 03 Service Layer disabled - endpoints not available")
 
 
 # =============================================================================

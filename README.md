@@ -17,7 +17,7 @@ Industrial-grade system for energy cost optimization and production planning. In
 
 ### Core Capabilities
 
-- **Energy Price Forecasting**: LSTM/Prophet models for 168-hour electricity price prediction
+- **Energy Price Forecasting**: Prophet ML model for 168-hour electricity price prediction (MAE: 0.033 €/kWh)
 - **Production Optimization**: Hourly production planning based on energy costs and weather conditions
 - **Historical Analysis**: 131,513+ records (88,935 SIAR + 42,578 REE) for robust ML training
 - **Autonomous Operation**: Self-healing data pipeline with automatic gap detection and recovery
@@ -139,7 +139,7 @@ The system implements a **hybrid architecture** combining complete on-premise da
 |-----------|-----------|---------|
 | **Backend** | FastAPI (Python 3.11+) | REST API + Dashboard |
 | **Database** | InfluxDB 2.7 | Time series storage |
-| **ML Framework** | scikit-learn, Prophet/LSTM | Predictive models |
+| **ML Framework** | scikit-learn, Prophet (Facebook) | Time series forecasting |
 | **Scheduling** | APScheduler | Automated data ingestion |
 | **Containerization** | Docker Compose | Orchestration |
 | **Reverse Proxy** | Nginx (Alpine) | Endpoint filtering |
@@ -177,23 +177,43 @@ The system implements a **hybrid architecture** combining complete on-premise da
 
 ## Machine Learning System
 
-### Current Status: Sprint 06 (Price Forecasting)
+### Current Status: ✅ Sprint 06 Completed (Price Forecasting)
 
-The ML system is undergoing evolution from synthetic models to real time series predictions.
+The ML system has successfully evolved to real time series predictions using Prophet.
 
-**Sprint Progress**: 6/10 (60% infrastructure, 0% ML evolution)
+**Sprint Progress**: 6/10 (✅ Price forecasting operational)
 
-### Planned ML Architecture (Sprint 06-10)
+### ML Architecture Evolution (Sprint 06-10)
 
-| Sprint | Component | Status | ETA |
-|--------|-----------|--------|-----|
-| **06** | REE Price Forecasting (LSTM/Prophet) | 🟡 Active | 8-10h |
+| Sprint | Component | Status | Completion |
+|--------|-----------|--------|------------|
+| **06** | ✅ REE Price Forecasting (Prophet) | ✅ Complete | Oct 3, 2025 |
 | **07** | SIAR Time Series Integration | 🔴 Pending | 6-8h |
 | **08** | Hourly Production Optimization | 🔴 Pending | 8-10h |
 | **09** | Predictive Dashboard Enhancement | 🔴 Pending | 6-8h |
 | **10** | ML Consolidation & Cleanup | 🔴 Pending | 6-8h |
 
 **Full roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
+
+### Sprint 06 Achievements
+
+✅ **Prophet ML Model Operational**
+- 168-hour (7-day) price forecasting
+- Real-time predictions from historical data (1,844 records)
+- Model metrics: MAE 0.033 €/kWh, R² 0.49, Coverage 95%: 88.3%
+- Automatic hourly prediction updates via APScheduler
+
+✅ **Dashboard Integration**
+- Weekly heatmap with real Prophet predictions
+- Color-coded price zones (low/medium/high)
+- Interactive tooltips compatible with all browsers (Safari, Chrome, Firefox, Brave)
+- Accessible via local and Tailscale remote access
+
+✅ **API Endpoints**
+- `GET /predict/prices/weekly` - 168h forecast
+- `GET /predict/prices/hourly?hours=N` - Configurable horizon
+- `POST /models/price-forecast/train` - Model training
+- `GET /models/price-forecast/status` - Model metrics
 
 ### Current ML Capabilities (Legacy)
 

@@ -19,6 +19,7 @@ from .openweathermap_client import OpenWeatherMapClient
 from .ml_models import ChocolateMLModels
 from .feature_engineering import ChocolateFeatureEngine
 from .business_logic_service import get_business_logic_service
+from .price_forecasting_service import PriceForecastingService
 
 logger = logging.getLogger(__name__)
 
@@ -35,17 +36,18 @@ class DashboardData:
 
 class DashboardService:
     """Servicio principal del dashboard completo"""
-    
+
     def __init__(self, ml_models=None, feature_engine=None):
         self.ree_client = REEClient()
         self.weather_client = OpenWeatherMapClient()
-        
+        self.price_forecasting = PriceForecastingService()
+
         # Use provided instances or create new ones (backward compatibility)
         if ml_models is not None:
             self.ml_models = ml_models
         else:
             self.ml_models = ChocolateMLModels()
-            
+
         if feature_engine is not None:
             self.feature_engine = feature_engine
         else:
@@ -629,40 +631,65 @@ class DashboardService:
             
             start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             
-            # === 1. OBTENER DATOS DE PRECIOS ELÉCTRICOS ===
+            # === 1. OBTENER PREDICCIONES DE PRECIOS REALES (Prophet) ===
             electricity_data = []
-            
+
             try:
-                # Intentar obtener precios REE recientes para generar tendencias
-                async with self.ree_client as ree:
-                    recent_prices = await ree.get_prices_last_hours(48)
-                if recent_prices:
-                    recent_avg = sum(p.price_eur_mwh for p in recent_prices) / len(recent_prices)
-                    
-                    # Generar predicción semanal basada en patrones
-                    for day in range(7):
-                        forecast_date = start_date + timedelta(days=day)
-                        
-                        # Simular variación diaria (más alta en días laborables)
-                        is_weekend = forecast_date.weekday() >= 5
-                        base_factor = 0.85 if is_weekend else 1.0
-                        
-                        # Variación aleatoria realista (+/- 15%)
-                        import random
-                        random.seed(forecast_date.day)  # Reproducible
-                        variation = 1.0 + (random.random() - 0.5) * 0.3
-                        
-                        daily_avg_price = (recent_avg * base_factor * variation) / 1000  # Convert to EUR/kWh
-                        
-                        electricity_data.append({
-                            "date": forecast_date.strftime("%Y-%m-%d"),
-                            "weekday": forecast_date.strftime("%A")[:3],
-                            "avg_price_eur_kwh": round(daily_avg_price, 4),
-                            "is_weekend": is_weekend
-                        })
-                        
+                # Obtener predicciones de Prophet (168 horas = 7 días)
+                predictions = await self.price_forecasting.predict_weekly()
+
+                # Agrupar predicciones por día (24 horas por día)
+                daily_predictions = {}
+                for pred in predictions:
+                    pred_datetime = datetime.fromisoformat(pred['timestamp'])
+                    date_key = pred_datetime.strftime("%Y-%m-%d")
+
+                    if date_key not in daily_predictions:
+                        daily_predictions[date_key] = []
+
+                    daily_predictions[date_key].append(pred['predicted_price'])
+
+                # Calcular promedios diarios de las predicciones
+                for date_str, prices in daily_predictions.items():
+                    forecast_date = datetime.strptime(date_str, "%Y-%m-%d")
+                    avg_price = sum(prices) / len(prices)
+
+                    electricity_data.append({
+                        "date": date_str,
+                        "weekday": forecast_date.strftime("%A")[:3],
+                        "avg_price_eur_kwh": round(avg_price, 4),
+                        "is_weekend": forecast_date.weekday() >= 5,
+                        "source": "prophet_forecast"
+                    })
+
+                logger.info(f"✅ Prophet predictions loaded: {len(electricity_data)} days")
+
             except Exception as e:
-                logger.warning(f"Failed to get REE prices for heatmap: {e}")
+                logger.warning(f"⚠️ Failed to get Prophet predictions, using fallback: {e}")
+
+                # Fallback: usar datos recientes REE si Prophet no está disponible
+                try:
+                    async with self.ree_client as ree:
+                        recent_prices = await ree.get_prices_last_hours(48)
+                    if recent_prices:
+                        recent_avg = sum(p.price_eur_mwh for p in recent_prices) / len(recent_prices)
+
+                        for day in range(7):
+                            forecast_date = start_date + timedelta(days=day)
+                            is_weekend = forecast_date.weekday() >= 5
+                            base_factor = 0.85 if is_weekend else 1.0
+
+                            daily_avg_price = (recent_avg * base_factor) / 1000
+
+                            electricity_data.append({
+                                "date": forecast_date.strftime("%Y-%m-%d"),
+                                "weekday": forecast_date.strftime("%A")[:3],
+                                "avg_price_eur_kwh": round(daily_avg_price, 4),
+                                "is_weekend": is_weekend,
+                                "source": "fallback_ree"
+                            })
+                except Exception as fallback_error:
+                    logger.error(f"❌ Fallback also failed: {fallback_error}")
             
             # === 2. OBTENER DATOS METEOROLÓGICOS ===
             weather_data = []
@@ -789,13 +816,19 @@ class DashboardService:
             
             return {
                 "status": "success",
-                "title": "📅 Pronóstico Semanal - Mini Calendario Heatmap",
+                "title": "📅 Pronóstico Semanal - Predicciones Prophet ML",
                 "calendar_days": calendar_days,
                 "summary": summary,
                 "heatmap_legend": {
                     "low": {"color": "#4CAF50", "label": "Precio Bajo (≤0.10 €/kWh)", "icon": "🟢"},
                     "medium": {"color": "#FF9800", "label": "Precio Medio (0.10-0.20 €/kWh)", "icon": "🟡"},
                     "high": {"color": "#F44336", "label": "Precio Alto (>0.20 €/kWh)", "icon": "🔴"}
+                },
+                "model_info": {
+                    "type": "Prophet (Facebook)",
+                    "horizon": "168 hours (7 days)",
+                    "last_training": self.price_forecasting.last_training.isoformat() if self.price_forecasting.last_training else None,
+                    "metrics": self.price_forecasting.metrics
                 },
                 "last_update": datetime.now().isoformat()
             }

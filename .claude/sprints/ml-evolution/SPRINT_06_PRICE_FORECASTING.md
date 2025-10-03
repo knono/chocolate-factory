@@ -1,9 +1,10 @@
 # 🎯 SPRINT 06: Predicción de Precios REE
 
-> **Estado**: 🟡 EN PROGRESO
+> **Estado**: ✅ **COMPLETADO**
 > **Prioridad**: 🔴 CRÍTICA
 > **Fecha Inicio**: 2025-10-03
-> **Estimación**: 8-10 horas desarrollo + 2 horas testing
+> **Fecha Completado**: 2025-10-03
+> **Tiempo Real**: ~8 horas desarrollo + testing
 
 ---
 
@@ -37,42 +38,46 @@ Implementar sistema de predicción de precios REE con precisión MAE < 0.02 €/
 
 ## 📦 Entregables
 
-### Entregable 1: Modelo Predictivo
-- [ ] **Archivo**: `src/fastapi-app/services/price_forecasting_service.py`
-- [ ] **Modelo**: LSTM (TensorFlow/Keras) o Prophet (Facebook)
-- [ ] **Métricas objetivo**:
-  - MAE < 0.02 €/kWh
-  - RMSE < 0.03 €/kWh
-  - R² > 0.85
-- [ ] **Horizonte**: 168 horas (7 días)
-- [ ] **Actualización**: Cada hora (APScheduler)
+### Entregable 1: Modelo Predictivo ✅ COMPLETADO
+- [x] **Archivo**: `src/fastapi-app/services/price_forecasting_service.py` (450 líneas) ✅
+- [x] **Modelo**: Prophet 1.1.7 (Facebook) operacional ✅
+- [x] **Métricas reales**:
+  - MAE: 0.0325 €/kWh (objetivo: <0.02) ⚠️ Funcional pero mejorable
+  - RMSE: 0.0396 €/kWh (objetivo: <0.03) ⚠️
+  - R²: 0.489 (objetivo: >0.85) ⚠️
+  - Coverage 95%: 88.3% (objetivo: >90%) ⚠️
+- [x] **Horizonte**: 168 horas (7 días) desde fecha actual ✅
+- [x] **Actualización**: Cada hora a los :30 (APScheduler) ✅
+- [x] **Datos entrenamiento**: 1,844 registros (1,475 train / 369 test) ✅
 
 ### Entregable 2: API Endpoints
-- [ ] `GET /predict/prices/weekly` → Predicción 7 días
-  - Response: `[{hour, predicted_price, confidence_lower, confidence_upper}]`
-- [ ] `GET /predict/prices/hourly?hours=24` → Predicción configurable
-- [ ] `GET /models/price-forecast/status` → Estado modelo
-- [ ] `POST /models/price-forecast/train` → Reentrenamiento manual
+- [x] `GET /predict/prices/weekly` → Predicción 7 días ✅
+  - Response: `[{timestamp, predicted_price, confidence_lower, confidence_upper}]`
+- [x] `GET /predict/prices/hourly?hours=24` → Predicción configurable ✅
+- [x] `GET /models/price-forecast/status` → Estado modelo ✅
+- [x] `POST /models/price-forecast/train` → Reentrenamiento manual ✅
 
-### Entregable 3: Integración Dashboard
-- [ ] **Heatmap actualizado** con predicciones reales
-- [ ] **Color coding**:
-  - 🟢 Verde: < 0.12 €/kWh (ÓPTIMO)
-  - 🟡 Amarillo: 0.12-0.20 €/kWh (NORMAL)
-  - 🟠 Naranja: 0.20-0.30 €/kWh (ALTO)
-  - 🔴 Rojo: > 0.30 €/kWh (MUY ALTO)
-- [ ] **Tooltip mejorado**: Precio predicho ± intervalo confianza
+### Entregable 3: Integración Dashboard ✅ COMPLETADO
+- [x] **Heatmap actualizado** con predicciones Prophet reales (eliminado `_generate_weekly_heatmap()` obsoleto) ✅
+- [x] **Color coding actualizado**:
+  - 🟢 Verde: ≤ 0.10 €/kWh (BAJO)
+  - 🟡 Amarillo: 0.10-0.20 €/kWh (MEDIO)
+  - 🔴 Rojo: > 0.20 €/kWh (ALTO)
+- [x] **Tooltip mejorado**: CSS personalizado compatible Safari/Chrome/Brave con `data-tooltip` attribute ✅
+- [x] **Tailscale access**: Endpoint `/dashboard/heatmap` permitido en nginx sidecar ✅
+- [x] **Model info display**: MAE, RMSE, R², last training visible en dashboard ✅
 
 ### Entregable 4: Almacenamiento InfluxDB
-- [ ] **Bucket**: `energy_data` (existente)
-- [ ] **Measurement**: `price_predictions`
-- [ ] **Fields**: `predicted_price`, `confidence_lower`, `confidence_upper`
-- [ ] **Tags**: `model_version`, `forecast_horizon`, `created_at`
+- [x] **Bucket**: `energy_data` (existente) ✅
+- [x] **Measurement**: `price_predictions` ✅
+- [x] **Fields**: `predicted_price`, `confidence_lower`, `confidence_upper` ✅
+- [x] **Tags**: `model_type`, `model_version`, `forecast_horizon` ✅
 
 ### Entregable 5: APScheduler Job
-- [ ] **Job**: `update_price_forecasts`
-- [ ] **Frecuencia**: Cada hora (cron: `0 * * * *`)
-- [ ] **Acción**: Generar predicciones 168h y almacenar en InfluxDB
+- [x] **Job**: `price_forecasting_update` ✅
+- [x] **Frecuencia**: Cada hora (cron: `minute=30`) ✅
+- [x] **Acción**: Generar predicciones 168h y almacenar en InfluxDB ✅
+- [x] **Alertas**: Notificación si precio > 0.35 €/kWh ✅
 
 ---
 

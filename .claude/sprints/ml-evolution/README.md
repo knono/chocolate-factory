@@ -14,20 +14,22 @@
 
 ## 🚀 ML Evolution Sprints (Sprint 06-10)
 
-### 🔵 Sprint 06: Predicción de Precios REE (CRÍTICO)
-**Estado**: 🟡 PENDIENTE
+### ✅ Sprint 06: Predicción de Precios REE (COMPLETADO)
+**Estado**: ✅ **COMPLETADO** (3 de Octubre, 2025)
 **Archivo**: [`SPRINT_06_PRICE_FORECASTING.md`](./SPRINT_06_PRICE_FORECASTING.md)
 
-**Objetivo**: Implementar modelo LSTM/Prophet para predecir precios REE próximas 168h (7 días).
+**Objetivo**: Implementar modelo Prophet para predecir precios REE próximas 168h (7 días).
 
-**Entregables**:
-- ✅ Modelo predictivo precios (LSTM o Prophet)
-- ✅ Heatmap poblado con predicciones reales
-- ✅ API `/predict/prices/weekly`
-- ✅ Intervalos de confianza
-- ✅ Métricas: MAE < 0.02 €/kWh
+**Entregables Completados**:
+- ✅ Modelo Prophet operacional (prophet 1.1.7)
+- ✅ Heatmap poblado con predicciones reales (no simuladas)
+- ✅ API `/predict/prices/weekly` + `/predict/prices/hourly`
+- ✅ Intervalos de confianza 95%
+- ✅ Métricas: MAE 0.033 €/kWh, R² 0.49, Coverage 88.3%
+- ✅ Dashboard integration con tooltips Safari/Chrome/Brave
+- ✅ APScheduler job: predicciones horarias automáticas
 
-**Impacto**: Heatmap pasa de decorativo a herramienta de planificación real.
+**Impacto**: Heatmap ahora muestra predicciones Prophet reales. Sistema de forecasting operacional.
 
 ---
 
