@@ -47,9 +47,10 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 
 ## Development Status ✅ PRODUCTION SYSTEM
 
-### 🚀 Active Sprint: Sprint 06 - ML Price Forecasting
-**Current Focus**: Implementing LSTM/Prophet model for REE price prediction (168h forecast)
-**Progress**: See [`.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md`](.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md)
+### 🚀 Recent Completion: Sprint 06 - ML Price Forecasting ✅
+**Status**: ✅ **COMPLETED** (October 3, 2025)
+**Achievements**: Prophet ML model operational with 168h forecasting, dashboard integration, and API endpoints
+**Details**: See [`.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md`](.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md)
 **Sprint Roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
 
 ### Sprint History (Completed)
@@ -57,10 +58,10 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - ✅ **Sprint 03**: Service Layer + Repository pattern
 - ✅ **Sprint 04**: SIAR ETL + 25 years historical data (88,935 records)
 - ✅ **Sprint 05**: Unified Dashboard + BusinessLogicService
+- ✅ **Sprint 06**: Prophet Price Forecasting + Dashboard Integration (Oct 3, 2025)
 
-### ML Evolution Sprints (In Progress)
-- 🟡 **Sprint 06**: REE Price Forecasting (ACTIVE)
-- 🔴 **Sprint 07**: SIAR Time Series Integration
+### ML Evolution Sprints (Remaining)
+- 🔴 **Sprint 07**: SIAR Time Series Integration (NEXT)
 - 🔴 **Sprint 08**: Hourly Production Optimization
 - 🔴 **Sprint 09**: Predictive Dashboard Complete
 - 🔴 **Sprint 10**: ML Consolidation & Cleanup
@@ -77,15 +78,16 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - **Automatic Backfill**: Gap detection and recovery every 2 hours
 
 ### Machine Learning (Direct Implementation)
-- **Direct Training**: sklearn + pickle storage (no external ML services)
-- **Real-time Predictions**: Energy optimization + production recommendations
-- **Automated ML**: Model retraining and predictions (every 30 min)
+- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.033 €/kWh, R²: 0.49)
+- **Direct Training**: sklearn + Prophet + pickle storage (no external ML services)
+- **Real-time Predictions**: Energy optimization + production recommendations + price forecasting
+- **Automated ML**: Model retraining and predictions (hourly for Prophet, every 30 min for sklearn)
 
 ### Operations
-- **APScheduler**: 10+ automated jobs (ingestion, ML, backfill, health)
+- **APScheduler**: 11 automated jobs (ingestion, ML, Prophet forecasting, backfill, health)
 - **Integrated Dashboard**: `/dashboard/complete` (replaces Node-RED)
-- **Visual Dashboard**: `/dashboard` with real-time heatmap and interactive widgets
-- **Weekly Forecast**: 7-day heatmap with price zones and weather integration
+- **Visual Dashboard**: `/dashboard` with Prophet ML heatmap and interactive tooltips
+- **Weekly Forecast**: 7-day Prophet predictions with color-coded price zones (Safari/Chrome/Brave compatible)
 - **Self-healing**: Automatic gap detection and recovery
 
 ## Key Design Principles
@@ -141,11 +143,17 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - `GET /weather/hybrid` - Hybrid weather data
 - `GET /ree/prices` - Current electricity prices
 
-### ML Operations  
+### ML Operations
 - `POST /models/train` - Train ML models directly
 - `GET /models/status-direct` - Model health and performance
 - `POST /predict/energy-optimization` - Energy optimization predictions
 - `POST /predict/production-recommendation` - Production recommendations
+
+### Price Forecasting (Sprint 06 - Prophet ML)
+- `GET /predict/prices/weekly` - 168-hour Prophet forecast with confidence intervals
+- `GET /predict/prices/hourly?hours=N` - Configurable forecast horizon (1-168 hours)
+- `POST /models/price-forecast/train` - Train Prophet model with historical REE data
+- `GET /models/price-forecast/status` - Model metrics (MAE, RMSE, R², coverage)
 
 ### Dashboard & Monitoring
 - `GET /dashboard` - Visual dashboard with interactive heatmap
@@ -154,20 +162,23 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - `GET /gaps/summary` - Data gap detection  
 - `POST /gaps/backfill/auto` - Automatic backfill recovery
 
-### Weekly Forecast System
-- **7-day heatmap**: Color-coded price zones with weather overlay
-- **Interactive tooltips**: Hover details for each day (price, weather, recommendations)
-- **Real-time data**: REE prices + AEMET/OpenWeatherMap weather integration
-- **Production guidance**: Daily recommendations (Optimal/Moderate/Reduced/Halt)
+### Weekly Forecast System (✅ Sprint 06 Enhanced)
+- **7-day Prophet predictions**: Real ML forecasts (not simulated)
+- **Color-coded price zones**: Low (<0.10), Medium (0.10-0.20), High (>0.20 €/kWh)
+- **Interactive tooltips**: Safari/Chrome/Brave compatible hover details
+- **Model info display**: MAE, RMSE, R², last training timestamp
+- **Real-time data**: Prophet predictions + AEMET/OpenWeatherMap weather
+- **Production guidance**: Daily recommendations based on Prophet forecasts
 - **Responsive design**: CSS Grid layout with dynamic color coding
 
 ## System Automation
 
-### APScheduler Jobs (10+ automated)
+### APScheduler Jobs (11 automated)
 - **REE ingestion**: Every 5 minutes
 - **Weather ingestion**: Every 5 minutes (hybrid AEMET/OpenWeatherMap)
 - **ML training**: Every 30 minutes (direct sklearn)
 - **ML predictions**: Every 30 minutes
+- **Prophet forecasting**: Every hour at :30 (168h price predictions) ✅ NEW
 - **Auto backfill**: Every 2 hours (gap detection & recovery)
 - **Health monitoring**: Every 15 minutes
 - **Token management**: Daily (AEMET renewal)

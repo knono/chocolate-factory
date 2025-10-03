@@ -2236,6 +2236,152 @@ async def get_models_status():
         }
 
 
+# === PRICE FORECASTING ENDPOINTS (Sprint 06) ===
+
+@app.get("/predict/prices/weekly", tags=["Price Forecasting"])
+async def get_weekly_price_forecast():
+    """
+    🔮 Predicción de precios REE para próximas 168 horas (7 días)
+
+    Returns:
+        Lista de predicciones con intervalos de confianza 95%
+    """
+    try:
+        from services.price_forecasting_service import get_price_forecasting_service
+
+        forecast_service = get_price_forecasting_service()
+        predictions = await forecast_service.predict_weekly()
+
+        return {
+            "🏢": "Chocolate Factory - REE Price Forecast",
+            "status": "✅ Forecast generated",
+            "forecast_horizon": "168 hours (7 days)",
+            "model_type": "Prophet (Facebook)",
+            "predictions_count": len(predictions),
+            "predictions": predictions,
+            "model_metrics": forecast_service.metrics if forecast_service.metrics else None,
+            "last_training": forecast_service.last_training.isoformat() if forecast_service.last_training else None,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except ValueError as e:
+        logger.warning(f"Price forecast unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Model not available: {str(e)}")
+    except Exception as e:
+        logger.error(f"Price forecast failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Forecast failed: {str(e)}")
+
+
+@app.get("/predict/prices/hourly", tags=["Price Forecasting"])
+async def get_hourly_price_forecast(hours: int = 24):
+    """
+    🔮 Predicción de precios REE para N horas específicas
+
+    Args:
+        hours: Número de horas a predecir (1-168)
+
+    Returns:
+        Lista de predicciones para las próximas N horas
+    """
+    if hours < 1 or hours > 168:
+        raise HTTPException(status_code=400, detail="hours debe estar entre 1 y 168")
+
+    try:
+        from services.price_forecasting_service import get_price_forecasting_service
+
+        forecast_service = get_price_forecasting_service()
+        predictions = await forecast_service.predict_hours(hours=hours)
+
+        return {
+            "🏢": "Chocolate Factory - REE Price Forecast",
+            "status": "✅ Forecast generated",
+            "forecast_horizon": f"{hours} hours",
+            "predictions_count": len(predictions),
+            "predictions": predictions,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except ValueError as e:
+        logger.warning(f"Price forecast unavailable: {e}")
+        raise HTTPException(status_code=503, detail=f"Model not available: {str(e)}")
+    except Exception as e:
+        logger.error(f"Price forecast failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Forecast failed: {str(e)}")
+
+
+@app.get("/models/price-forecast/status", tags=["Price Forecasting"])
+async def get_price_forecast_model_status():
+    """📊 Estado del modelo de predicción de precios"""
+    try:
+        from services.price_forecasting_service import get_price_forecasting_service
+
+        forecast_service = get_price_forecasting_service()
+        status = forecast_service.get_model_status()
+
+        return {
+            "🏢": "Chocolate Factory - Price Forecast Model",
+            "status": "✅ Model status retrieved",
+            "model_status": status,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Model status check failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Status check failed: {str(e)}")
+
+
+@app.post("/models/price-forecast/train", tags=["Price Forecasting"])
+async def train_price_forecast_model(months_back: int = 12, background_tasks: BackgroundTasks = None):
+    """
+    🤖 Entrenar modelo de predicción de precios REE
+
+    Args:
+        months_back: Meses de datos históricos para entrenamiento (default: 12)
+
+    Returns:
+        Resultado del entrenamiento con métricas
+    """
+    if months_back < 1 or months_back > 36:
+        raise HTTPException(status_code=400, detail="months_back debe estar entre 1 y 36")
+
+    try:
+        from services.price_forecasting_service import get_price_forecasting_service
+
+        logger.info(f"🤖 Iniciando entrenamiento modelo Prophet ({months_back} meses)")
+
+        forecast_service = get_price_forecasting_service()
+        result = await forecast_service.train_model(months_back=months_back)
+
+        if not result.get("success"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Training failed"))
+
+        # Si el entrenamiento fue exitoso, generar y almacenar predicciones
+        if background_tasks:
+            async def generate_and_store():
+                try:
+                    predictions = await forecast_service.predict_weekly()
+                    await forecast_service.store_predictions_influxdb(predictions)
+                    logger.info("✅ Predicciones generadas y almacenadas automáticamente")
+                except Exception as e:
+                    logger.error(f"❌ Error generando predicciones post-training: {e}")
+
+            background_tasks.add_task(generate_and_store)
+
+        return {
+            "🏢": "Chocolate Factory - Price Forecast Training",
+            "status": "✅ Model trained successfully",
+            "training_result": result,
+            "next_step": "Predictions will be generated and stored automatically",
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Model training failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
+
+
 # === GAP DETECTION & BACKFILL ENDPOINTS ===
 
 @app.get("/gaps/detect", tags=["Data Management"])
@@ -2954,14 +3100,14 @@ async def get_complete_dashboard():
         dashboard_service = get_global_dashboard_service()
         dashboard_data = await dashboard_service.get_complete_dashboard_data()
         
-        # Añadir heatmap semanal directamente
+        # Añadir heatmap semanal con predicciones Prophet
         try:
-            weekly_heatmap = await _generate_weekly_heatmap()
+            weekly_heatmap = await dashboard_service._get_weekly_forecast_heatmap()
             dashboard_data["weekly_forecast"] = weekly_heatmap
         except Exception as e:
             logger.warning(f"Failed to add weekly heatmap: {e}")
             dashboard_data["weekly_forecast"] = {
-                "status": "error", 
+                "status": "error",
                 "message": f"Heatmap generation failed: {str(e)}"
             }
         
@@ -2985,115 +3131,7 @@ async def get_complete_dashboard():
         raise HTTPException(status_code=500, detail=f"Dashboard error: {str(e)}")
 
 
-async def _generate_weekly_heatmap():
-    """Genera el heatmap semanal de forma independiente"""
-    try:
-        from datetime import datetime, timedelta
-        import random
-        
-        start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # Generar datos simplificados para el heatmap
-        calendar_days = []
-        
-        # Precios base simulados (más realistas)
-        base_prices = [0.12, 0.08, 0.15, 0.18, 0.09, 0.06, 0.11]  # 7 días
-        
-        for day in range(7):
-            forecast_date = start_date + timedelta(days=day)
-            date_str = forecast_date.strftime("%Y-%m-%d")
-            
-            # Precio para este día
-            price = base_prices[day]
-            
-            # Zona de calor basada en precio
-            if price <= 0.10:
-                heat_zone = "low"
-                heat_color = "#4CAF50"  # Verde
-                recommendation = "Optimal"
-                icon = "🟢"
-            elif price <= 0.20:
-                heat_zone = "medium"
-                heat_color = "#FF9800"  # Naranja
-                recommendation = "Moderate" 
-                icon = "🟡"
-            else:
-                heat_zone = "high"
-                heat_color = "#F44336"  # Rojo
-                recommendation = "Reduced"
-                icon = "🔴"
-            
-            # Temperatura simulada
-            base_temp = 22 + (day - 3) * 2  # Variación simple
-            
-            calendar_days.append({
-                "date": date_str,
-                "day_name": forecast_date.strftime("%A"),
-                "day_short": forecast_date.strftime("%a"),
-                "day_number": forecast_date.day,
-                "is_today": day == 0,
-                "is_weekend": forecast_date.weekday() >= 5,
-                
-                # Datos de precio
-                "avg_price_eur_kwh": price,
-                "price_trend": "stable",
-                
-                # Datos meteorológicos
-                "avg_temperature": base_temp,
-                "avg_humidity": 45 + day * 2,
-                
-                # Heatmap visual
-                "heat_zone": heat_zone,
-                "heat_color": heat_color,
-                "heat_intensity": min(price * 10, 10),
-                
-                # Recomendación
-                "production_recommendation": recommendation,
-                "recommendation_icon": icon
-            })
-        
-        # Estadísticas
-        prices = [day["avg_price_eur_kwh"] for day in calendar_days]
-        temps = [day["avg_temperature"] for day in calendar_days]
-        
-        return {
-            "status": "success",
-            "title": "📅 Pronóstico Semanal - Mini Calendario Heatmap",
-            "calendar_days": calendar_days,
-            "summary": {
-                "period": {
-                    "start_date": start_date.strftime("%Y-%m-%d"),
-                    "end_date": (start_date + timedelta(days=6)).strftime("%Y-%m-%d"),
-                    "total_days": 7
-                },
-                "price_summary": {
-                    "min_price": round(min(prices), 4),
-                    "max_price": round(max(prices), 4),
-                    "avg_price": round(sum(prices) / len(prices), 4)
-                },
-                "weather_summary": {
-                    "min_temp": round(min(temps), 1),
-                    "max_temp": round(max(temps), 1), 
-                    "avg_temp": round(sum(temps) / len(temps), 1)
-                },
-                "optimal_days": len([d for d in calendar_days if d["production_recommendation"] == "Optimal"]),
-                "warning_days": len([d for d in calendar_days if d["heat_zone"] == "high"])
-            },
-            "heatmap_legend": {
-                "low": {"color": "#4CAF50", "label": "Precio Bajo (≤0.10 €/kWh)", "icon": "🟢"},
-                "medium": {"color": "#FF9800", "label": "Precio Medio (0.10-0.20 €/kWh)", "icon": "🟡"},
-                "high": {"color": "#F44336", "label": "Precio Alto (>0.20 €/kWh)", "icon": "🔴"}
-            },
-            "last_update": datetime.now().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Error generating weekly heatmap: {e}")
-        return {
-            "status": "error",
-            "message": f"Heatmap generation failed: {str(e)}",
-            "calendar_days": []
-        }
+# DEPRECATED: _generate_weekly_heatmap removed - now using DashboardService._get_weekly_forecast_heatmap() with Prophet predictions
 
 
 @app.get("/dashboard/summary", tags=["Dashboard"])
@@ -3422,12 +3460,61 @@ async def serve_enhanced_dashboard():
                 flex-direction: column;
                 justify-content: space-between;
                 color: #333;
+                position: relative;
             }
-            
+
             .calendar-day:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
                 border-color: rgba(255, 255, 255, 0.4);
+            }
+
+            /* Tooltip personalizado compatible con Safari/Brave */
+            .calendar-day[data-tooltip]::after {
+                content: attr(data-tooltip);
+                position: absolute;
+                bottom: 120%;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.95);
+                color: white;
+                padding: 0.75rem 1rem;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                white-space: pre-line;
+                z-index: 1000;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s, visibility 0.3s;
+                pointer-events: none;
+                min-width: 200px;
+                text-align: left;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
+
+            .calendar-day[data-tooltip]:hover::after {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            /* Flecha del tooltip */
+            .calendar-day[data-tooltip]::before {
+                content: '';
+                position: absolute;
+                bottom: 110%;
+                left: 50%;
+                transform: translateX(-50%);
+                border: 6px solid transparent;
+                border-top-color: rgba(0, 0, 0, 0.95);
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s, visibility 0.3s;
+                z-index: 1001;
+            }
+
+            .calendar-day[data-tooltip]:hover::before {
+                opacity: 1;
+                visibility: visible;
             }
             
             .calendar-day.today {
@@ -4416,13 +4503,16 @@ async def serve_enhanced_dashboard():
                         <div class="day-recommendation">${day.recommendation_icon}</div>
                     `;
                     
-                    // Tooltip en hover
+                    // Tooltip compatible con Safari/Brave usando data-attribute
+                    dayElement.setAttribute('data-tooltip', `${day.day_name} ${day.day_number}\\nPrecio: ${formatSpanishNumber(day.avg_price_eur_kwh, 3)} €/kWh\\nTemperatura: ${day.avg_temperature}°C\\nHumedad: ${day.avg_humidity}%\\nRecomendación: ${day.production_recommendation}`);
+
+                    // Fallback: title nativo para navegadores que lo soporten
                     dayElement.title = `${day.day_name} ${day.day_number}
 Precio: ${formatSpanishNumber(day.avg_price_eur_kwh, 3)} €/kWh
 Temperatura: ${day.avg_temperature}°C
 Humedad: ${day.avg_humidity}%
 Recomendación: ${day.production_recommendation}`;
-                    
+
                     calendarGrid.appendChild(dayElement);
                 });
                 
