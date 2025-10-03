@@ -74,7 +74,7 @@ The system implements a **hybrid architecture** combining complete on-premise da
 │                ↑                                            │
 │                │ Tailscale Zero-Trust Network              │
 │                ↓                                            │
-│  [ Remote Access: https://chocolate-factory.tailnet ]      │
+│  [ Remote Access: https://<hostname>.ts.net ]              │
 │    ✓ Dashboard monitoring (read-only)                      │
 │    ✗ Admin APIs (blocked by Nginx)                         │
 │    ✗ ML training endpoints (blocked)                       │
@@ -403,8 +403,8 @@ Recommended for production monitoring with secure remote access.
 # 2. Configure Tailscale credentials
 cp .env.tailscale.example .env.tailscale
 nano .env.tailscale
-# Set: TAILSCALE_AUTHKEY=tskey-auth-xxxxx-xxxxxx
-# Set: TAILSCALE_DOMAIN=chocolate-factory (auto-registered)
+# Set: TAILSCALE_AUTHKEY=<your-tailscale-authkey>
+# Set: TAILSCALE_DOMAIN=<your-hostname> (auto-registered in Tailscale)
 
 # 3. Deploy with Tailscale sidecar
 docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
@@ -416,7 +416,7 @@ docker logs chocolate-factory | grep "Tailscale started"
 # Local (full access):
 http://localhost:8000/docs           # Full API + admin
 # Remote (read-only):
-https://chocolate-factory.your-tailnet.ts.net/dashboard  # Dashboard only
+https://<your-tailscale-hostname>.ts.net/dashboard  # Dashboard only
 ```
 
 **Characteristics**:
