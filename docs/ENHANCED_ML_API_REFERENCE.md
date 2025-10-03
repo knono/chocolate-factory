@@ -2,7 +2,9 @@
 
 ## 🚀 **Overview**
 
-Complete API reference for the Enhanced ML System with historical data integration (SIAR 88k + REE 42k records).
+Complete API reference for the Enhanced ML System with historical data integration (SIAR 88k + REE 42k records) and Prophet price forecasting.
+
+**Last Updated**: October 3, 2025 (Sprint 06 - Prophet Integration)
 
 ## ✨ **Enhanced ML Endpoints**
 
@@ -76,6 +78,106 @@ Train Enhanced ML models with historical data
   }
 }
 ```
+
+### **Price Forecasting (Prophet ML - Sprint 06)** 🆕
+
+#### `GET /predict/prices/weekly`
+Get 168-hour (7-day) price forecast using Prophet model
+
+**Response:**
+```json
+{
+  "🏢": "Chocolate Factory - REE Price Forecast",
+  "status": "✅ Forecast generated",
+  "forecast_horizon": "168 hours (7 days)",
+  "model_type": "Prophet (Facebook)",
+  "predictions_count": 168,
+  "predictions": [
+    {
+      "timestamp": "2025-10-03T17:00:00",
+      "predicted_price": 0.2397,
+      "confidence_lower": 0.1823,
+      "confidence_upper": 0.2971
+    },
+    ...
+  ],
+  "model_metrics": {
+    "mae": 0.0325,
+    "rmse": 0.0396,
+    "r2": 0.489,
+    "coverage_95": 0.883,
+    "train_samples": 1475,
+    "test_samples": 369
+  },
+  "last_training": "2025-10-03T17:41:39.781906",
+  "timestamp": "2025-10-03T17:52:09.730934"
+}
+```
+
+#### `GET /predict/prices/hourly?hours=N`
+Get configurable hourly forecast (1-168 hours)
+
+**Parameters:**
+- `hours` (optional): Number of hours to forecast (default: 24, max: 168)
+
+**Response:** Same structure as weekly, limited to N predictions
+
+#### `POST /models/price-forecast/train`
+Train Prophet model with historical REE data
+
+**Parameters:**
+- `months_back` (optional): Months of historical data to use (default: 12)
+
+**Response:**
+```json
+{
+  "🏢": "Chocolate Factory - Price Forecast Training",
+  "status": "✅ Model trained successfully",
+  "training_result": {
+    "success": true,
+    "metrics": {
+      "mae": 0.0325,
+      "rmse": 0.0396,
+      "r2": 0.489,
+      "coverage_95": 0.883,
+      "train_samples": 1475,
+      "test_samples": 369
+    },
+    "last_training": "2025-10-03T17:41:39.781906",
+    "model_file": "/app/models/forecasting/prophet_latest.pkl",
+    "meets_objectives": {
+      "mae_ok": false,
+      "rmse_ok": false,
+      "r2_ok": false,
+      "coverage_ok": false
+    }
+  }
+}
+```
+
+#### `GET /models/price-forecast/status`
+Get Prophet model status and metrics
+
+**Response:**
+```json
+{
+  "🏢": "Chocolate Factory - Price Forecast Model Status",
+  "status": "✅ Model available",
+  "model_info": {
+    "type": "Prophet (Facebook)",
+    "version": "1.1.7",
+    "last_training": "2025-10-03T17:41:39.781906"
+  },
+  "metrics": {
+    "mae": 0.0325,
+    "rmse": 0.0396,
+    "r2": 0.489,
+    "coverage_95": 0.883
+  }
+}
+```
+
+---
 
 ### **Predictions**
 

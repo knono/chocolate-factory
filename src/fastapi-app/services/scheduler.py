@@ -296,7 +296,17 @@ class SchedulerService:
             replace_existing=True
         )
         logger.info("Added auto backfill check job (every 2 hours)")
-    
+
+        # 11. Price Forecasting Update - Every hour (Sprint 06)
+        self.scheduler.add_job(
+            func=self._price_forecasting_update_job,
+            trigger=CronTrigger(minute=30),  # Every hour at :30
+            id="price_forecasting_update",
+            name="REE Price Forecast Update",
+            replace_existing=True
+        )
+        logger.info("🔮 Added price forecasting update job (hourly at :30)")
+
     async def _ingest_ree_prices_job(self):
         """Scheduled job for REE price data ingestion"""
         job_start = datetime.now()
@@ -788,7 +798,68 @@ class SchedulerService:
                 "Auto Backfill Error",
                 f"Sistema de recuperación automática falló: {str(e)}"
             )
-    
+
+    async def _price_forecasting_update_job(self):
+        """
+        Scheduled job for price forecasting update (Sprint 06)
+        Generates and stores REE price predictions for next 168h
+        """
+        job_start = datetime.now()
+
+        try:
+            logger.info("🔮 Starting scheduled price forecasting update")
+
+            # Import price forecasting service
+            from services.price_forecasting_service import get_price_forecasting_service
+
+            forecast_service = get_price_forecasting_service()
+
+            # Check if model exists
+            if not forecast_service.model:
+                logger.warning("⚠️ Price forecasting model not trained yet - skipping update")
+                logger.info("💡 Hint: Train model with POST /models/price-forecast/train")
+                return
+
+            # Generate predictions
+            predictions = await forecast_service.predict_weekly()
+
+            if not predictions:
+                logger.error("❌ No predictions generated")
+                return
+
+            # Store in InfluxDB
+            success = await forecast_service.store_predictions_influxdb(predictions)
+
+            if success:
+                job_duration = (datetime.now() - job_start).total_seconds()
+                logger.info(f"✅ Price forecasting update completed in {job_duration:.2f}s")
+                logger.info(f"   📊 {len(predictions)} predictions stored")
+
+                # Log price range for monitoring
+                prices = [p['predicted_price'] for p in predictions]
+                logger.info(f"   📈 Predicted range: {min(prices):.4f} - {max(prices):.4f} €/kWh")
+
+                # Alert on extreme prices
+                if max(prices) > 0.35:
+                    await self._send_alert(
+                        "⚠️ High Price Alert",
+                        f"Predicted peak price: {max(prices):.4f} €/kWh in next 7 days"
+                    )
+
+            else:
+                logger.error("❌ Failed to store predictions in InfluxDB")
+                await self._send_alert(
+                    "Price Forecasting Storage Error",
+                    "Failed to store predictions in database"
+                )
+
+        except Exception as e:
+            logger.error(f"❌ Price forecasting job failed: {e}")
+            await self._send_alert(
+                "Price Forecasting Error",
+                f"Scheduled forecast update failed: {str(e)}"
+            )
+
     def get_job_status(self) -> Dict[str, Any]:
         """Get status of all scheduled jobs"""
         if not self.scheduler:
