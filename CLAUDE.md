@@ -47,6 +47,24 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 
 ## Development Status ✅ PRODUCTION SYSTEM
 
+### 🚀 Active Sprint: Sprint 06 - ML Price Forecasting
+**Current Focus**: Implementing LSTM/Prophet model for REE price prediction (168h forecast)
+**Progress**: See [`.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md`](.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md)
+**Sprint Roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
+
+### Sprint History (Completed)
+- ✅ **Sprint 01-02**: Monolithic → Microservices migration
+- ✅ **Sprint 03**: Service Layer + Repository pattern
+- ✅ **Sprint 04**: SIAR ETL + 25 years historical data (88,935 records)
+- ✅ **Sprint 05**: Unified Dashboard + BusinessLogicService
+
+### ML Evolution Sprints (In Progress)
+- 🟡 **Sprint 06**: REE Price Forecasting (ACTIVE)
+- 🔴 **Sprint 07**: SIAR Time Series Integration
+- 🔴 **Sprint 08**: Hourly Production Optimization
+- 🔴 **Sprint 09**: Predictive Dashboard Complete
+- 🔴 **Sprint 10**: ML Consolidation & Cleanup
+
 ### Core Infrastructure (2-Container Architecture)
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
 - **InfluxDB Storage** (chocolate_factory_storage) - Time series database
@@ -382,3 +400,90 @@ Raw ML scores            Context-aware            Spanish messages
 - ✅ **Visual Clarity**: All text properly visible
 - ✅ **Dual Access**: Local + Tailscale working perfectly
 - ✅ **Recommendation Consistency**: Unified source of truth implemented
+
+---
+
+## 📚 Working with Sprints (Sprint 06-10: ML Evolution)
+
+### 🎯 Sprint Workflow for Claude Code
+
+#### On Session Start
+1. **Read Sprint Status**: Open [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
+2. **Identify Active Sprint**: Look for 🟡 PENDING or 🟡 EN PROGRESO status
+3. **Open Sprint Document**: Read `SPRINT_XX_XXXXX.md` for current sprint details
+4. **Review Checklist**: Check `- [ ]` items to see what's pending
+
+#### During Development
+1. **Update Checkboxes**: Mark completed items as `- [x]` in sprint document
+2. **Document Issues**: Add to "Problemas Encontrados" section if exists
+3. **Track Progress**: Use TodoWrite tool for granular task tracking
+4. **Commit Incrementally**: Small commits with descriptive messages
+
+#### On Sprint Completion
+1. **Verify All Checklists**: Ensure all `- [ ]` are now `- [x]`
+2. **Update Sprint Status**: Change 🟡 → ✅ COMPLETADO in sprint document
+3. **Update README**: Mark sprint as ✅ in `.claude/sprints/ml-evolution/README.md`
+4. **Update CLAUDE.md**: Move completed sprint to "Sprint History"
+5. **Create Git Tag**: `git tag -a sprint-XX -m "Sprint XX completed"`
+6. **Move to Next Sprint**: Update "Active Sprint" section to next sprint
+
+### 📂 Sprint Documentation Structure
+
+```
+.claude/sprints/ml-evolution/
+├── README.md                           # Sprint index and roadmap
+├── SPRINT_06_PRICE_FORECASTING.md     # 🟡 ACTIVE
+├── SPRINT_07_SIAR_TIMESERIES.md       # 🔴 NOT STARTED
+├── SPRINT_08_HOURLY_OPTIMIZATION.md   # 🔴 NOT STARTED
+├── SPRINT_09_PREDICTIVE_DASHBOARD.md  # 🔴 NOT STARTED
+└── SPRINT_10_CONSOLIDATION.md         # 🔴 NOT STARTED
+```
+
+### ⚡ Quick Commands
+
+```bash
+# Check current sprint status
+cat .claude/sprints/ml-evolution/README.md | grep "Sprint 0" | head -10
+
+# View active sprint details
+cat .claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md
+
+# Update sprint status after completion
+# Edit sprint file: change 🟡 → ✅ and update checkboxes
+# Edit README.md: update sprint list status
+# Edit CLAUDE.md: move sprint to completed section
+```
+
+### 🎯 Sprint Philosophy
+
+1. **No Service Interruption**: Each sprint adds functionality without breaking existing features
+2. **Incremental Delivery**: Every sprint ends with 100% functional system
+3. **Context Preservation**: `.claude/sprints/` maintains state between sessions
+4. **Progressive Cleanup**: Remove legacy code only when new code is proven stable
+
+### 📊 Sprint Completion Criteria
+
+A sprint is **COMPLETADO** when:
+- ✅ All deliverables implemented and tested
+- ✅ System runs without errors
+- ✅ Documentation updated (sprint file + CLAUDE.md)
+- ✅ Success metrics achieved
+- ✅ No critical technical debt introduced
+
+---
+
+## 🔧 Sprint 06 Quick Start (Current Active)
+
+**Goal**: Implement LSTM/Prophet for REE price prediction (168h forecast)
+
+**Key Files to Create/Modify**:
+- `src/fastapi-app/services/price_forecasting_service.py` (NEW)
+- `src/fastapi-app/main.py` (add endpoints + APScheduler job)
+- Dashboard heatmap integration
+
+**Success Metrics**:
+- MAE < 0.02 €/kWh
+- Heatmap showing real predictions
+- API `/predict/prices/weekly` working
+
+**See Full Details**: [`.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md`](.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md)
