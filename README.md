@@ -23,6 +23,21 @@ Industrial-grade system for energy cost optimization and production planning. In
 - **Autonomous Operation**: Self-healing data pipeline with automatic gap detection and recovery
 - **Real-time Dashboard**: Interactive weekly heatmap with production recommendations
 
+### Dashboard Preview
+
+<table>
+<tr>
+<td width="50%">
+<img src="docs/images/dashboard-main.png" alt="Main Dashboard" />
+<p align="center"><em>Main Dashboard - System Overview & ML Predictions</em></p>
+</td>
+<td width="50%">
+<img src="docs/images/dashboard-detail.png" alt="Dashboard Details" />
+<p align="center"><em>Detailed Metrics - Historical Analysis & Forecasting</em></p>
+</td>
+</tr>
+</table>
+
 ---
 
 ## System Architecture
@@ -177,50 +192,26 @@ The system implements a **hybrid architecture** combining complete on-premise da
 
 ## Machine Learning System
 
-### Current Status: ✅ Sprint 06 Completed (Price Forecasting)
+### Current Status: ✅ Sprint 07 Completed (SIAR Historical Analysis)
 
-The ML system has successfully evolved to real time series predictions using Prophet.
+**Sprint Progress**: 7/10 ML Evolution
 
-**Sprint Progress**: 6/10 (✅ Price forecasting operational)
+| Sprint | Status | Completion |
+|--------|--------|------------|
+| **06** | ✅ REE Price Forecasting (Prophet 168h) | Oct 3, 2025 |
+| **07** | ✅ SIAR Historical Analysis (88k records) | Oct 4, 2025 |
+| **08-10** | 🔴 Pending | - |
 
-### ML Architecture Evolution (Sprint 06-10)
-
-| Sprint | Component | Status | Completion |
-|--------|-----------|--------|------------|
-| **06** | ✅ REE Price Forecasting (Prophet) | ✅ Complete | Oct 3, 2025 |
-| **07** | SIAR Time Series Integration | 🔴 Pending | 6-8h |
-| **08** | Hourly Production Optimization | 🔴 Pending | 8-10h |
-| **09** | Predictive Dashboard Enhancement | 🔴 Pending | 6-8h |
-| **10** | ML Consolidation & Cleanup | 🔴 Pending | 6-8h |
+**Sprint 07 Summary**: Historical correlation analysis with 25 years of SIAR weather data. Seasonal patterns detected (September best: 48.2%, January worst: 0%). Critical thresholds identified via percentiles (P90: 28.8°C, P95: 30.4°C, P99: 32.2°C). Dashboard card integrated with live data.
 
 **Full roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
 
-### Sprint 06 Achievements
+### ML Capabilities
 
-✅ **Prophet ML Model Operational**
-- 168-hour (7-day) price forecasting
-- Real-time predictions from historical data (1,844 records)
-- Model metrics: MAE 0.033 €/kWh, R² 0.49, Coverage 95%: 88.3%
-- Automatic hourly prediction updates via APScheduler
-
-✅ **Dashboard Integration**
-- Weekly heatmap with real Prophet predictions
-- Color-coded price zones (low/medium/high)
-- Interactive tooltips compatible with all browsers (Safari, Chrome, Firefox, Brave)
-- Accessible via local and Tailscale remote access
-
-✅ **API Endpoints**
-- `GET /predict/prices/weekly` - 168h forecast
-- `GET /predict/prices/hourly?hours=N` - Configurable horizon
-- `POST /models/price-forecast/train` - Model training
-- `GET /models/price-forecast/status` - Model metrics
-
-### Current ML Capabilities (Legacy)
-
-- **Direct ML Service**: sklearn-based models with pickle storage
-- **Energy Optimization**: RandomForest regressor (R² = 0.89)
+- **Price Forecasting**: Prophet 168h predictions (MAE: 0.033 €/kWh, R²: 0.49)
+- **Historical Analysis**: SIAR correlations (R²: 0.049 temp, 0.057 humidity)
+- **Energy Optimization**: RandomForest regressor (R²: 0.89)
 - **Production Classification**: RandomForest classifier (90% accuracy)
-- **Feature Engineering**: 13 engineered features from raw data
 
 ---
 
@@ -234,124 +225,38 @@ The ML system has successfully evolved to real time series predictions using Pro
   - AEMET: https://opendata.aemet.es/centrodedescargas/obtencionAPIKey
   - OpenWeatherMap: https://openweathermap.org/api
 
-### Installation
-
-```bash
-# Clone repository
-git clone https://github.com/your-org/chocolate-factory.git
-cd chocolate-factory
-
-# Configure environment
-cp .env.example .env
-nano .env  # Add API keys
-
-# Launch system
-docker compose up -d
-
-# Verify deployment
-docker compose ps
-docker compose logs -f chocolate_factory_brain
-```
-
-### Access Points
-
-```bash
-# Local dashboard (visual interface)
-http://localhost:8000/dashboard
-
-# API documentation (Swagger)
-http://localhost:8000/docs
-
-# InfluxDB admin
-http://localhost:8086
-```
-
----
-
-## API Reference
-
-### Data Ingestion
-
-```bash
-# Manual data ingestion
-POST /ingest-now
-
-# Hybrid weather data
-GET /weather/hybrid
-
-# Current REE prices
-GET /ree/prices
-```
-
-### ML Operations
-
-```bash
-# Train models
-POST /models/train
-
-# Model status
-GET /models/status-direct
-
-# Predictions
-POST /predict/energy-optimization
-POST /predict/production-recommendation
-```
-
-### System Monitoring
-
-```bash
-# Scheduler status
-GET /scheduler/status
-
-# Data gaps detection
-GET /gaps/summary
-
-# Automatic backfill
-POST /gaps/backfill/auto?max_gap_hours=6.0
-```
-
-### Dashboard Data
-
-```bash
-# Complete dashboard JSON
-GET /dashboard/complete
-
-# Weekly heatmap data
-GET /dashboard/heatmap
-
-# System alerts
-GET /dashboard/alerts
-```
-
----
-
-## Development
-
 ### Project Structure
 
 ```
 chocolate-factory/
 ├── src/fastapi-app/           # Main application
-│   ├── main.py                # FastAPI entry point
+│   ├── main.py                # FastAPI entry point (3,734 lines)
 │   ├── services/              # Business logic layer
-│   │   ├── direct_ml.py       # ML training (legacy)
-│   │   ├── dashboard.py       # Dashboard service
+│   │   ├── siar_analysis_service.py  # SIAR historical analysis
+│   │   ├── dashboard.py       # Dashboard data service
 │   │   ├── ree_client.py      # REE API client
-│   │   ├── siar_etl.py        # SIAR data ETL
+│   │   ├── siar_etl.py        # SIAR ETL (88k records)
 │   │   └── weather_service.py # Weather integration
 │   └── pyproject.toml         # Dependencies
+├── static/                    # Dashboard frontend (v0.41.0)
+│   ├── index.html             # Main dashboard (432 lines)
+│   ├── css/
+│   │   └── dashboard.css      # Styles (826 lines)
+│   └── js/
+│       └── dashboard.js       # Logic + API calls (890 lines)
 ├── docker/                    # Container infrastructure
-│   ├── docker-compose.yml     # Main orchestration
-│   ├── fastapi.Dockerfile     # Application container
+│   ├── docker-compose.yml     # Main orchestration (2 containers)
+│   ├── docker-compose.override.yml  # Tailscale sidecar
+│   ├── sidecar-nginx.conf     # Nginx reverse proxy config
+│   ├── tailscale-start.sh     # Sidecar startup script
 │   └── services/              # Persistent data
 │       ├── influxdb/data/     # Time series database
-│       └── fastapi/models/    # ML model storage
-├── models/                    # Trained ML models
+│       └── fastapi/models/    # ML model storage (pickle)
 ├── .claude/                   # Project documentation
-│   ├── sprints/ml-evolution/  # Sprint planning
+│   ├── sprints/ml-evolution/  # Sprint 06-10 roadmap
 │   ├── architecture.md        # System architecture
 │   └── rules/                 # Business logic rules
-└── CLAUDE.md                  # Main documentation
+└── CLAUDE.md                  # Development guide
 ```
 
 ### Running Tests
@@ -400,9 +305,9 @@ Recommended for development and when remote access is not required.
 docker compose up -d
 
 # Access points (local network only)
-http://localhost:8000/dashboard      # Dashboard
-http://localhost:8000/docs           # Full API documentation
-http://localhost:8086                # InfluxDB admin UI
+http://localhost:8000/static/index.html  # Dashboard (static)
+http://localhost:8000/docs               # Full API documentation
+http://localhost:8086                    # InfluxDB admin UI
 ```
 
 **Characteristics**:
@@ -449,9 +354,11 @@ https://<your-tailscale-hostname>.ts.net/dashboard  # Dashboard only
 **Nginx Filtering** (Sidecar):
 ```nginx
 # Allowed remotely
-✓ /dashboard              # Main dashboard
-✓ /dashboard/complete     # Dashboard data API
-✓ /static/*               # Static resources
+✓ /                       # Redirects to /static/index.html
+✓ /dashboard              # Redirects to /static/index.html
+✓ /static/*               # Static resources (HTML/CSS/JS)
+✓ /dashboard/complete     # Dashboard data API (JSON)
+✓ /dashboard/heatmap      # Heatmap data API
 
 # Blocked remotely (403 Forbidden)
 ✗ /docs                   # API documentation
@@ -460,6 +367,8 @@ https://<your-tailscale-hostname>.ts.net/dashboard  # Dashboard only
 ✗ /influxdb/*             # Database access
 ✗ /gaps/*                 # Data backfill
 ✗ /scheduler/*            # Job management
+✗ /ree/*                  # REE API endpoints
+✗ /aemet/*                # AEMET API endpoints
 ```
 
 ### Data Persistence
@@ -482,13 +391,6 @@ Backup strategy: Snapshot these directories regularly.
 - **API Response Time**: <100ms (local), <500ms (remote via Tailscale)
 - **Dashboard Refresh**: 30 seconds (auto-refresh)
 - **Uptime**: 99.5% (with auto-recovery)
-
-### ML Model Performance (Legacy)
-
-- **Energy Optimization**: R² = 0.89, MAE = 0.02 €/kWh
-- **Production Classifier**: 90% accuracy (4-class classification)
-- **Training Time**: ~15 seconds (with 42,578 samples)
-- **Prediction Latency**: <50ms per request
 
 ---
 
@@ -517,25 +419,14 @@ Comprehensive documentation available in `/docs/` and `.claude/`:
 
 ## Milestones
 
-### ✅ Completed
-
-- **Sprint 01-02**: Monolithic to microservices migration (Sept 2025)
-- **Sprint 03**: Service layer architecture implementation
-- **Sprint 04**: SIAR ETL - 88,935 historical records ingested
-- **Sprint 05**: Unified dashboard + BusinessLogicService
-- **Dashboard**: Weekly heatmap with interactive tooltips
-- **Weather Integration**: Hybrid AEMET + OpenWeatherMap (24/7 coverage)
-- **Backfill System**: Automatic gap detection and recovery
-
 ### 🟡 In Progress
 
-- **Sprint 06**: REE price forecasting with LSTM/Prophet models
-- **Heatmap Enhancement**: Real predictions vs historical data
+- **Sprint 08**: Hourly production optimization based on ML forecasting
 
 ### 🔴 Planned
 
-- **Sprint 07-10**: Complete ML evolution (time series, optimization, consolidation)
-- **Mobile Dashboard**: Responsive design for mobile devices
+- **Sprint 09-10**: Predictive dashboard enhancement & ML consolidation
+- **Mobile Dashboard**: Responsive design optimization
 - **Extended Forecasts**: 14-day price predictions
 - **Export Functionality**: PDF/CSV production planning reports
 
