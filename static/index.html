@@ -3,108 +3,429 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chocolate Factory - Dashboard Completo</title>
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/components/cards.css">
-    <link rel="stylesheet" href="css/components/heatmap.css">
-    <link rel="stylesheet" href="css/components/alerts.css">
-    <link rel="stylesheet" href="css/components/siar-analysis.css">
+    <title>Chocolate Factory - Dashboard</title>
+    <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
-    <div class="dashboard-container">
-        <!-- Header -->
-        <header class="dashboard-header">
-            <h1>🍫 Chocolate Factory - Enhanced Dashboard</h1>
-            <p class="subtitle">El Monitor Avanzado - Enhanced ML con Datos Históricos (SIAR 88k + REE 42k)</p>
-            <div class="status-indicator" id="systemStatus">
-                <span class="status-dot"></span>
-                <span class="status-text">Conectando...</span>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <main class="dashboard-main">
-            <!-- System Status Card -->
-            <section class="card" id="systemCard">
-                <h2>📊 Información del Sistema</h2>
-                <div class="system-grid" id="systemInfo">
-                    <div class="loading">Cargando información del sistema...</div>
-                </div>
-            </section>
-
-            <!-- Current Info Card -->
-            <section class="card" id="currentInfoCard">
-                <h2>⚡ Información Actual</h2>
-                <div class="current-info-grid" id="currentInfo">
-                    <div class="loading">Cargando datos actuales...</div>
-                </div>
-            </section>
-
-            <!-- Weekly Forecast Heatmap -->
-            <section class="card" id="weeklyForecastCard">
-                <h2>📅 Pronóstico Semanal - Precios Energía</h2>
-                <div id="weeklyHeatmap">
-                    <div class="loading">Cargando heatmap semanal...</div>
-                </div>
-            </section>
-
-            <!-- ML Predictions Card -->
-            <section class="card" id="predictionsCard">
-                <h2>🤖 Predicciones ML Enhanced</h2>
-                <div class="predictions-grid" id="predictions">
-                    <div class="loading">Cargando predicciones ML...</div>
-                </div>
-            </section>
-
-            <!-- Recommendations Card -->
-            <section class="card" id="recommendationsCard">
-                <h2>💡 Recomendaciones Operativas</h2>
-                <div id="recommendations">
-                    <div class="loading">Generando recomendaciones...</div>
-                </div>
-            </section>
-
-            <!-- Alerts Card -->
-            <section class="card" id="alertsCard">
-                <h2>⚠️ Alertas y Notificaciones</h2>
-                <div id="alerts">
-                    <div class="loading">Verificando alertas...</div>
-                </div>
-            </section>
-
-            <!-- Historical Analytics Card -->
-            <section class="card" id="analyticsCard">
-                <h2>📈 Análisis Histórico</h2>
-                <div class="analytics-grid" id="analytics">
-                    <div class="loading">Cargando análisis histórico...</div>
-                </div>
-            </section>
-
-            <!-- SIAR Historical Analysis Card (Sprint 07) -->
-            <section class="card" id="siarAnalysisCard">
-                <h2>🌍 Contexto Climático Histórico SIAR</h2>
-                <p class="card-subtitle">Análisis de 88,935 registros (2000-2025) - 25 años de evidencia</p>
-                <div id="siarAnalysis">
-                    <div class="loading">Cargando análisis histórico SIAR...</div>
-                </div>
-            </section>
-        </main>
-
-        <!-- Footer -->
-        <footer class="dashboard-footer">
-            <p>Última actualización: <span id="lastUpdate">--</span></p>
-            <p>Auto-refresh: <span id="autoRefreshStatus">Activo (30s)</span></p>
-        </footer>
+    <div class="header">
+        <h1>
+            <span>🍫</span>
+            Chocolate Factory - Linares, Andalucía
+        </h1>
+        <p>Dashboard - ML con Datos Históricos (SIAR 88k + REE 42k)</p>
     </div>
 
-    <!-- Scripts -->
-    <script src="js/utils/api.js"></script>
-    <script src="js/utils/formatters.js"></script>
-    <script src="js/services/dashboard-service.js"></script>
-    <script src="js/components/heatmap.js"></script>
-    <script src="js/components/alerts.js"></script>
-    <script src="js/components/recommendations.js"></script>
-    <script src="js/components/siar-analysis.js"></script>
-    <script src="js/app.js"></script>
+    <div class="container">
+        <div class="status-bar">
+            <div>
+                <span id="status" class="status-badge status-warning">🔄 Conectando...</span>
+            </div>
+            <div>
+                <span>Última actualización: <strong id="last-update">--</strong></span>
+            </div>
+            <div>
+                <button class="refresh-btn" onclick="loadData()">🔄 Actualizar</button>
+            </div>
+        </div>
+
+        <!-- Métricas principales -->
+        <div class="grid grid-3">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">⚡</span>
+                    <span class="card-title">Precio Energía</span>
+                </div>
+                <div class="metric-value" id="energy-price">--</div>
+                <div class="metric-label">€/kWh</div>
+                <div id="energy-trend" class="metric-trend trend-stable">--</div>
+                <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
+                    <div>MWh: <span id="energy-mwh">--</span></div>
+                    <div>Fecha: <span id="energy-datetime">--</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🌡️</span>
+                    <span class="card-title">Condiciones Climáticas</span>
+                </div>
+                <div class="metric-value" id="temperature">--</div>
+                <div class="metric-label">°C</div>
+                <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                    <div>💧 Humedad: <span id="humidity">--%</span></div>
+                    <div>🌫️ Presión: <span id="pressure">-- hPa</span></div>
+                    <div>🎯 Confort: <span id="comfort-index">--</span></div>
+                </div>
+            </div>
+
+            <!-- Tarjeta Información del Sistema Unificada -->
+            <div class="card system-info-unified">
+                <div class="card-header">
+                    <span class="card-icon">🏭</span>
+                    <span class="card-title">Información del Sistema</span>
+                </div>
+
+                <div class="unified-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <!-- Ubicación -->
+                    <div>
+                        <strong style="display: block; margin-bottom: 0.5rem; color: #f59e0b;">📍 Fábrica</strong>
+                        <div style="font-size: 0.9rem; line-height: 1.3;">
+                            <div>🏭 Linares, Andalucía</div>
+                            <div>⛰️ 515m • 🕐 CET</div>
+                            <div style="font-size: 0.8rem; opacity: 0.7;">38.151°N, -3.629°W</div>
+                        </div>
+                    </div>
+
+                    <!-- Estado Operativo -->
+                    <div>
+                        <strong style="display: block; margin-bottom: 0.5rem; color: #10b981;">🏭 Estado</strong>
+                        <div style="font-size: 0.9rem; line-height: 1.3;">
+                            <div id="production-status">🟢 Operativo</div>
+                            <div>📊 Eficiencia: <span id="factory-efficiency">85%</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="unified-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2);">
+                    <!-- Sistema -->
+                    <div>
+                        <strong style="display: block; margin-bottom: 0.5rem; color: #3b82f6;">⚙️ Sistema</strong>
+                        <div style="font-size: 0.85rem; line-height: 1.3;">
+                            <div>⚡ <span id="ree-status">✅ REE + Históricos</span></div>
+                            <div>🌡️ <span id="weather-status">✅ AEMET/OpenWeather</span></div>
+                            <div>🤖 <span id="ml-models-status">✅ Enhanced ML</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Fuentes de Datos -->
+                    <div>
+                        <strong style="display: block; margin-bottom: 0.5rem; color: #8b5cf6;">📊 Fuentes</strong>
+                        <div style="font-size: 0.85rem; line-height: 1.3;">
+                            <div>⚡ REE (Precios)</div>
+                            <div>🌡️ AEMET 5279X (00-07h)</div>
+                            <div>☁️ OpenWeather (08-23h)</div>
+                            <div>🤖 ML Direct</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced ML Analytics -->
+        <div class="enhanced-section" style="margin: 2rem 0;">
+            <div class="enhanced-title">
+                <span>📊</span>
+                <span>ML Analytics - Datos Históricos Integrados</span>
+            </div>
+
+            <div class="grid grid-3" style="gap: 1.5rem;">
+                <!-- Cost Optimization -->
+                <div class="card metric-enhanced">
+                    <div class="card-header">
+                        <span class="card-icon">💰</span>
+                        <span class="card-title">Optimización de Costos</span>
+                    </div>
+                    <div class="metric-value" id="enhanced-cost-per-kg">--</div>
+                    <div class="metric-label">€/kg</div>
+                    <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
+                        <div>Categoría: <span id="cost-category">--</span></div>
+                        <div>Ahorro: <span id="savings-opportunity">-- €/kg</span></div>
+                        <div>vs Target: <span id="vs-target">--%</span></div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Recommendations -->
+                <div class="card metric-enhanced">
+                    <div class="card-header">
+                        <span class="card-icon">🎯</span>
+                        <span class="card-title">Recomendación Enhanced</span>
+                    </div>
+                    <div class="metric-value" id="enhanced-main-action">--</div>
+                    <div class="metric-label" id="enhanced-priority">--</div>
+                    <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
+                        <div>Score: <span id="enhanced-overall-score">--/100</span></div>
+                        <div>Confianza: <span id="enhanced-confidence">--</span></div>
+                        <div>Alertas: <span id="enhanced-alerts-count">--</span></div>
+                    </div>
+                </div>
+
+                <!-- REE Deviation Analysis -->
+                <div class="card metric-enhanced">
+                    <div class="card-header">
+                        <span class="card-icon">📊</span>
+                        <span class="card-title">Análisis REE D-1</span>
+                    </div>
+                    <div class="metric-value" id="ree-accuracy">--</div>
+                    <div class="metric-label">Precisión</div>
+                    <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
+                        <div>Desviación: <span id="ree-deviation">-- €/kWh</span></div>
+                        <div>Tendencia: <span id="ree-trend">--</span></div>
+                        <div>Utilidad: <span id="ree-usefulness">Análisis tendencias</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Recommendations List -->
+            <div class="card" style="margin-top: 1.5rem;">
+                <div class="card-header">
+                    <span class="card-icon">📋</span>
+                    <span class="card-title">Recomendaciones Enhanced ML</span>
+                </div>
+                <div class="grid grid-2" style="gap: 1rem; margin-top: 1rem;">
+                    <div>
+                        <h4 style="color: #059669; margin-bottom: 0.5rem;">🔧 Optimización de Costos:</h4>
+                        <ul id="enhanced-cost-insights" style="list-style: none; padding: 0; font-size: 0.9rem; line-height: 1.6;">
+                            <li>⏳ Cargando insights de costos...</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 style="color: #059669; margin-bottom: 0.5rem;">⚡ Timing Optimization:</h4>
+                        <ul id="enhanced-timing-insights" style="list-style: none; padding: 0; font-size: 0.9rem; line-height: 1.6;">
+                            <li>⏳ Cargando insights temporales...</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Análisis REE - Tiempo Real + Históricos -->
+        <div class="card smart-insights" style="margin-top: 1.5rem;">
+            <div class="card-header">
+                <span class="card-icon">⚡</span>
+                <span class="card-title">Análisis REE - Tiempo Real + Históricos</span>
+            </div>
+
+            <!-- Recomendación Humanizada Principal -->
+            <div id="unified-human-recommendation-section" style="margin-top: 1.5rem; display: none;">
+                <div id="unified-human-recommendation-content" style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(255,107,53,0.3);">
+                    <!-- Se llena dinámicamente con BusinessLogicService -->
+                </div>
+            </div>
+
+            <div class="grid grid-3" style="gap: 1.5rem; margin-top: 1.5rem;">
+                <!-- Momento Óptimo Actual -->
+                <div class="insights-section">
+                    <h4 style="color: #4FC3F7; margin-bottom: 1rem; font-size: 1rem;">⚡ Momento Energético Actual</h4>
+                    <div class="current-status">
+                        <div class="status-indicator" id="current-energy-status">
+                            <span class="status-icon">🟡</span>
+                            <span class="status-text" id="energy-status-text">Evaluando...</span>
+                        </div>
+                        <div class="status-detail" id="energy-status-detail">
+                            Precio actual: <span id="current-price-analysis">-- €/kWh</span>
+                        </div>
+                        <div class="status-action" id="energy-action-recommendation">
+                            Calculando recomendación...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Oportunidad de Ahorro -->
+                <div class="insights-section">
+                    <h4 style="color: #66BB6A; margin-bottom: 1rem; font-size: 1rem;">💰 Oportunidad de Ahorro</h4>
+                    <div class="savings-insight">
+                        <div class="savings-metric">
+                            <span class="metric-label">Ahorro vs Precio Promedio:</span>
+                            <span class="metric-value" id="current-savings-potential">-- €/hora</span>
+                        </div>
+                        <div class="savings-metric">
+                            <span class="metric-label">Posición en Ranking Diario:</span>
+                            <span class="metric-value" id="price-ranking">--/24</span>
+                        </div>
+                        <div class="savings-action" id="savings-action">
+                            Analizando oportunidades...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Análisis por Procesos -->
+                <div class="insights-section">
+                    <h4 style="color: #FF9800; margin-bottom: 1rem; font-size: 1rem;">🏭 Análisis por Procesos</h4>
+                    <div class="process-analysis">
+                        <div class="process-metric">
+                            <span class="metric-label">Proceso Recomendado:</span>
+                            <span class="metric-value" id="recommended-process">--</span>
+                        </div>
+                        <div class="process-metric">
+                            <span class="metric-label">Costo Proceso/hora:</span>
+                            <span class="metric-value" id="process-cost">-- €/h</span>
+                        </div>
+                        <div class="process-action" id="process-action">
+                            Calculando procesos...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recomendación Inteligente Principal -->
+            <div class="main-recommendation" id="main-recommendation" style="margin-top: 1.5rem; padding: 1.5rem; background: linear-gradient(135deg, rgba(76, 175, 80, 0.2) 0%, rgba(46, 125, 50, 0.2) 100%); border-radius: 8px; border-left: 4px solid #4CAF50;">
+                <div style="display: flex; align-items: center; margin-bottom: 0.75rem;">
+                    <span id="recommendation-icon" style="font-size: 1.5rem; margin-right: 0.75rem;">🎯</span>
+                    <span id="recommendation-title" style="font-weight: bold; color: white;">Analizando condiciones del mercado...</span>
+                </div>
+                <div id="recommendation-detail" style="color: rgba(255, 255, 255, 0.9); line-height: 1.5;">
+                    Evaluando precios REE históricos y condiciones actuales para optimizar el momento de producción...
+                </div>
+            </div>
+        </div>
+
+        <!-- Mini Calendario Heatmap Semanal -->
+        <div class="card heatmap-card" style="margin-top: 2rem;">
+            <div class="card-header">
+                <span class="card-icon">📅</span>
+                <span class="card-title">Pronóstico Semanal - Heatmap de Precios</span>
+            </div>
+            <div class="heatmap-content">
+                <div class="heatmap-legend" id="heatmap-legend">
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: #4CAF50;"></span>
+                        <span>🟢 Bajo (≤0.10 €/kWh)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: #FF9800;"></span>
+                        <span>🟡 Medio (0.10-0.20 €/kWh)</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: #F44336;"></span>
+                        <span>🔴 Alto (>0.20 €/kWh)</span>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="calendar-grid">
+                    <!-- Se llena dinámicamente con JavaScript -->
+                </div>
+                <div class="heatmap-summary" id="heatmap-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">Días Óptimos:</span>
+                        <span id="optimal-days">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Precio Promedio:</span>
+                        <span id="avg-price">0.000 €/kWh</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Rango:</span>
+                        <span id="price-range">0.00 - 0.00 €/kWh</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métricas Históricas Integradas -->
+            <div class="grid grid-3" style="gap: 1.5rem; margin-top: 1.5rem; padding: 1.5rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                <div class="analytics-section">
+                    <h4 style="color: #66BB6A; margin-bottom: 1rem; font-size: 0.9rem;">📊 Históricos 2024</h4>
+                    <div class="analytics-metric" style="margin-bottom: 0.5rem;">
+                        <span class="metric-label" style="font-size: 0.8rem; color: #333;">Costo Total:</span>
+                        <span class="metric-value" style="color: #333; font-size: 0.9rem;" id="total-cost">-- €</span>
+                    </div>
+                    <div class="analytics-metric" style="margin-bottom: 0.5rem;">
+                        <span class="metric-label" style="font-size: 0.8rem; color: #333;">Min/Max:</span>
+                        <span class="metric-value" style="color: #333; font-size: 0.9rem;" id="min-max-price">--/-- €/kWh</span>
+                    </div>
+                </div>
+
+                <div class="analytics-section">
+                    <h4 style="color: #2196F3; margin-bottom: 1rem; font-size: 0.9rem;">🎯 Potencial</h4>
+                    <div class="analytics-metric" style="margin-bottom: 0.5rem;">
+                        <span class="metric-label" style="font-size: 0.8rem; color: #333;">Ahorro Anual:</span>
+                        <span class="metric-value" style="color: #333; font-size: 0.9rem;" id="annual-projection">-- €</span>
+                    </div>
+                    <div class="analytics-metric" style="margin-bottom: 0.5rem;">
+                        <span class="metric-label" style="font-size: 0.8rem; color: #333;">Horas Óptimas:</span>
+                        <span class="metric-value" style="color: #333; font-size: 0.9rem;" id="optimal-hours">-- h</span>
+                    </div>
+                </div>
+
+                <div class="analytics-section">
+                    <h4 style="color: #FF9800; margin-bottom: 1rem; font-size: 0.9rem;">💡 Recomendaciones</h4>
+                    <div id="unified-optimization-recommendations" style="font-size: 0.8rem; line-height: 1.4; color: #333;">
+                        <!-- Recomendaciones unificadas -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIAR Historical Analysis -->
+        <div class="card" style="margin-top: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div class="card-header">
+                <span class="card-icon">📊</span>
+                <span class="card-title">Análisis Histórico SIAR (2000-2025)</span>
+            </div>
+
+            <!-- SIAR Summary Stats -->
+            <div class="grid grid-3" style="gap: 1rem; margin-top: 1.5rem;">
+                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">📈 Registros Totales</div>
+                    <div style="font-size: 1.8rem; font-weight: bold;" id="siar-total-records">--</div>
+                    <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;" id="siar-date-range">--</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">🌡️ Correlación Temp</div>
+                    <div style="font-size: 1.8rem; font-weight: bold;" id="siar-temp-correlation">--</div>
+                    <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;">R² vs Producción</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">💧 Correlación Humedad</div>
+                    <div style="font-size: 1.8rem; font-weight: bold;" id="siar-humidity-correlation">--</div>
+                    <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;">R² vs Producción</div>
+                </div>
+            </div>
+
+            <!-- Seasonal Patterns -->
+            <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                <h4 style="color: white; margin-bottom: 1rem; font-size: 1rem;">📅 Patrones Estacionales</h4>
+                <div class="grid grid-2" style="gap: 1rem;">
+                    <div>
+                        <div style="font-size: 0.85rem; margin-bottom: 0.5rem;">🟢 Mejor Mes:</div>
+                        <div style="font-size: 1.1rem; font-weight: bold;" id="siar-best-month">--</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;" id="siar-best-month-score">--</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85rem; margin-bottom: 0.5rem;">🔴 Peor Mes:</div>
+                        <div style="font-size: 1.1rem; font-weight: bold;" id="siar-worst-month">--</div>
+                        <div style="font-size: 0.8rem; opacity: 0.8;" id="siar-worst-month-score">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Critical Thresholds -->
+            <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                <h4 style="color: white; margin-bottom: 1rem; font-size: 1rem;">⚠️ Umbrales Críticos (Percentiles Históricos)</h4>
+                <div class="grid grid-2" style="gap: 1rem; font-size: 0.9rem;">
+                    <div>
+                        <strong>🌡️ Temperatura:</strong>
+                        <div style="margin-top: 0.5rem; line-height: 1.6;">
+                            <div>P90: <span id="siar-temp-p90">--</span>°C</div>
+                            <div>P95: <span id="siar-temp-p95">--</span>°C</div>
+                            <div>P99: <span id="siar-temp-p99">--</span>°C</div>
+                        </div>
+                    </div>
+                    <div>
+                        <strong>💧 Humedad:</strong>
+                        <div style="margin-top: 0.5rem; line-height: 1.6;">
+                            <div>P90: <span id="siar-humidity-p90">--</span>%</div>
+                            <div>P95: <span id="siar-humidity-p95">--</span>%</div>
+                            <div>P99: <span id="siar-humidity-p99">--</span>%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SIAR Insights -->
+            <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 8px; border-left: 4px solid #FFD700;">
+                <div style="font-weight: bold; margin-bottom: 0.5rem;">💡 Insights Históricos:</div>
+                <div id="siar-insights" style="font-size: 0.9rem; line-height: 1.6;">
+                    <div>⏳ Cargando análisis histórico...</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        Chocolate Factory - Linares, Andalucía | Dashboard v0.41.0 |
+        Powered by FastAPI + ML (131k+ Historical Records)
+    </div>
+
+    <script src="js/dashboard.js"></script>
 </body>
 </html>
