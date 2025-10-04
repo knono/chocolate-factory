@@ -5,7 +5,8 @@ class DashboardApp {
         this.components = {
             heatmap: new WeeklyHeatmap('weeklyHeatmap'),
             alerts: new AlertsComponent('alerts'),
-            recommendations: new RecommendationsComponent('recommendations')
+            recommendations: new RecommendationsComponent('recommendations'),
+            siarAnalysis: new SIARAnalysisComponent('siarAnalysis')  // Sprint 07
         };
 
         this.autoRefreshInterval = null;
@@ -50,6 +51,9 @@ class DashboardApp {
             if (data.recommendations) {
                 this.components.recommendations.render(data.recommendations);
             }
+
+            // Sprint 07: SIAR Historical Analysis (loaded independently)
+            this.components.siarAnalysis.render();
 
             this.updateSystemStatus('success');
             this.updateLastUpdateTime();

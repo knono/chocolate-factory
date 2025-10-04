@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/components/cards.css">
     <link rel="stylesheet" href="css/components/heatmap.css">
     <link rel="stylesheet" href="css/components/alerts.css">
+    <link rel="stylesheet" href="css/components/siar-analysis.css">
 </head>
 <body>
     <div class="dashboard-container">
@@ -78,6 +79,15 @@
                     <div class="loading">Cargando análisis histórico...</div>
                 </div>
             </section>
+
+            <!-- SIAR Historical Analysis Card (Sprint 07) -->
+            <section class="card" id="siarAnalysisCard">
+                <h2>🌍 Contexto Climático Histórico SIAR</h2>
+                <p class="card-subtitle">Análisis de 88,935 registros (2000-2025) - 25 años de evidencia</p>
+                <div id="siarAnalysis">
+                    <div class="loading">Cargando análisis histórico SIAR...</div>
+                </div>
+            </section>
         </main>
 
         <!-- Footer -->
@@ -94,6 +104,7 @@
     <script src="js/components/heatmap.js"></script>
     <script src="js/components/alerts.js"></script>
     <script src="js/components/recommendations.js"></script>
+    <script src="js/components/siar-analysis.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

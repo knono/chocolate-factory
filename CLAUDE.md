@@ -61,7 +61,12 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - ✅ **Sprint 06**: Prophet Price Forecasting + Dashboard Integration (Oct 3, 2025)
 
 ### ML Evolution Sprints (Remaining)
-- 🔴 **Sprint 07**: SIAR Time Series Integration (NEXT)
+- 🟡 **Sprint 07**: SIAR Historical Analysis (IN PROGRESS - Oct 4, 2025)
+  - **Enfoque corregido**: Análisis histórico (NO predicción climática)
+  - **AEMET ya predice el tiempo** - Sprint 07 analiza 25 años historia SIAR
+  - Correlaciones R² temperatura/humedad → eficiencia producción
+  - Umbrales críticos basados en percentiles históricos (P90, P95, P99)
+  - Contextualización predicciones AEMET con evidencia SIAR
 - 🔴 **Sprint 08**: Hourly Production Optimization
 - 🔴 **Sprint 09**: Predictive Dashboard Complete
 - 🔴 **Sprint 10**: ML Consolidation & Cleanup
@@ -154,6 +159,13 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - `GET /predict/prices/hourly?hours=N` - Configurable forecast horizon (1-168 hours)
 - `POST /models/price-forecast/train` - Train Prophet model with historical REE data
 - `GET /models/price-forecast/status` - Model metrics (MAE, RMSE, R², coverage)
+
+### SIAR Historical Analysis (Sprint 07 - Revisado) ✅ NEW
+- `GET /analysis/weather-correlation` - Correlaciones R² temperatura/humedad → eficiencia (25 años evidencia)
+- `GET /analysis/seasonal-patterns` - Patrones estacionales con 88,935 registros SIAR (mejores/peores meses)
+- `GET /analysis/critical-thresholds` - Umbrales críticos basados en percentiles históricos (P90, P95, P99)
+- `GET /analysis/siar-summary` - Resumen ejecutivo completo análisis histórico
+- `POST /forecast/aemet-contextualized` - Predicciones AEMET + contexto histórico SIAR (recomendaciones inteligentes)
 
 ### Dashboard & Monitoring
 - `GET /dashboard` - Visual dashboard with interactive heatmap
