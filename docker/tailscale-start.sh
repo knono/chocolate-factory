@@ -94,6 +94,11 @@ fi
 log "⏳ Waiting a moment for all services to settle..."
 sleep 10
 
+# Procesar variables de entorno en nginx.conf
+log "📝 Processing nginx configuration with envsubst..."
+envsubst '${TAILSCALE_DOMAIN}' < /etc/nginx/nginx.conf > /etc/nginx/nginx.conf.tmp
+mv /etc/nginx/nginx.conf.tmp /etc/nginx/nginx.conf
+
 # Verificar configuración nginx
 log "🔧 Testing nginx configuration..."
 nginx -t

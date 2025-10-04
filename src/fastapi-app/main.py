@@ -142,7 +142,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Chocolate Factory - Enhanced ML System",
     description="Sistema autónomo con Enhanced ML, datos históricos (SIAR 88k + REE 42k) y predicciones avanzadas",
-    version="0.31.0",
+    version="0.41.0",
     lifespan=lifespan
 )
 
@@ -243,7 +243,7 @@ async def api_root():
     return {
         "service": "Chocolate Factory Enhanced ML Brain",
         "status": "✨ Enhanced ML System con datos históricos operativo",
-        "version": "0.31.0",
+        "version": "0.41.0",
         "endpoints": {
             "dashboard": "/static/index.html",
             "dashboard_data": "/dashboard/complete",

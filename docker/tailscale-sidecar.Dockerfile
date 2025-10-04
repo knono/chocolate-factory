@@ -18,7 +18,8 @@ RUN apk add --no-cache \
     ca-certificates \
     iptables \
     bash \
-    procps
+    procps \
+    gettext
 
 # Instalar Tailscale versión 1.86.2 (latest with security fixes)
 # Using official Tailscale packages from pkgs.tailscale.com
