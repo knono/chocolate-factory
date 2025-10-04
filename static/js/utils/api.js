@@ -44,3 +44,6 @@ class APIClient {
 
 // Export singleton instance
 const apiClient = new APIClient();
+
+// Export as global API for compatibility
+window.API = apiClient;
