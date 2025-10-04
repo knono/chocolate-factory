@@ -107,3 +107,6 @@ const Formatters = {
         return value.toString();
     }
 };
+
+// Export globally for components
+window.Formatters = Formatters;

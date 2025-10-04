@@ -23,6 +23,7 @@ services:
       # REQUIRED: Tailscale Auth Key (debe ser generado por el usuario)
       - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY}
       - TAILSCALE_HOSTNAME=chocolate-factory
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN}
       - NGINX_UPSTREAM=chocolate_factory_brain:8000
       - TAILSCALE_STATE_DIR=/var/lib/tailscale
     volumes:

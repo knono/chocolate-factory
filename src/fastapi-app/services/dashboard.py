@@ -71,6 +71,9 @@ class DashboardService:
             # 5. Pronóstico semanal con heatmap
             weekly_forecast = await self._get_weekly_forecast_heatmap()
             
+            # 6. SIAR Historical Analysis
+            siar_analysis = await self._get_siar_analysis()
+
             dashboard_data = {
                 "🏢": "Chocolate Factory - Enhanced Dashboard",
                 "📊": "El Monitor Avanzado - Enhanced ML con Datos Históricos (SIAR 88k + REE 42k)",
@@ -79,6 +82,7 @@ class DashboardService:
                 "recommendations": recommendations,
                 "alerts": alerts,
                 "weekly_forecast": weekly_forecast,
+                "siar_analysis": siar_analysis,
                 "system_status": {
                     "status": "✅ Operativo Enhanced",
                     "last_update": datetime.now().isoformat(),
@@ -927,6 +931,95 @@ class DashboardService:
             return {
                 "energy_forecast": {"trend": "stable", "score": 50},
                 "production_forecast": {"outlook": "moderate", "combined_score": 50}
+            }
+
+    async def _get_siar_analysis(self) -> Dict[str, Any]:
+        """Obtiene análisis histórico SIAR para el dashboard"""
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                # Get SIAR summary
+                summary_response = await client.get(
+                    "http://localhost:8000/analysis/siar-summary",
+                    timeout=10.0
+                )
+
+                if summary_response.status_code != 200:
+                    return {"status": "error", "message": "Failed to fetch SIAR data"}
+
+                summary = summary_response.json()
+
+                # Get correlations
+                correlation_response = await client.get(
+                    "http://localhost:8000/analysis/weather-correlation",
+                    timeout=10.0
+                )
+
+                correlations = {}
+                if correlation_response.status_code == 200:
+                    corr_data = correlation_response.json()
+                    correlations = corr_data.get("correlations", {})
+
+                # Get seasonal patterns
+                seasonal_response = await client.get(
+                    "http://localhost:8000/analysis/seasonal-patterns",
+                    timeout=10.0
+                )
+
+                seasonal = {}
+                if seasonal_response.status_code == 200:
+                    seasonal_data = seasonal_response.json()
+                    # Extract best_month and worst_month directly from response
+                    seasonal = {
+                        "best_month": seasonal_data.get("best_month", {}),
+                        "worst_month": seasonal_data.get("worst_month", {})
+                    }
+
+                # Get critical thresholds
+                thresholds_response = await client.get(
+                    "http://localhost:8000/analysis/critical-thresholds",
+                    timeout=10.0
+                )
+
+                thresholds = {}
+                if thresholds_response.status_code == 200:
+                    thresh_data = thresholds_response.json()
+                    # Parse thresholds array into structured format
+                    thresholds_list = thresh_data.get("thresholds", [])
+
+                    temp_thresholds = {}
+                    humidity_thresholds = {}
+
+                    for threshold in thresholds_list:
+                        var_name = threshold.get("variable")
+                        percentile = threshold.get("percentile")
+                        value = threshold.get("threshold_value")
+
+                        if var_name == "temperature":
+                            temp_thresholds[f"p{percentile}"] = value
+                        elif var_name == "humidity":
+                            humidity_thresholds[f"p{percentile}"] = value
+
+                    thresholds = {
+                        "temperature": temp_thresholds,
+                        "humidity": humidity_thresholds
+                    }
+
+                return {
+                    "status": "success",
+                    "summary": summary,
+                    "correlations": correlations,
+                    "seasonal_patterns": seasonal,
+                    "thresholds": thresholds,
+                    "last_update": datetime.now().isoformat()
+                }
+
+        except Exception as e:
+            logger.error(f"❌ Error getting SIAR analysis: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
             }
 
 

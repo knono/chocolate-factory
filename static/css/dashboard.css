@@ -1,0 +1,826 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    color: #2d3748;
+}
+
+.header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.enhanced-badge {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-left: 1rem;
+}
+
+.metric-enhanced {
+    border-left: 4px solid #10b981;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfccb 100%);
+}
+
+.enhanced-section {
+    background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
+    border: 2px solid #10b981;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+}
+
+.enhanced-title {
+    color: #059669;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.blinking {
+    animation: blink 2s infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.5; }
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.status-bar {
+    background: white;
+    border-radius: 12px;
+    padding: 1rem 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.status-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.status-connected {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.status-warning {
+    background: #fef5e7;
+    color: #744210;
+}
+
+.grid {
+    display: grid;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+}
+
+.grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+/* Estilos para Heatmap Semanal */
+.heatmap-content {
+    padding: 1.5rem;
+}
+
+.heatmap-legend {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.calendar-day {
+    background: var(--day-bg);
+    border: 2px solid var(--day-border);
+    border-radius: 8px;
+    padding: 1rem 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: #333;
+    position: relative;
+}
+
+.calendar-day:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Tooltip personalizado compatible con Safari/Brave */
+.calendar-day[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    white-space: pre-line;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+    pointer-events: none;
+    min-width: 200px;
+    text-align: left;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.calendar-day[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Flecha del tooltip */
+.calendar-day[data-tooltip]::before {
+    content: '';
+    position: absolute;
+    bottom: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.95);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+    z-index: 1001;
+}
+
+.calendar-day[data-tooltip]:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+.calendar-day.today {
+    border-color: #FFD700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.day-name {
+    font-size: 0.8rem;
+    opacity: 0.8;
+    margin-bottom: 0.25rem;
+    color: #333;
+}
+
+.day-number {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #333;
+}
+
+.day-price {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    color: #333;
+}
+
+.day-recommendation {
+    font-size: 1.2rem;
+    margin-top: 0.25rem;
+    color: #333;
+}
+
+.heatmap-summary {
+    display: flex;
+    justify-content: space-around;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.summary-item {
+    text-align: center;
+}
+
+.summary-label {
+    display: block;
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-bottom: 0.25rem;
+}
+
+@media (max-width: 768px) {
+    .calendar-grid {
+        gap: 0.5rem;
+    }
+    
+    .calendar-day {
+        padding: 0.75rem 0.25rem;
+        min-height: 75px;
+    }
+    
+    .heatmap-legend {
+        gap: 1rem;
+    }
+    
+    .legend-item {
+        font-size: 0.8rem;
+    }
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.card-icon {
+    font-size: 1.5rem;
+}
+
+.card-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin: 0.5rem 0;
+    line-height: 1.2;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: #718096;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metric-trend {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    margin-top: 0.5rem;
+    display: inline-block;
+}
+
+.trend-stable {
+    background: #e6fffa;
+    color: #234e52;
+}
+
+.trend-rising {
+    background: #fef5e7;
+    color: #744210;
+}
+
+.trend-falling {
+    background: #fed7d7;
+    color: #742a2a;
+}
+
+.ml-prediction {
+    background: linear-gradient(135deg, #059669 0%, #06b6d4 100%);
+    color: white;
+}
+
+.ml-prediction .card-title {
+    color: white;
+}
+
+.confidence-bar {
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+    height: 8px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.confidence-high {
+    background: #48bb78;
+}
+
+.confidence-medium {
+    background: #ed8936;
+}
+
+.confidence-low {
+    background: #f56565;
+}
+
+.recommendations {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.recommendations .card-title {
+    color: white;
+}
+
+.rec-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.rec-item {
+    background: rgba(255,255,255,0.1);
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin: 0.5rem 0;
+    border-left: 4px solid rgba(255,255,255,0.3);
+}
+
+.alerts {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    color: white;
+}
+
+.alerts.no-alerts {
+    background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+}
+
+.alerts .card-title {
+    color: white;
+}
+
+.system-status {
+    background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+    color: white;
+}
+
+.system-status .card-title {
+    color: white;
+}
+
+.location-info {
+    background: linear-gradient(135deg, #d69e2e 0%, #ed8936 100%);
+    color: white;
+    margin-bottom: 2rem;
+}
+
+.location-info .card-title {
+    color: white;
+}
+
+/* Analytics Históricos */
+.analytics-section {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid #66BB6A;
+}
+
+.analytics-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.analytics-metric:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.analytics-metric .metric-label {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Mejorar contraste en tarjeta azul inteligente */
+.smart-insights .card-title {
+    color: white !important;
+}
+
+.smart-insights .metric-label {
+    color: rgba(255, 255, 255, 0.95) !important;
+    font-weight: 500;
+}
+
+.analytics-metric .metric-value {
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+/* Tamaños específicos para la tarjeta de inteligencia */
+.savings-insight .metric-value,
+.process-analysis .metric-value {
+    font-size: 1.2rem !important;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* Valores específicos que se salen de la tarjeta */
+#current-savings-potential,
+#recommended-process,
+#process-cost {
+    font-size: 0.9rem !important;
+    font-weight: 600;
+}
+
+#optimization-recommendations .recommendation-item {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    border-left: 3px solid #9C27B0;
+}
+
+/* Nueva Tarjeta Inteligente */
+.smart-insights {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.insights-section {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 1.25rem;
+    backdrop-filter: blur(10px);
+}
+
+.current-status, .savings-insight, .process-analysis {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.status-icon {
+    font-size: 1.2rem;
+}
+
+.status-detail, .savings-metric, .process-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.status-detail:last-child, .savings-metric:last-child, .process-metric:last-child {
+    border-bottom: none;
+}
+
+.status-action, .savings-action, .process-action {
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    font-style: italic;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.main-recommendation {
+    animation: pulse-soft 3s ease-in-out infinite;
+}
+
+@keyframes pulse-soft {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.02); opacity: 0.95; }
+}
+
+/* Tarjetas compactas minimalistas */
+.location-info-compact, .system-status-compact {
+    background: linear-gradient(135deg, #4A90E2 0%, #7B68EE 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.sources-compact {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.compact-info, .compact-status {
+    margin-top: 0.75rem;
+}
+
+.info-line, .status-line {
+    margin: 0.4rem 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.sources-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.source-item {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    text-align: center;
+}
+
+.location-info-compact .card-title, .system-status-compact .card-title, .sources-compact .card-title {
+    color: white;
+    font-size: 1rem;
+}
+
+.location-detail {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.coordinate {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+}
+
+.data-sources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.data-source-item {
+    background: rgba(255,255,255,0.1);
+    padding: 0.75rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.data-source {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.data-source:last-child {
+    border-bottom: none;
+}
+
+.refresh-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.refresh-btn:hover {
+    transform: scale(1.05);
+}
+
+.footer {
+    text-align: center;
+    padding: 2rem;
+    color: #718096;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .header h1 {
+        font-size: 1.8rem;
+    }
+
+    .status-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    /* === RESPONSIVE GRID FIXES === */
+    .grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+
+    /* Ensure all cards have consistent width */
+    .card {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    /* Fix text overflow in cards */
+    .card-title {
+        font-size: 1rem !important;
+        line-height: 1.3;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    .metric-value {
+        font-size: 1.2rem !important;
+        word-wrap: break-word;
+    }
+
+    .metric-label {
+        font-size: 0.85rem !important;
+        line-height: 1.2;
+        word-wrap: break-word;
+    }
+
+    /* Fix unified REE card responsive */
+    #unified-human-recommendation-content {
+        padding: 1rem !important;
+        font-size: 0.9rem !important;
+    }
+
+    #unified-human-recommendation-content h3 {
+        font-size: 1.1rem !important;
+    }
+
+    /* Fix enhanced badge positioning */
+    .enhanced-badge {
+        display: block !important;
+        margin-top: 0.5rem;
+        font-size: 0.7rem !important;
+    }
+
+    /* Fix analytics sections */
+    .analytics-section, .insights-section {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .analytics-section h4, .insights-section h4 {
+        font-size: 0.9rem !important;
+    }
+
+    /* Fix status indicators */
+    .status-indicator {
+        flex-wrap: wrap;
+    }
+
+    .status-text {
+        font-size: 0.9rem !important;
+    }
+
+    /* Fix calendar grid for mobile */
+    .calendar-grid {
+        grid-template-columns: repeat(auto-fit, minmax(40px, 1fr)) !important;
+        gap: 0.3rem !important;
+    }
+
+    .calendar-day {
+        min-height: 35px !important;
+        font-size: 0.7rem !important;
+        padding: 0.2rem !important;
+    }
+}
+
+/* Additional responsive breakpoint for very small screens */
+@media (max-width: 480px) {
+    .header h1 {
+        font-size: 1.5rem;
+    }
+
+    .card {
+        margin: 0.5rem 0;
+        padding: 1rem;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    #unified-human-recommendation-content {
+        padding: 0.8rem !important;
+    }
+
+    .calendar-day {
+        min-height: 30px !important;
+        font-size: 0.6rem !important;
+    }
+}
+    
+    .metric-value {
+        font-size: 2rem;
+    }
+}
