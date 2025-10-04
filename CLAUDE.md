@@ -59,14 +59,14 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - ✅ **Sprint 04**: SIAR ETL + 25 years historical data (88,935 records)
 - ✅ **Sprint 05**: Unified Dashboard + BusinessLogicService
 - ✅ **Sprint 06**: Prophet Price Forecasting + Dashboard Integration (Oct 3, 2025)
+- ✅ **Sprint 07**: SIAR Historical Analysis (Oct 4, 2025)
+  - Análisis correlaciones históricas: R²=0.049 (temp), R²=0.057 (humedad) con 88,935 registros
+  - Patrones estacionales: Septiembre mejor (48.2%), Enero peor (0%)
+  - Umbrales críticos: P90=28.8°C, P95=30.4°C, P99=32.2°C
+  - 5 endpoints API: `/analysis/*` + `/forecast/aemet-contextualized`
+  - Dashboard card con análisis histórico SIAR integrado
 
 ### ML Evolution Sprints (Remaining)
-- 🟡 **Sprint 07**: SIAR Historical Analysis (IN PROGRESS - Oct 4, 2025)
-  - **Enfoque corregido**: Análisis histórico (NO predicción climática)
-  - **AEMET ya predice el tiempo** - Sprint 07 analiza 25 años historia SIAR
-  - Correlaciones R² temperatura/humedad → eficiencia producción
-  - Umbrales críticos basados en percentiles históricos (P90, P95, P99)
-  - Contextualización predicciones AEMET con evidencia SIAR
 - 🔴 **Sprint 08**: Hourly Production Optimization
 - 🔴 **Sprint 09**: Predictive Dashboard Complete
 - 🔴 **Sprint 10**: ML Consolidation & Cleanup
@@ -314,24 +314,49 @@ POST /gaps/backfill/auto?max_gap_hours=6.0
 ## Remote Access (Optional Tailscale Sidecar)
 
 ### Tailscale Integration
-- **Ultra-lightweight**: 52.4MB Alpine container
+- **Ultra-lightweight**: Alpine container with Tailscale + nginx
 - **SSL Automatic**: Tailscale ACME certificates with auto-renewal
-- **Security isolation**: Only `/dashboard` exposed externally
+- **Security isolation**: Only `/static/index.html` and API endpoints exposed externally
 - **Dual access**: External (limited) + Local (complete) for development
+- **Static architecture**: HTML/CSS/JS served from `/static/`, JavaScript fetches data from API
 
 ### Setup
 ```bash
 # 1. Generate auth key at https://login.tailscale.com/admin/settings/keys
-# 2. Add TAILSCALE_AUTHKEY to .env
-# 3. Deploy sidecar
+# 2. Configure .env with:
+#    - TAILSCALE_AUTHKEY=tskey-auth-xxxxx
+#    - TAILSCALE_DOMAIN=your-hostname.your-tailnet.ts.net
+# 3. Build and deploy sidecar
+docker compose build chocolate-factory
 docker compose up -d chocolate-factory
 ```
 
 ### Access URLs
-- **External dashboard**: `https://${TAILSCALE_DOMAIN}/dashboard` (configurar TAILSCALE_DOMAIN en .env)
-- **Local dashboard**: `http://localhost:8000/dashboard` (with weekly heatmap)
+- **External dashboard**: `https://${TAILSCALE_DOMAIN}/` or `/dashboard` (redirects to `/static/index.html`)
+- **Local dashboard**: `http://localhost:8000/static/index.html`
 - **Local dev API**: `http://localhost:8000/docs` (complete API access)
 - **JSON data**: `http://localhost:8000/dashboard/complete`
+
+### Static Dashboard Architecture (v0.41.0)
+```
+/static/
+├── index.html          # Main dashboard HTML (432 lines)
+├── css/
+│   └── dashboard.css   # Styles (826 lines)
+└── js/
+    └── dashboard.js    # Logic + API calls (890 lines)
+```
+
+**Flow:**
+1. User accesses `/` or `/dashboard` → nginx redirects (302) → `/static/index.html`
+2. Browser loads `index.html` → loads `css/dashboard.css` + `js/dashboard.js`
+3. JavaScript fetches data from `/dashboard/complete` (JSON)
+4. JavaScript renders cards dynamically with live data
+
+**Migration from embedded (Sept 2025):**
+- Before: 5,883 lines in `main.py` (HTML/CSS/JS embedded in Python strings)
+- After: 3,734 lines in `main.py` (only API endpoints) + separate static files
+- Reduction: 36.5% in main.py, cleaner separation of concerns
 
 
 ## Important Instructions
@@ -360,6 +385,18 @@ docker compose up -d chocolate-factory
   - **Cleanup**: Removed all datosclima references from codebase
 - **Result**: ✅ Simplified, reliable backfill using official AEMET data primarily
 - **Status**: AEMET handles historical data effectively, SIAR reserved for extreme cases only
+
+### 🏗️ **Static Dashboard Architecture Migration (Oct 4, 2025)**
+- **Issue**: 5,883 lines in main.py with embedded HTML/CSS/JS difficult to maintain
+- **Solution**: Extracted to `/static/` structure
+  - `index.html` (432 lines) - Clean HTML without embedded styles/scripts
+  - `css/dashboard.css` (826 lines) - All styles separated
+  - `js/dashboard.js` (890 lines) - Logic + API calls to `/dashboard/complete`
+- **Result**: ✅ main.py reduced to 3,734 lines (-36.5%), cleaner separation of concerns
+- **Version**: Updated to v0.41.0
+- **Tailscale fix**: Nginx now uses `envsubst` to process `${TAILSCALE_DOMAIN}` variable (requires `gettext` package)
+- **Security**: No hardcoded Tailscale domains in tracked files (uses .env)
+- **Routes**: `/` and `/dashboard` redirect to `/static/index.html`, JavaScript fetches data from API
 
 ### 🎨 **Dashboard Enhancement & BusinessLogicService Integration (Sept 26-27, 2025)**
 
