@@ -536,10 +536,15 @@ class HourlyOptimizerService:
                 proc_start_hour = (start_hour + int(start_min / 60)) % 24
                 proc_end_hour = (start_hour + int(end_min / 60)) % 24
 
-                # Precio promedio durante el proceso
-                proc_hours = list(range(proc_start_hour, proc_end_hour + 1))
+                # Precio promedio durante el proceso (manejar cruce de medianoche)
+                if proc_end_hour < proc_start_hour:
+                    # Cruza medianoche: 23h → 0h
+                    proc_hours = list(range(proc_start_hour, 24)) + list(range(0, proc_end_hour + 1))
+                else:
+                    proc_hours = list(range(proc_start_hour, proc_end_hour + 1))
+
                 proc_prices = [next((s["price_eur_kwh"] for s in hourly_scores if s["hour"] == h % 24), 0.15) for h in proc_hours]
-                avg_price = np.mean(proc_prices)
+                avg_price = np.mean(proc_prices) if proc_prices else 0.15
 
                 proc_energy = proc.energy_kwh_per_minute * proc.duration_minutes
                 proc_cost = proc_energy * avg_price
