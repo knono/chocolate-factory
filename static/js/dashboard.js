@@ -90,7 +90,15 @@ function renderHistoricalAnalytics(data) {
     if (maxPriceEl) maxPriceEl.textContent = formatSpanishNumber(analytics.price_analysis.max_price_eur_kwh, 4) + ' €/kWh';
     if (avgPriceEl) avgPriceEl.textContent = formatSpanishNumber(analytics.price_analysis.avg_price_eur_kwh, 4) + ' €/kWh';
     if (volatilityEl) volatilityEl.textContent = formatSpanishNumber(analytics.price_analysis.volatility_coefficient, 2);
-    
+
+    // Min/Max combinado para heatmap
+    const minMaxPriceEl = document.getElementById('min-max-price');
+    if (minMaxPriceEl) {
+        const minStr = formatSpanishNumber(analytics.price_analysis.min_price_eur_kwh, 4);
+        const maxStr = formatSpanishNumber(analytics.price_analysis.max_price_eur_kwh, 4);
+        minMaxPriceEl.textContent = `${minStr}/${maxStr} €/kWh`;
+    }
+
     // Potencial de optimización
     const savingsPotentialEl = document.getElementById('savings-potential');
     const optimalHoursEl = document.getElementById('optimal-hours');
@@ -106,6 +114,25 @@ function renderHistoricalAnalytics(data) {
         recommendationsContainer.innerHTML = analytics.recommendations
             .map(rec => `<div class="recommendation-item">• ${rec}</div>`)
             .join('');
+    }
+
+    // Recomendaciones unificadas (para heatmap)
+    const unifiedRecommendationsContainer = document.getElementById('unified-optimization-recommendations');
+    console.log('🔍 DEBUG unified recommendations:', {
+        containerExists: !!unifiedRecommendationsContainer,
+        hasRecommendations: !!analytics.recommendations,
+        recommendations: analytics.recommendations
+    });
+    if (unifiedRecommendationsContainer && analytics.recommendations) {
+        unifiedRecommendationsContainer.innerHTML = analytics.recommendations
+            .map(rec => `<div style="margin-bottom: 0.5rem;">• ${rec}</div>`)
+            .join('');
+        console.log('✅ Recommendations rendered');
+    } else {
+        console.warn('❌ Cannot render recommendations:', {
+            container: unifiedRecommendationsContainer,
+            recommendations: analytics.recommendations
+        });
     }
 }
 
@@ -313,304 +340,29 @@ async function loadData() {
         if (data.weekly_forecast) {
             renderHeatmap(data.weekly_forecast);
         }
-        
-        // ✨ Renderizar Enhanced ML data
-        renderEnhancedMLData(data);
 
-        // 🔄 Renderizar REE Unificado (reemplaza analytics históricos + smart insights)
-        renderUnifiedREEAnalysis(data);
+        // 📊 Renderizar análisis histórico (métricas heatmap)
+        renderHistoricalAnalytics(data);
+
+        // 💡 Renderizar insights inteligentes (recomendaciones)
+        renderSmartInsights(data);
+
+        // ✨ Enhanced ML data rendering removed (card deprecated in v0.42.0)
+        // renderEnhancedMLData(data);
+
+        // 🔄 REE Unificado removed (card deprecated in v0.43.0 - redundante con Timeline Horaria)
+        // renderUnifiedREEAnalysis(data);
 
         // 📊 Renderizar SIAR Historical Analysis (Sprint 07)
         renderSIARAnalysis(data);
+
+        // 🎯 Cargar Plan Optimizado 24h (Sprint 08)
+        loadOptimizationPlan();
 
     } catch (error) {
         document.getElementById('status').textContent = '❌ Error de conexión';
         document.getElementById('status').className = 'status-badge';
         console.error('Dashboard error:', error);
-    }
-}
-
-// ⚡ Función Unificada REE con BusinessLogicService
-function renderUnifiedREEAnalysis(data) {
-    try {
-        const analytics = data.historical_analytics;
-        const currentEnergy = data.current_info?.energy;
-        const recommendations = data.recommendations || {};
-        const humanRecUnified = recommendations.human_recommendation;
-
-        if (!analytics || !currentEnergy) {
-            console.log('⚠️ Missing data for unified REE analysis');
-            return;
-        }
-
-        // === RECOMENDACIÓN HUMANIZADA PRINCIPAL ===
-        if (humanRecUnified && !humanRecUnified.error) {
-            const unifiedSection = document.getElementById('unified-human-recommendation-section');
-            const unifiedContent = document.getElementById('unified-human-recommendation-content');
-
-            if (unifiedSection && unifiedContent) {
-                const message = humanRecUnified.main_message || {};
-                const economicImpact = humanRecUnified.economic_impact || {};
-                const metadata = humanRecUnified.metadata || {};
-
-                let content = `
-                    <div style="margin-bottom: 1rem;">
-                        <h3 style="margin: 0; font-size: 1.3rem; color: white;">${message.title || 'RECOMENDACIÓN INTELIGENTE'}</h3>
-                        <div style="margin-top: 0.5rem; opacity: 0.95; font-size: 1rem;">
-                            <strong>📊 Análisis:</strong> ${message.situation || 'Evaluando condiciones actuales...'}
-                        </div>
-                    </div>
-
-                    <div class="grid grid-2" style="gap: 1rem; margin-bottom: 1rem;">
-                        <div>
-                            <strong style="display: block; margin-bottom: 0.5rem;">🎯 Acciones:</strong>
-                            <ul style="margin: 0; padding-left: 1rem; font-size: 0.95rem;">
-                `;
-
-                if (message.priority_actions && Array.isArray(message.priority_actions)) {
-                    message.priority_actions.slice(0, 3).forEach(action => {
-                        content += `<li>${action}</li>`;
-                    });
-                }
-
-                content += `
-                            </ul>
-                        </div>
-                        <div>
-                            <strong style="display: block; margin-bottom: 0.5rem;">💰 Impacto:</strong>
-                            <div style="font-size: 0.95rem; line-height: 1.4;">
-                                <div><strong>Costo/kg:</strong> ${economicImpact.current_cost_per_kg || '13,90'}€</div>
-                                <div><strong>Categoría:</strong> ${economicImpact.cost_category || 'normal'}</div>
-                                <div><strong>Confianza:</strong> ${message.confidence_level || metadata.confidence || 'media'}</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                unifiedContent.innerHTML = content;
-                unifiedSection.style.display = 'block';
-            }
-        }
-
-        // === MÉTRICAS DE LA TARJETA UNIFICADA ===
-
-        // Current energy status
-        const currentPrice = currentEnergy.price_eur_kwh;
-        const statusTextEl = document.getElementById('energy-status-text');
-        const statusDetailEl = document.getElementById('energy-status-detail');
-        const actionRecommendationEl = document.getElementById('energy-action-recommendation');
-
-        if (statusTextEl && statusDetailEl && actionRecommendationEl) {
-            // === USE SAME LOGIC AS ENHANCED ML ANALYTICS ===
-            if (humanRecUnified && humanRecUnified.recommendation_level) {
-                const level = humanRecUnified.recommendation_level;
-                const levelNames = {
-                    'maximize': 'Óptimo',
-                    'standard': 'Normal',
-                    'reduced': 'Subóptimo',
-                    'minimal': 'Crítico',
-                    'critical': 'Emergencia'
-                };
-                statusTextEl.textContent = levelNames[level] || 'Evaluando';
-
-                // Use humanized recommendation level instead of raw Enhanced ML action
-                const levelToAction = {
-                    'maximize': 'Maximize Production',
-                    'standard': 'Standard Production',
-                    'reduced': 'Reduce Production',
-                    'minimal': 'Minimal Production',
-                    'critical': 'Emergency Procedures'
-                };
-                const actionDisplay = levelToAction[level] || 'Standard Production';
-                actionRecommendationEl.textContent = actionDisplay;
-            } else {
-                // Fallback to price-based logic only if no human recommendation
-                if (currentPrice < 0.12) {
-                    statusTextEl.textContent = 'Óptimo';
-                    actionRecommendationEl.textContent = 'Standard Production';
-                } else if (currentPrice < 0.20) {
-                    statusTextEl.textContent = 'Normal';
-                    actionRecommendationEl.textContent = 'Standard Production';
-                } else if (currentPrice < 0.30) {
-                    statusTextEl.textContent = 'Alto';
-                    actionRecommendationEl.textContent = 'Reduce Production';
-                } else {
-                    statusTextEl.textContent = 'Crítico';
-                    actionRecommendationEl.textContent = 'Halt Production';
-                }
-            }
-
-            statusDetailEl.textContent = formatSpanishNumber(currentPrice, 4) + ' €/kWh';
-        }
-
-        // Historical metrics
-        if (analytics.price_analysis) {
-            const priceAnalysis = analytics.price_analysis;
-            document.getElementById('avg-price').textContent = formatSpanishNumber(priceAnalysis.average_price || 0, 4) + ' €/kWh';
-            document.getElementById('total-cost').textContent = formatSpanishNumber(analytics.factory_metrics?.total_cost || 0, 0) + ' €';
-
-            const minPrice = priceAnalysis.min_price_eur_kwh || 0;
-            const maxPrice = priceAnalysis.max_price_eur_kwh || 0;
-            document.getElementById('min-max-price').textContent = formatSpanishNumber(minPrice, 4) + '/' + formatSpanishNumber(maxPrice, 4) + ' €/kWh';
-        }
-
-        // Optimization metrics
-        if (analytics.optimization_potential) {
-            const optimization = analytics.optimization_potential;
-            document.getElementById('annual-projection').textContent = formatSpanishNumber(optimization.annual_savings_projection || 0, 0) + ' €';
-            document.getElementById('optimal-hours').textContent = optimization.optimal_production_hours || '--';
-        }
-
-        // Current savings potential
-        const avgPrice = analytics.price_analysis?.average_price || 0.15;
-        const savingsPerHour = (avgPrice - currentPrice) * 2.4; // 2.4 kW approx consumption
-        const savingsPotentialEl = document.getElementById('current-savings-potential');
-        if (savingsPotentialEl) {
-            if (savingsPerHour > 0) {
-                savingsPotentialEl.textContent = '+' + formatSpanishNumber(savingsPerHour, 2) + ' €/h';
-                savingsPotentialEl.style.color = '#4CAF50';
-            } else {
-                savingsPotentialEl.textContent = formatSpanishNumber(savingsPerHour, 2) + ' €/h';
-                savingsPotentialEl.style.color = '#F44336';
-            }
-        }
-
-        // Price ranking (simplified)
-        const pricePosition = currentPrice / (avgPrice * 1.5); // Relative position
-        const ranking = Math.ceil(Math.min(pricePosition * 24, 24));
-        document.getElementById('price-ranking').textContent = ranking + '/24';
-
-        // Strategic recommendations (sync with Enhanced ML Analytics)
-        const strategicEl = document.getElementById('strategic-recommendation');
-        if (strategicEl) {
-            const enhanced = data.predictions || {};
-            const enhancedRec = enhanced.enhanced_recommendations || {};
-
-            if (enhancedRec.main_action) {
-                const mainAction = enhancedRec.main_action;
-                const actionIcons = {
-                    'maximize_production': '🚀 Maximizar producción',
-                    'increase_production': '📈 Incrementar producción',
-                    'standard_production': '⚖️ Producción estándar',
-                    'reduce_production': '📉 Reducir operaciones',
-                    'minimize_production': '⚠️ Producción mínima',
-                    'halt_production': '🚨 Parar nueva producción'
-                };
-                strategicEl.textContent = actionIcons[mainAction] || `🔧 ${mainAction.replace('_', ' ')}`;
-            } else if (humanRecUnified && humanRecUnified.recommendation_level) {
-                const level = humanRecUnified.recommendation_level;
-                const levelNames = {
-                    'maximize': '🚀 Maximizar producción',
-                    'standard': '⚖️ Producción estándar',
-                    'reduced': '📉 Reducir operaciones',
-                    'minimal': '⚠️ Producción mínima',
-                    'critical': '🚨 Parar nueva producción'
-                };
-                strategicEl.textContent = levelNames[level] || 'Evaluando...';
-            } else {
-                strategicEl.textContent = 'Usar criterio operacional';
-            }
-        }
-
-        // === LLENAR DATOS FALTANTES ===
-
-        // Process recommendations
-        const processEl = document.getElementById('recommended-process');
-        const processCostEl = document.getElementById('process-cost');
-        const processActionEl = document.getElementById('process-action');
-
-        if (processEl && processCostEl && processActionEl) {
-            const enhanced = data.predictions || {};
-            const enhancedRec = enhanced.enhanced_recommendations || {};
-
-            if (enhancedRec.main_action) {
-                const processMap = {
-                    'maximize_production': 'Conchado extendido + Templado premium',
-                    'increase_production': 'Conchado intensivo + Mezclado',
-                    'standard_production': 'Conchado estándar + Moldeado',
-                    'reduce_production': 'Solo conchado básico',
-                    'minimize_production': 'Completar lotes actuales',
-                    'halt_production': 'Ningún proceso nuevo'
-                };
-
-                const costMap = {
-                    'maximize_production': (currentPrice * 4.8).toFixed(2),
-                    'increase_production': (currentPrice * 3.6).toFixed(2),
-                    'standard_production': (currentPrice * 2.4).toFixed(2),
-                    'reduce_production': (currentPrice * 1.2).toFixed(2),
-                    'minimize_production': (currentPrice * 0.6).toFixed(2),
-                    'halt_production': '0.00'
-                };
-
-                processEl.textContent = processMap[enhancedRec.main_action] || 'Proceso estándar';
-                processCostEl.textContent = (costMap[enhancedRec.main_action] || currentPrice * 2.4) + ' €/h';
-
-                if (enhancedRec.main_action.includes('halt')) {
-                    processActionEl.textContent = 'Detener nuevos procesos ahora';
-                } else if (enhancedRec.main_action.includes('maximize')) {
-                    processActionEl.textContent = 'Aprovechar ventana energética';
-                } else if (enhancedRec.main_action.includes('reduce')) {
-                    processActionEl.textContent = 'Reducir intensidad energética';
-                } else {
-                    processActionEl.textContent = 'Mantener operación normal';
-                }
-            } else {
-                processEl.textContent = 'Conchado estándar + Moldeado';
-                processCostEl.textContent = (currentPrice * 2.4).toFixed(2) + ' €/h';
-                processActionEl.textContent = 'Evaluando mejores procesos...';
-            }
-        }
-
-        // Optimal time window
-        const optimalTimeEl = document.getElementById('optimal-time-window');
-        if (optimalTimeEl) {
-            const currentHour = new Date().getHours();
-            if (currentPrice < avgPrice) {
-                optimalTimeEl.textContent = `Ahora (hasta ${(currentHour + 2) % 24}:00h)`;
-            } else {
-                optimalTimeEl.textContent = '00:00-06:00 (hora valle)';
-            }
-        }
-
-        // Price range
-        const priceRangeEl = document.getElementById('price-range');
-        if (priceRangeEl && analytics.price_analysis) {
-            const minPrice = analytics.price_analysis.min_price || 0;
-            const maxPrice = analytics.price_analysis.max_price || 0;
-            priceRangeEl.textContent = `${formatSpanishNumber(minPrice, 4)} - ${formatSpanishNumber(maxPrice, 4)} €/kWh`;
-        }
-
-        // Unified recommendations
-        const unifiedRecsEl = document.getElementById('unified-optimization-recommendations');
-        if (unifiedRecsEl) {
-            let recsText = '';
-            if (humanRecUnified && humanRecUnified.situation_context) {
-                recsText = humanRecUnified.situation_context.slice(0, 2).map(ctx => `• ${ctx}`).join('<br>');
-            } else {
-                // Fallback recommendations based on Enhanced ML data
-                const enhanced = data.predictions || {};
-                const enhancedRec = enhanced.enhanced_recommendations || {};
-                if (enhancedRec.main_action) {
-                    const actionRecs = {
-                        'maximize_production': '• Momento óptimo para maximizar volumen<br>• Aprovechar precio energético favorable',
-                        'increase_production': '• Incrementar producción moderadamente<br>• Condiciones favorables detectadas',
-                        'standard_production': '• Mantener ritmo normal de producción<br>• Condiciones estables para operación',
-                        'reduce_production': '• Reducir operaciones no críticas<br>• Precio energético elevado detectado',
-                        'minimize_production': '• Solo completar lotes comprometidos<br>• Condiciones subóptimas',
-                        'halt_production': '• Parar nueva producción inmediatamente<br>• Condiciones críticas detectadas'
-                    };
-                    recsText = actionRecs[enhancedRec.main_action] || '• Sistema híbrido activado<br>• Consultar recomendación principal arriba';
-                } else {
-                    recsText = '• Sistema híbrido activado<br>• Consultar recomendación principal arriba';
-                }
-            }
-            unifiedRecsEl.innerHTML = recsText;
-        }
-
-        console.log('✅ Unified REE analysis rendered successfully');
-
-    } catch (error) {
-        console.error('❌ Error rendering unified REE analysis:', error);
     }
 }
 
@@ -710,179 +462,312 @@ function renderSIARAnalysis(data) {
 // Cargar datos al inicializar
 loadData();
 
-// ✨ Enhanced ML Data Renderer
-function renderEnhancedMLData(data) {
+// ============================================
+// SPRINT 08: HOURLY OPTIMIZATION
+// ============================================
+
+async function loadOptimizationPlan(targetDate = null, targetKg = null) {
+    /**
+     * Carga el plan optimizado de producción desde el endpoint /optimize/production/daily
+     */
     try {
-        const enhanced = data.predictions || {};
-        const enhancedCost = enhanced.enhanced_cost_analysis || {};
-        const enhancedRec = enhanced.enhanced_recommendations || {};
-        const reeDeviation = enhanced.ree_deviation_analysis || {};
-        const recommendations = data.recommendations || {};
+        console.log('🎯 Loading optimization plan...');
 
-        // Cost Optimization
-        const costPerKg = enhancedCost.total_cost_per_kg || 13.90;
-        document.getElementById('enhanced-cost-per-kg').textContent = formatSpanishNumber(costPerKg, 2);
-        document.getElementById('cost-category').textContent = enhancedCost.cost_category || 'unknown';
-        document.getElementById('savings-opportunity').textContent = formatSpanishNumber(enhancedCost.savings_opportunity || 0, 3);
+        // Build query params
+        const params = new URLSearchParams();
+        if (targetDate) params.append('target_date', targetDate);
+        if (targetKg) params.append('target_kg', targetKg);
 
-        const vsTarget = enhancedCost.vs_target || {};
-        const percentage = vsTarget.percentage || 0;
-        document.getElementById('vs-target').textContent = percentage > 0 ? `+${percentage}%` : `${percentage}%`;
+        const url = `/optimize/production/daily${params.toString() ? '?' + params.toString() : ''}`;
 
-        // Enhanced Recommendations - use humanized recommendation if available
-        const humanRecEnhanced = recommendations.human_recommendation;
-        let actionDisplay = 'Standard Production';
-
-        if (humanRecEnhanced && humanRecEnhanced.recommendation_level) {
-            const levelToAction = {
-                'maximize': 'Maximize Production',
-                'standard': 'Standard Production',
-                'reduced': 'Reduce Production',
-                'minimal': 'Minimal Production',
-                'critical': 'Emergency Procedures'
-            };
-            actionDisplay = levelToAction[humanRecEnhanced.recommendation_level] || 'Standard Production';
-        } else {
-            // Fallback to raw Enhanced ML if humanized not available
-            const mainAction = enhancedRec.main_action || 'standard_production';
-            actionDisplay = mainAction.replace('_', ' ').split(' ').map(word =>
-                word.charAt(0).toUpperCase() + word.slice(1)
-            ).join(' ');
-        }
-
-        document.getElementById('enhanced-main-action').textContent = actionDisplay;
-        document.getElementById('enhanced-priority').textContent = enhancedRec.priority || 'medium';
-        document.getElementById('enhanced-overall-score').textContent = formatSpanishNumber(enhancedRec.overall_score || 50, 1);
-        document.getElementById('enhanced-confidence').textContent = enhancedRec.confidence || 'medium';
-        document.getElementById('enhanced-alerts-count').textContent = enhancedRec.alerts_count || 0;
-
-        // REE Deviation Analysis
-        const accuracy = reeDeviation.accuracy_score || 0.9;
-        document.getElementById('ree-accuracy').textContent = Math.round(accuracy * 100) + '%';
-        document.getElementById('ree-deviation').textContent = formatSpanishNumber(reeDeviation.average_deviation || 0.015, 4);
-        document.getElementById('ree-trend').textContent = reeDeviation.deviation_trend || 'stable';
-        document.getElementById('ree-usefulness').textContent = reeDeviation.usefulness || 'trend_analysis';
-
-        // Enhanced Cost Insights
-        const costInsights = recommendations.enhanced_cost_insights || [];
-        const costInsightsEl = document.getElementById('enhanced-cost-insights');
-        if (costInsights.length > 0) {
-            costInsightsEl.innerHTML = costInsights.map(insight => `<li>${insight}</li>`).join('');
-        } else {
-            costInsightsEl.innerHTML = '<li>🔧 No hay insights de costos disponibles</li>';
-        }
-
-        // Enhanced Timing Insights
-        const timingInsights = recommendations.enhanced_timing || [];
-        const timingInsightsEl = document.getElementById('enhanced-timing-insights');
-        if (timingInsights.length > 0) {
-            timingInsightsEl.innerHTML = timingInsights.slice(0, 5).map(insight => `<li>${insight}</li>`).join('');
-        } else {
-            timingInsightsEl.innerHTML = '<li>⚡ No hay insights temporales disponibles</li>';
-        }
-
-        // Enhanced status styling based on data
-        const costCategory = enhancedCost.cost_category;
-        const costEl = document.getElementById('enhanced-cost-per-kg');
-        if (costCategory === 'optimal') {
-            costEl.style.color = '#059669';
-        } else if (costCategory === 'elevated') {
-            costEl.style.color = '#d97706';
-        } else if (costCategory === 'high') {
-            costEl.style.color = '#dc2626';
-        }
-
-        const priority = enhancedRec.priority;
-        const actionEl = document.getElementById('enhanced-main-action');
-        if (priority === 'critical') {
-            actionEl.style.color = '#dc2626';
-        } else if (priority === 'high') {
-            actionEl.style.color = '#d97706';
-        } else {
-            actionEl.style.color = '#059669';
-        }
-
-        // === RECOMENDACIÓN HUMANIZADA ===
-        const humanRecDetails = recommendations.human_recommendation;
-        if (humanRecDetails && !humanRecDetails.error) {
-            const humanSection = document.getElementById('human-recommendation-section');
-            const humanContent = document.getElementById('human-recommendation-content');
-
-            if (humanSection && humanContent) {
-                const message = humanRecDetails.main_message || {};
-                const economicImpact = humanRecDetails.economic_impact || {};
-                const metadata = humanRecDetails.metadata || {};
-
-                // Build human-friendly content
-                let content = `
-                    <div style="margin-bottom: 1rem;">
-                        <h3 style="margin: 0; font-size: 1.2rem; color: white;">${message.title || 'RECOMENDACIÓN DEL SISTEMA'}</h3>
-                        <div style="margin-top: 0.5rem; opacity: 0.9; font-size: 0.95rem;">
-                            <strong>Situación actual:</strong> ${message.situation || 'Evaluando condiciones...'}
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 1rem;">
-                        <strong style="display: block; margin-bottom: 0.5rem;">📋 Acciones prioritarias:</strong>
-                        <ul style="margin: 0; padding-left: 1.2rem; line-height: 1.4;">
-                `;
-
-                if (message.priority_actions && Array.isArray(message.priority_actions)) {
-                    message.priority_actions.forEach(action => {
-                        content += `<li>${action}</li>`;
-                    });
-                }
-
-                content += `
-                        </ul>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; font-size: 0.9rem;">
-                        <div>
-                            <strong>⏱️ Duración:</strong><br>
-                            ${message.estimated_duration || 'Por definir'}
-                        </div>
-                        <div>
-                            <strong>💰 Impacto:</strong><br>
-                            ${economicImpact.cost_category || 'normal'} (${economicImpact.current_cost_per_kg || '13,90'}€/kg)
-                        </div>
-                        <div>
-                            <strong>🎯 Confianza:</strong><br>
-                            ${message.confidence_level || metadata.confidence || 'media'}
-                        </div>
-                        <div>
-                            <strong>🔄 Revisar en:</strong><br>
-                            ${Math.round((metadata.review_in_minutes || 180) / 60)} horas
-                        </div>
-                    </div>
-                `;
-
-                // Add contextual messages if available
-                if (humanRecDetails.situation_context && Array.isArray(humanRecDetails.situation_context)) {
-                    content += `
-                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.3);">
-                            <strong style="display: block; margin-bottom: 0.5rem;">💡 Contexto:</strong>
-                            <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.9rem; opacity: 0.95;">
-                    `;
-                    humanRecDetails.situation_context.forEach(context => {
-                        content += `<li>${context}</li>`;
-                    });
-                    content += `</ul></div>`;
-                }
-
-                humanContent.innerHTML = content;
-                humanSection.style.display = 'block';
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
             }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        console.log('✨ Enhanced ML data rendered successfully');
+        const data = await response.json();
+
+        if (data.optimization) {
+            renderOptimizationPlan(data.optimization);
+            console.log('✅ Optimization plan loaded successfully');
+        } else {
+            throw new Error('No optimization data in response');
+        }
 
     } catch (error) {
-        console.error('❌ Error rendering Enhanced ML data:', error);
-        // Fallback values
-        document.getElementById('enhanced-cost-per-kg').textContent = '13,90';
-        document.getElementById('enhanced-main-action').textContent = 'Standard Production';
-        document.getElementById('ree-accuracy').textContent = '90%';
+        console.error('❌ Error loading optimization plan:', error);
+        renderOptimizationError(error.message);
+    }
+}
+
+function renderOptimizationPlan(optimization) {
+    /**
+     * Renderiza el plan optimizado en el dashboard
+     */
+    try {
+        // Summary metrics
+        const savingsEurEl = document.getElementById('opt-savings-eur');
+        const savingsPercentEl = document.getElementById('opt-savings-percent');
+        const numBatchesEl = document.getElementById('opt-num-batches');
+        const targetKgEl = document.getElementById('opt-target-kg');
+        const totalCostEl = document.getElementById('opt-total-cost');
+        const totalEnergyEl = document.getElementById('opt-total-energy');
+
+        if (savingsEurEl) savingsEurEl.textContent = formatSpanishNumber(optimization.savings.absolute_eur, 2) + ' €';
+        if (savingsPercentEl) savingsPercentEl.textContent = formatSpanishNumber(optimization.savings.percent, 1) + '%';
+        if (numBatchesEl) numBatchesEl.textContent = optimization.num_batches;
+        if (targetKgEl) targetKgEl.textContent = optimization.target_kg;
+        if (totalCostEl) totalCostEl.textContent = formatSpanishNumber(optimization.plan.total_cost_eur, 2) + ' €';
+        if (totalEnergyEl) totalEnergyEl.textContent = formatSpanishNumber(optimization.plan.total_energy_kwh, 0);
+
+        // Baseline comparison
+        const baselineCostEl = document.getElementById('baseline-cost');
+        const baselineEnergyEl = document.getElementById('baseline-energy');
+        const baselineAvgPriceEl = document.getElementById('baseline-avg-price');
+        const optimizedCostEl = document.getElementById('optimized-cost');
+        const optimizedEnergyEl = document.getElementById('optimized-energy');
+        const optimizedAvgPriceEl = document.getElementById('optimized-avg-price');
+
+        if (baselineCostEl) baselineCostEl.textContent = formatSpanishNumber(optimization.baseline.total_cost, 2) + ' €';
+        if (baselineEnergyEl) baselineEnergyEl.textContent = formatSpanishNumber(optimization.baseline.total_energy_kwh, 0) + ' kWh';
+        if (baselineAvgPriceEl) baselineAvgPriceEl.textContent = formatSpanishNumber(optimization.baseline.avg_price_eur_kwh, 4) + ' €/kWh';
+        if (optimizedCostEl) optimizedCostEl.textContent = formatSpanishNumber(optimization.plan.total_cost_eur, 2) + ' €';
+        if (optimizedEnergyEl) optimizedEnergyEl.textContent = formatSpanishNumber(optimization.plan.total_energy_kwh, 0) + ' kWh';
+        if (optimizedAvgPriceEl) optimizedAvgPriceEl.textContent = formatSpanishNumber(optimization.plan.avg_price_eur_kwh, 4) + ' €/kWh';
+
+        // Render batches timeline
+        renderBatchesTimeline(optimization.plan.batches);
+
+        // Render hourly timeline (NEW)
+        if (optimization.hourly_timeline) {
+            renderHourlyTimeline(optimization.hourly_timeline);
+        }
+
+        // Render recommendations
+        renderOptimizationRecommendations(optimization.recommendations);
+
+        console.log('✅ Optimization plan rendered successfully');
+
+    } catch (error) {
+        console.error('❌ Error rendering optimization plan:', error);
+        renderOptimizationError('Error rendering plan: ' + error.message);
+    }
+}
+
+function renderBatchesTimeline(batches) {
+    /**
+     * Renderiza la timeline de batches optimizados
+     */
+    const timelineEl = document.getElementById('opt-batches-timeline');
+    if (!timelineEl) return;
+
+    if (!batches || batches.length === 0) {
+        timelineEl.innerHTML = '<div style="text-align: center; padding: 2rem; opacity: 0.7;">❌ No hay batches programados</div>';
+        return;
+    }
+
+    let html = '';
+
+    batches.forEach((batch) => {
+        // Quality badge
+        const qualityBadge = batch.quality_type === 'premium'
+            ? '<span style="background: #FFD700; color: #1e3c72; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold;">⭐ PREMIUM</span>'
+            : '<span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">📦 STANDARD</span>';
+
+        // Weather conditions badge
+        const temp = batch.weather_conditions.avg_temperature;
+        const humidity = batch.weather_conditions.avg_humidity;
+        const weatherBadge = temp <= 28 && humidity <= 60
+            ? '✅'
+            : temp <= 32 && humidity <= 70
+            ? '⚠️'
+            : '🔴';
+
+        html += `
+            <div style="background: rgba(255,255,255,0.08); padding: 1rem; margin-bottom: 0.75rem; border-radius: 8px; border-left: 4px solid ${batch.quality_type === 'premium' ? '#FFD700' : '#4CAF50'};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 1.2rem; font-weight: bold;">${batch.batch_id}</span>
+                        ${qualityBadge}
+                        <span style="opacity: 0.8; font-size: 0.9rem;">🕐 ${batch.start_time} - ${batch.end_time}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <span style="font-size: 0.9rem;">💰 ${formatSpanishNumber(batch.total_cost_eur, 2)} €</span>
+                        <span style="font-size: 1.2rem;">${weatherBadge}</span>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.75rem;">
+                    <div>⚡ ${formatSpanishNumber(batch.total_energy_kwh, 1)} kWh</div>
+                    <div>🌡️ ${formatSpanishNumber(temp, 1)}°C</div>
+                    <div>💧 ${formatSpanishNumber(humidity, 0)}%</div>
+                </div>
+
+                <div style="font-size: 0.85rem; opacity: 0.8;">
+                    ${batch.recommendation}
+                </div>
+
+                <!-- Processes breakdown (collapsible) -->
+                <details style="margin-top: 0.75rem;">
+                    <summary style="cursor: pointer; font-size: 0.85rem; opacity: 0.8; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        📋 Ver procesos (${batch.processes.length})
+                    </summary>
+                    <div style="margin-top: 0.5rem; padding-left: 1rem; font-size: 0.8rem; line-height: 1.6; opacity: 0.85;">
+        `;
+
+        batch.processes.forEach(proc => {
+            html += `
+                <div style="padding: 0.25rem 0;">
+                    <strong>${proc.name}</strong>:
+                    ${proc.duration_minutes} min •
+                    ${formatSpanishNumber(proc.energy_kwh, 1)} kWh •
+                    ${formatSpanishNumber(proc.cost_eur, 2)} €
+                </div>
+            `;
+        });
+
+        html += `
+                    </div>
+                </details>
+            </div>
+        `;
+    });
+
+    timelineEl.innerHTML = html;
+}
+
+function renderHourlyTimeline(hourlyTimeline) {
+    /**
+     * Renderiza la timeline horaria 24h con precio, periodo y producción
+     */
+    const container = document.getElementById('hourly-timeline-container');
+    if (!container) return;
+
+    if (!hourlyTimeline || hourlyTimeline.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 2rem; opacity: 0.7;">❌ No hay datos de timeline horaria</div>';
+        return;
+    }
+
+    // Crear tabla HTML
+    let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; color: white;">
+            <thead>
+                <tr style="background: rgba(255,255,255,0.15); position: sticky; top: 0;">
+                    <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid rgba(255,255,255,0.3);">Hora</th>
+                    <th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid rgba(255,255,255,0.3);">Precio</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid rgba(255,255,255,0.3);">Periodo</th>
+                    <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid rgba(255,255,255,0.3);">Proceso</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid rgba(255,255,255,0.3);">Batch</th>
+                    <th style="padding: 0.75rem; text-align: center; border-bottom: 2px solid rgba(255,255,255,0.3);">Clima</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    hourlyTimeline.forEach((hour) => {
+        // Determinar color de fondo basado en periodo tarifario
+        const bgColor = hour.tariff_period === 'P1'
+            ? 'rgba(220, 38, 38, 0.15)'   // Rojo claro
+            : hour.tariff_period === 'P2'
+            ? 'rgba(245, 158, 11, 0.15)'  // Amarillo claro
+            : 'rgba(16, 185, 129, 0.15)'; // Verde claro
+
+        // Badge de periodo tarifario
+        const periodBadge = `
+            <span style="
+                background: ${hour.tariff_color};
+                color: white;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 0.75rem;
+            ">${hour.tariff_period}</span>
+        `;
+
+        // Icono de clima
+        const climateIcon = hour.climate_status === 'optimal'
+            ? '✅'
+            : hour.climate_status === 'acceptable'
+            ? '⚠️'
+            : '🔴';
+
+        // Información de proceso y batch
+        const processInfo = hour.active_process
+            ? `<span style="font-weight: 500;">${hour.active_process}</span>`
+            : '<span style="opacity: 0.5;">-</span>';
+
+        const batchInfo = hour.active_batch
+            ? `<span style="background: rgba(255,215,0,0.2); padding: 0.2rem 0.4rem; border-radius: 3px; font-weight: bold;">${hour.active_batch}</span>`
+            : '<span style="opacity: 0.5;">-</span>';
+
+        // Resaltar filas con producción
+        const rowStyle = hour.is_production_hour
+            ? `background: ${bgColor}; border-left: 3px solid ${hour.tariff_color};`
+            : `background: ${bgColor};`;
+
+        html += `
+            <tr style="${rowStyle}">
+                <td style="padding: 0.5rem; font-weight: ${hour.is_production_hour ? 'bold' : 'normal'};">${hour.time}</td>
+                <td style="padding: 0.5rem; text-align: right; font-family: monospace;">${formatSpanishNumber(hour.price_eur_kwh, 4)} €</td>
+                <td style="padding: 0.5rem; text-align: center;">${periodBadge}</td>
+                <td style="padding: 0.5rem;">${processInfo}</td>
+                <td style="padding: 0.5rem; text-align: center;">${batchInfo}</td>
+                <td style="padding: 0.5rem; text-align: center;" title="Temp: ${hour.temperature}°C, Humedad: ${hour.humidity}%">
+                    ${climateIcon} ${hour.temperature}°C
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    container.innerHTML = html;
+    console.log('✅ Hourly timeline rendered successfully');
+}
+
+function renderOptimizationRecommendations(recommendations) {
+    /**
+     * Renderiza las recomendaciones de optimización
+     */
+    const recommendationsEl = document.getElementById('opt-recommendations');
+    if (!recommendationsEl) return;
+
+    if (!recommendations || recommendations.length === 0) {
+        recommendationsEl.innerHTML = '<div style="opacity: 0.7;">ℹ️ No hay recomendaciones disponibles</div>';
+        return;
+    }
+
+    let html = '<div style="line-height: 1.8;">';
+    recommendations.forEach(rec => {
+        html += `<div>• ${rec}</div>`;
+    });
+    html += '</div>';
+
+    recommendationsEl.innerHTML = html;
+}
+
+function renderOptimizationError(errorMessage) {
+    /**
+     * Renderiza error en la sección de optimización
+     */
+    const timelineEl = document.getElementById('opt-batches-timeline');
+    if (timelineEl) {
+        timelineEl.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #FF5252;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚠️</div>
+                <div style="font-weight: bold; margin-bottom: 0.5rem;">Error cargando plan optimizado</div>
+                <div style="font-size: 0.85rem; opacity: 0.8;">${errorMessage}</div>
+            </div>
+        `;
     }
 }
 

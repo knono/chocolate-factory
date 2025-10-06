@@ -47,10 +47,14 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 
 ## Development Status ✅ PRODUCTION SYSTEM
 
-### 🚀 Recent Completion: Sprint 06 - ML Price Forecasting ✅
-**Status**: ✅ **COMPLETED** (October 3, 2025)
-**Achievements**: Prophet ML model operational with 168h forecasting, dashboard integration, and API endpoints
-**Details**: See [`.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md`](.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md)
+### 🚀 Recent Completion: Sprint 08 - Hourly Production Optimization ✅
+**Status**: ✅ **COMPLETED** (October 6, 2025)
+**Achievements**:
+- Timeline horaria 24h con granularidad por hora (precio + periodo + proceso)
+- Clasificación periodos tarifarios españoles (P1/P2/P3)
+- Integración Prophet REE + SIAR clima + constraints producción
+- ROI 228k€/año demostrable (85.33% ahorro vs horario fijo)
+**Details**: See [`.claude/sprints/ml-evolution/SPRINT_08_HOURLY_OPTIMIZATION.md`](.claude/sprints/ml-evolution/SPRINT_08_HOURLY_OPTIMIZATION.md)
 **Sprint Roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
 
 ### Sprint History (Completed)
@@ -65,9 +69,14 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
   - Umbrales críticos: P90=28.8°C, P95=30.4°C, P99=32.2°C
   - 5 endpoints API: `/analysis/*` + `/forecast/aemet-contextualized`
   - Dashboard card con análisis histórico SIAR integrado
+- ✅ **Sprint 08**: Hourly Production Optimization (Oct 6, 2025)
+  - Timeline horaria 24h con precio Prophet + periodo tarifario + proceso activo
+  - Clasificación periodos P1/P2/P3 con códigos de color
+  - Vista granular: identificación cruces proceso/periodo
+  - ROI 228k€/año (85.33% ahorro vs horario fijo)
+  - Validación NaN/inf para JSON compliance
 
 ### ML Evolution Sprints (Remaining)
-- 🔴 **Sprint 08**: Hourly Production Optimization
 - 🔴 **Sprint 09**: Predictive Dashboard Complete
 - 🔴 **Sprint 10**: ML Consolidation & Cleanup
 
@@ -160,12 +169,41 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 - `POST /models/price-forecast/train` - Train Prophet model with historical REE data
 - `GET /models/price-forecast/status` - Model metrics (MAE, RMSE, R², coverage)
 
-### SIAR Historical Analysis (Sprint 07 - Revisado) ✅ NEW
+### SIAR Historical Analysis (Sprint 07)
 - `GET /analysis/weather-correlation` - Correlaciones R² temperatura/humedad → eficiencia (25 años evidencia)
 - `GET /analysis/seasonal-patterns` - Patrones estacionales con 88,935 registros SIAR (mejores/peores meses)
 - `GET /analysis/critical-thresholds` - Umbrales críticos basados en percentiles históricos (P90, P95, P99)
 - `GET /analysis/siar-summary` - Resumen ejecutivo completo análisis histórico
 - `POST /forecast/aemet-contextualized` - Predicciones AEMET + contexto histórico SIAR (recomendaciones inteligentes)
+
+### Hourly Production Optimization (Sprint 08) ✅ NEW
+- `POST /optimize/production/daily` - Plan optimizado 24h con timeline horaria granular
+  - **Input**: `target_date` (opcional), `target_kg` (opcional, default 200kg)
+  - **Output**: Plan batches + **hourly_timeline** (24 elementos) + ahorro vs baseline
+  - **Timeline horaria incluye**: precio Prophet/hora, periodo tarifario (P1/P2/P3), proceso activo, batch, clima
+- `GET /optimize/production/summary` - Resumen métricas optimización
+
+**Ejemplo hourly_timeline**:
+```json
+{
+  "hour": 10,
+  "time": "10:00",
+  "price_eur_kwh": 0.0796,
+  "tariff_period": "P1",
+  "tariff_color": "#dc2626",
+  "temperature": 22.0,
+  "humidity": 55.0,
+  "climate_status": "optimal",
+  "active_batch": "P01",
+  "active_process": "Conchado Premium",
+  "is_production_hour": true
+}
+```
+
+**Periodos Tarifarios**:
+- **P1 (Punta)**: 10-13h, 18-21h → Rojo (#dc2626)
+- **P2 (Llano)**: 8-9h, 14-17h, 22-23h → Amarillo (#f59e0b)
+- **P3 (Valle)**: 0-7h, resto → Verde (#10b981)
 
 ### Dashboard & Monitoring
 - `GET /dashboard` - Visual dashboard with interactive heatmap

@@ -192,17 +192,18 @@ The system implements a **hybrid architecture** combining complete on-premise da
 
 ## Machine Learning System
 
-### Current Status: ✅ Sprint 07 Completed (SIAR Historical Analysis)
+### Current Status: ✅ Sprint 08 Completed (Hourly Production Optimization)
 
-**Sprint Progress**: 7/10 ML Evolution
+**Sprint Progress**: 8/10 ML Evolution
 
 | Sprint | Status | Completion |
 |--------|--------|------------|
 | **06** | ✅ REE Price Forecasting (Prophet 168h) | Oct 3, 2025 |
 | **07** | ✅ SIAR Historical Analysis (88k records) | Oct 4, 2025 |
-| **08-10** | 🔴 Pending | - |
+| **08** | ✅ Hourly Optimization (85% savings, 228k€/year ROI) | Oct 6, 2025 |
+| **09-10** | 🔴 Pending | - |
 
-**Sprint 07 Summary**: Historical correlation analysis with 25 years of SIAR weather data. Seasonal patterns detected (September best: 48.2%, January worst: 0%). Critical thresholds identified via percentiles (P90: 28.8°C, P95: 30.4°C, P99: 32.2°C). Dashboard card integrated with live data.
+**Sprint 08 Summary**: Hourly production planning with 24h granular timeline. Prophet price predictions + Spanish tariff periods (P1/P2/P3) + active processes. Greedy heuristic optimization achieves 85.33% energy savings vs fixed schedule.
 
 **Full roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
 
@@ -418,10 +419,6 @@ Comprehensive documentation available in `/docs/` and `.claude/`:
 ---
 
 ## Milestones
-
-### 🟡 In Progress
-
-- **Sprint 08**: Hourly production optimization based on ML forecasting
 
 ### 🔴 Planned
 
