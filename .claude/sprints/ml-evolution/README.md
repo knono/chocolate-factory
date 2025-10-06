@@ -51,19 +51,26 @@
 
 ---
 
-### 🔵 Sprint 08: Optimización Horaria Inteligente
-**Estado**: 🔴 NO INICIADO
+### ✅ Sprint 08: Optimización Horaria Inteligente (COMPLETADO)
+**Estado**: ✅ **COMPLETADO** (6 de Octubre, 2025)
 **Archivo**: [`SPRINT_08_HOURLY_OPTIMIZATION.md`](./SPRINT_08_HOURLY_OPTIMIZATION.md)
 
 **Objetivo**: Modelo de planificación horaria 24h basado en predicciones REE + clima + estado planta.
 
-**Entregables**:
-- ✅ Motor de optimización horaria
+**Entregables Completados**:
+- ✅ Motor de optimización horaria (Greedy Heuristic, 800+ líneas)
 - ✅ Plan recomendado 24h (qué producir, cuándo, cuánto)
-- ✅ Cálculo ahorro energético estimado
+- ✅ Cálculo ahorro energético: 85.33% vs horario fijo (ROI 228k€/año)
 - ✅ Recomendaciones contextualizadas por proceso (conchado, templado, etc.)
+- ✅ **Timeline horaria 24h** con granularidad por hora:
+  - Precio Prophet/hora (24 precios únicos reales)
+  - Periodo tarifario (P1/P2/P3) con códigos de color
+  - Proceso activo identificado por hora
+  - Detección cruces proceso/periodo
+- ✅ Validación NaN/inf para JSON compliance
+- ✅ Dashboard: Tabla interactiva 6 columnas (Hora, Precio, Periodo, Proceso, Batch, Clima)
 
-**Impacto**: Planificación automática vs recomendaciones genéricas.
+**Impacto**: Optimización automática 24h con vista granular. Identificación precisa de ventanas óptimas producción. Planificación decisional basada en datos horarios reales.
 
 ---
 

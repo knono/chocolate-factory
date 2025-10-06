@@ -15,6 +15,33 @@ Dashboard con **ventanas óptimas predichas**, análisis **desviaciones REE D-1 
 
 ## 📦 Entregables
 
+### 0. Rescate Funcionalidad Sprint 08
+**Card "Análisis REE" eliminada** (v0.43.0 - redundante con Timeline Horaria).
+
+**Funcionalidades a rescatar/mejorar**:
+1. **BusinessLogicService** (ya implementado en Sprint 05)
+   - Mantener lógica humanizada de recomendaciones
+   - Ubicación actual: `services/business_logic_service.py`
+   - Integrar en nuevos widgets (no en card independiente)
+
+2. **Recomendaciones contextualizadas** → Integrar en Widget "Próximas Ventanas Óptimas"
+   - Rescatar: Análisis momento energético actual
+   - Rescatar: Oportunidad de ahorro vs promedio
+   - Rescatar: Análisis por procesos (Conchado/Rolado/Templado)
+   - **Mejora**: Usar Prophet para ventanas futuras, no solo momento actual
+
+3. **Métricas eliminadas** (ahora redundantes):
+   - ❌ Momento energético actual → Ya en Timeline Horaria (granularidad hora a hora)
+   - ❌ Ranking precio actual → Ya en Timeline Horaria (posición vs 24h)
+   - ❌ Proceso recomendado → Ya en Timeline Horaria (proceso activo por hora)
+
+**Nueva arquitectura (Sprint 09)**:
+- Widget único "Próximas Ventanas Óptimas" que agrega:
+  - Recomendaciones BusinessLogicService
+  - Predicciones Prophet 7 días
+  - Contexto timeline horaria
+  - Alertas predictivas
+
 ### 1. Widget "Próximas Ventanas Óptimas"
 ```
 ┌─────────────────────────────────────────┐
