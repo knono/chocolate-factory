@@ -111,80 +111,88 @@
             </div>
         </div>
 
-        <!-- Enhanced ML Analytics -->
-        <div class="enhanced-section" style="margin: 2rem 0;">
-            <div class="enhanced-title">
-                <span>📊</span>
-                <span>ML Analytics - Datos Históricos Integrados</span>
+        <!-- HOURLY OPTIMIZATION -->
+        <div class="card" style="margin-top: 2rem; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white;">
+            <div class="card-header">
+                <span class="card-icon">🎯</span>
+                <span class="card-title" style="color: white;">Plan Optimizado 24h</span>
             </div>
 
-            <div class="grid grid-3" style="gap: 1.5rem;">
-                <!-- Cost Optimization -->
-                <div class="card metric-enhanced">
-                    <div class="card-header">
-                        <span class="card-icon">💰</span>
-                        <span class="card-title">Optimización de Costos</span>
-                    </div>
-                    <div class="metric-value" id="enhanced-cost-per-kg">--</div>
-                    <div class="metric-label">€/kg</div>
-                    <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
-                        <div>Categoría: <span id="cost-category">--</span></div>
-                        <div>Ahorro: <span id="savings-opportunity">-- €/kg</span></div>
-                        <div>vs Target: <span id="vs-target">--%</span></div>
-                    </div>
+            <!-- Optimization Summary -->
+            <div class="grid grid-3" style="gap: 1rem; margin-top: 1.5rem;">
+                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">💰 Ahorro Estimado</div>
+                    <div style="font-size: 1.8rem; font-weight: bold;" id="opt-savings-eur">-- €</div>
+                    <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;"><span id="opt-savings-percent">--%</span> vs baseline</div>
                 </div>
-
-                <!-- Enhanced Recommendations -->
-                <div class="card metric-enhanced">
-                    <div class="card-header">
-                        <span class="card-icon">🎯</span>
-                        <span class="card-title">Recomendación Enhanced</span>
-                    </div>
-                    <div class="metric-value" id="enhanced-main-action">--</div>
-                    <div class="metric-label" id="enhanced-priority">--</div>
-                    <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
-                        <div>Score: <span id="enhanced-overall-score">--/100</span></div>
-                        <div>Confianza: <span id="enhanced-confidence">--</span></div>
-                        <div>Alertas: <span id="enhanced-alerts-count">--</span></div>
-                    </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">📦 Batches Programados</div>
+                    <div style="font-size: 1.8rem; font-weight: bold;" id="opt-num-batches">--</div>
+                    <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;"><span id="opt-target-kg">--</span> kg objetivo</div>
                 </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">⚡ Costo Energético</div>
+                    <div style="font-size: 1.8rem; font-weight: bold;" id="opt-total-cost">-- €</div>
+                    <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;"><span id="opt-total-energy">--</span> kWh</div>
+                </div>
+            </div>
 
-                <!-- REE Deviation Analysis -->
-                <div class="card metric-enhanced">
-                    <div class="card-header">
-                        <span class="card-icon">📊</span>
-                        <span class="card-title">Análisis REE D-1</span>
-                    </div>
-                    <div class="metric-value" id="ree-accuracy">--</div>
-                    <div class="metric-label">Precisión</div>
-                    <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
-                        <div>Desviación: <span id="ree-deviation">-- €/kWh</span></div>
-                        <div>Tendencia: <span id="ree-trend">--</span></div>
-                        <div>Utilidad: <span id="ree-usefulness">Análisis tendencias</span></div>
+            <!-- Batches Timeline -->
+            <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                <h4 style="color: white; margin-bottom: 1rem; font-size: 1rem;">📅 Timeline Producción Optimizada</h4>
+                <div id="opt-batches-timeline" style="max-height: 400px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 2rem; opacity: 0.7;">
+                        ⏳ Cargando plan optimizado...
                     </div>
                 </div>
             </div>
 
-            <!-- Enhanced Recommendations List -->
-            <div class="card" style="margin-top: 1.5rem;">
-                <div class="card-header">
-                    <span class="card-icon">📋</span>
-                    <span class="card-title">Recomendaciones Enhanced ML</span>
-                </div>
-                <div class="grid grid-2" style="gap: 1rem; margin-top: 1rem;">
-                    <div>
-                        <h4 style="color: #059669; margin-bottom: 0.5rem;">🔧 Optimización de Costos:</h4>
-                        <ul id="enhanced-cost-insights" style="list-style: none; padding: 0; font-size: 0.9rem; line-height: 1.6;">
-                            <li>⏳ Cargando insights de costos...</li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 style="color: #059669; margin-bottom: 0.5rem;">⚡ Timing Optimization:</h4>
-                        <ul id="enhanced-timing-insights" style="list-style: none; padding: 0; font-size: 0.9rem; line-height: 1.6;">
-                            <li>⏳ Cargando insights temporales...</li>
-                        </ul>
+            <!-- Hourly Timeline 24h (NEW) -->
+            <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px;">
+                <h4 style="color: white; margin-bottom: 1rem; font-size: 1rem;">🕐 Vista Horaria 24h - Precio + Periodo + Producción</h4>
+                <div id="hourly-timeline-container" style="max-height: 500px; overflow-y: auto; overflow-x: auto;">
+                    <div style="text-align: center; padding: 2rem; opacity: 0.7;">
+                        ⏳ Cargando timeline horaria...
                     </div>
                 </div>
+            </div>
+
+            <!-- Optimization Recommendations -->
+            <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 8px; border-left: 4px solid #4CAF50;">
+                <div style="font-weight: bold; margin-bottom: 0.5rem;">💡 Recomendaciones de Optimización:</div>
+                <div id="opt-recommendations" style="font-size: 0.9rem; line-height: 1.6;">
+                    <div>⏳ Calculando recomendaciones...</div>
+                </div>
+            </div>
+
+            <!-- Baseline Comparison -->
+            <div style="margin-top: 1.5rem; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+                <h4 style="color: white; margin-bottom: 1rem; font-size: 0.95rem; opacity: 0.9;">📊 Comparativa Baseline vs Optimizado</h4>
+                <div class="grid grid-2" style="gap: 1rem; font-size: 0.85rem;">
+                    <div>
+                        <strong style="color: #FF9800;">📍 Baseline (horario fijo 08-16h):</strong>
+                        <div style="margin-top: 0.5rem; line-height: 1.6; opacity: 0.9;">
+                            <div>Costo: <span id="baseline-cost">-- €</span></div>
+                            <div>Energía: <span id="baseline-energy">-- kWh</span></div>
+                            <div>Precio promedio: <span id="baseline-avg-price">-- €/kWh</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <strong style="color: #4CAF50;">✨ Optimizado (precio + clima):</strong>
+                        <div style="margin-top: 0.5rem; line-height: 1.6; opacity: 0.9;">
+                            <div>Costo: <span id="optimized-cost">-- €</span></div>
+                            <div>Energía: <span id="optimized-energy">-- kWh</span></div>
+                            <div>Precio promedio: <span id="optimized-avg-price">-- €/kWh</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refresh Button -->
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <button onclick="loadOptimizationPlan()" style="background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); color: white; padding: 0.75rem 2rem; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: bold; transition: all 0.3s;">
+                    🔄 Recalcular Plan Optimizado
+                </button>
             </div>
         </div>
 
@@ -422,10 +430,10 @@
     </div>
 
     <div class="footer">
-        Chocolate Factory - Linares, Andalucía | Dashboard v0.41.0 |
-        Powered by FastAPI + ML (131k+ Historical Records)
+        Chocolate Factory - Linares, Andalucía | Dashboard v0.42.0 (Sprint 08) |
+        Powered by FastAPI + ML (131k+ Historical Records) + Hourly Optimization
     </div>
 
-    <script src="js/dashboard.js"></script>
+    <script src="js/dashboard.js?v=0.42.0"></script>
 </body>
 </html>

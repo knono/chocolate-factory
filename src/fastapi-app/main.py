@@ -2348,6 +2348,106 @@ async def train_price_forecast_model(months_back: int = 12, background_tasks: Ba
         raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
 
 
+# === HOURLY OPTIMIZATION ENDPOINTS (Sprint 08) ===
+
+@app.post("/optimize/production/daily", tags=["Production Optimization"])
+async def optimize_daily_production(
+    target_date: Optional[str] = None,
+    target_kg: Optional[float] = None
+):
+    """
+    🎯 Optimización horaria 24h para producción de chocolate
+
+    Combina predicciones REE (Sprint 06) + clima SIAR (Sprint 07) + constraints producción.
+
+    Genera plan optimizado que:
+    - Maximiza producción
+    - Minimiza costo energético
+    - Respeta constraints (secuencia, tiempos, clima)
+    - Calcula ahorro vs baseline
+
+    Args:
+        target_date: Fecha objetivo ISO (default: mañana)
+        target_kg: Kg objetivo (default: 200kg)
+
+    Returns:
+        Plan optimizado 24h con batches programados y ahorro estimado
+    """
+    try:
+        from services.hourly_optimizer_service import get_optimizer_service
+
+        # Parse target date
+        target_datetime = None
+        if target_date:
+            target_datetime = datetime.fromisoformat(target_date.replace("Z", "+00:00"))
+
+        # Get InfluxDB client through DataIngestionService
+        async with DataIngestionService() as service:
+            influx_client = service.client
+
+            # Get optimizer service
+            optimizer = get_optimizer_service(influxdb_client=influx_client)
+
+            # Optimize
+            result = await optimizer.optimize_daily_production(
+                target_date=target_datetime,
+                target_kg=target_kg
+            )
+
+            return {
+                "🏭": "Chocolate Factory - Optimización Horaria 24h",
+                "timestamp": datetime.now().isoformat(),
+                "optimization": result
+            }
+
+    except Exception as e:
+        logger.error(f"❌ Error en optimización producción: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
+
+
+@app.get("/optimize/production/summary", tags=["Production Optimization"])
+async def get_optimization_summary():
+    """
+    📊 Resumen capacidad optimización y constraints actuales
+
+    Returns:
+        Información sobre motor de optimización, constraints, y capacidades
+    """
+    try:
+        return {
+            "🏭": "Chocolate Factory - Motor Optimización",
+            "status": "✅ Operacional",
+            "algorithm": "Greedy Heuristic con scoring multi-objetivo",
+            "optimization_factors": {
+                "energy_prices": "60% peso - Predicciones Prophet 168h",
+                "weather_conditions": "40% peso - Análisis SIAR + AEMET",
+                "production_constraints": "Secuencia obligatoria + buffers + capacidades"
+            },
+            "production_capacity": {
+                "batch_size_kg": 10,
+                "daily_target_kg": 200,
+                "max_batches_per_day": 20,
+                "quality_mix": "70% standard (5h conchado) + 30% premium (10h conchado)"
+            },
+            "constraints": {
+                "sequence": "Mezcla → Rolado → Conchado → Templado → Moldeado",
+                "buffers_max": "30 min entre etapas (15 min conchado→templado)",
+                "climate_critical": "Conchado: 18-28°C óptimo, <32°C crítico, <50% humedad",
+                "tempering_critical": "18-22°C ambiente requerido para templado"
+            },
+            "baseline": "Producción horario fijo 08:00-16:00 (sin optimización)",
+            "target_savings": ">15% ahorro energético vs baseline",
+            "integrations": {
+                "sprint_06": "✅ Prophet REE forecasting",
+                "sprint_07": "✅ SIAR historical analysis"
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo resumen optimización: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # === SIAR HISTORICAL ANALYSIS ENDPOINTS (Sprint 07 - Revisado) ===
 
 @app.get("/analysis/weather-correlation", tags=["SIAR Analysis"])
