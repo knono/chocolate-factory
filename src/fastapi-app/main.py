@@ -26,10 +26,17 @@ from core.logging_config import setup_logging
 from dependencies import init_scheduler, cleanup_dependencies
 
 # Import routers
-from api.routers import health_router, ree_router, weather_router
+from api.routers import (
+    health_router,
+    ree_router,
+    weather_router,
+    dashboard_router,
+    optimization_router,
+    analysis_router
+)
 
-# Setup logging
-setup_logging()
+# Setup logging (console only to avoid permission issues)
+setup_logging(enable_file_logging=False)
 logger = logging.getLogger(__name__)
 
 
@@ -77,6 +84,9 @@ if settings.STATIC_FILES_DIR.exists():
 app.include_router(health_router)
 app.include_router(ree_router)
 app.include_router(weather_router)
+app.include_router(dashboard_router)
+app.include_router(optimization_router)
+app.include_router(analysis_router)
 
 logger.info("✅ API routers registered")
 
