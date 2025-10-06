@@ -30,6 +30,7 @@ dependencies = [
     # HTTP Client for External APIs
     "httpx>=0.25.0",
     "requests>=2.31.0",
+    "tenacity>=8.2.0",  # Phase 2: Retry logic for external APIs
     
     # Dashboard and UI
     "reflex>=0.4.0",
