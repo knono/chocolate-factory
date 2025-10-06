@@ -57,6 +57,7 @@ services:
       - ./src/fastapi-app/dependencies.py:/app/dependencies.py
       - ./src/fastapi-app/test_foundation.py:/app/test_foundation.py
       - ./src/fastapi-app/test_infrastructure.py:/app/test_infrastructure.py
+      - ./src/fastapi-app/test_architecture.py:/app/test_architecture.py
     depends_on:
       - influxdb
     networks:
