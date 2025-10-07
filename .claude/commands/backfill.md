@@ -66,11 +66,12 @@ El comando `backfill` ejecuta análisis detallado de gaps en datos REE y meteoro
 
 - `GET /health` - Verificar estado de la API
 - `GET /gaps/summary` - Resumen rápido de gaps
-- `GET /gaps/detect` - Análisis detallado de gaps
-- `POST /gaps/backfill/auto` - Backfill automático inteligente
-- `POST /gaps/backfill` - Backfill completo
-- `POST /gaps/backfill/ree` - Solo datos REE
-- `POST /gaps/backfill/weather` - Solo datos meteorológicos
+- `GET /gaps/detect?days_back=N` - Análisis detallado de gaps
+- `POST /gaps/backfill/auto?max_gap_hours=6.0` - Backfill automático inteligente
+- `POST /gaps/backfill?days_back=10` - Backfill completo (REE + Weather)
+- `POST /gaps/backfill/range` - Backfill específico por rango de fechas
+
+**Nota**: Los modos `ree` y `weather` en el script ejecutan `/gaps/backfill` que procesa ambos tipos de datos. Para backfill selectivo usar `/gaps/backfill/range` con `data_source`.
 
 ## Ejemplo de Ejecución
 

@@ -6,6 +6,7 @@ from .weather import router as weather_router
 from .dashboard import router as dashboard_router
 from .optimization import router as optimization_router
 from .analysis import router as analysis_router
+from .gaps import router as gaps_router
 
 __all__ = [
     "health_router",
@@ -14,4 +15,5 @@ __all__ = [
     "dashboard_router",
     "optimization_router",
     "analysis_router",
+    "gaps_router",
 ]

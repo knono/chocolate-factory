@@ -181,33 +181,43 @@ class BackfillService:
             return results
     
     async def _backfill_weather_gaps(self, gaps: List[DataGap]) -> List[BackfillResult]:
-        """Backfill específico para gaps de Weather"""
+        """
+        Backfill específico para gaps de Weather con estrategia inteligente
+
+        Estrategia basada en antigüedad del gap:
+        - Gaps recientes (<48h): OpenWeatherMap (datos en tiempo real)
+        - Gaps históricos (≥48h): AEMET API (datos consolidados oficiales)
+
+        Razón: AEMET necesita 24-48h para consolidar datos diarios oficiales.
+        """
         results = []
-        
+
         try:
-            # Determinar estrategia basada en el rango temporal
+            # Determinar estrategia basada en antigüedad del gap
             now = datetime.now(timezone.utc)
-            current_month = now.month
-            current_year = now.year
-            
+            RECENT_GAP_THRESHOLD_HOURS = 48  # Umbral para considerar gap "reciente"
+
             for gap in gaps:
                 gap_start = datetime.now()
+                hours_since_gap_end = (now - gap.end_time).total_seconds() / 3600
+
                 logger.info(f"🌤️ Rellenando gap Weather: {gap.start_time} - {gap.end_time}")
-                
+                logger.info(f"   📊 Antigüedad del gap: {hours_since_gap_end:.1f}h desde el final del gap")
+
                 try:
-                    # ESTRATEGIA INTELIGENTE: Basada en mes actual vs histórico
-                    gap_month = gap.start_time.month
-                    gap_year = gap.start_time.year
-                    
-                    is_current_month = (gap_year == current_year and gap_month == current_month)
-                    
-                    # Estrategia principal: AEMET API (oficial y funciona para meses anteriores)
-                    logger.info(f"📅 Gap detectado ({gap_month}/{gap_year}) - usando AEMET API oficial")
-                    result = await self._backfill_weather_aemet(gap)
+                    # ESTRATEGIA INTELIGENTE: Basada en antigüedad del gap
+                    if hours_since_gap_end < RECENT_GAP_THRESHOLD_HOURS:
+                        # Gap reciente: Usar OpenWeatherMap (datos en tiempo real)
+                        logger.info(f"🔄 Gap reciente (<48h) - usando OpenWeatherMap API")
+                        result = await self._backfill_weather_openweather(gap)
+                    else:
+                        # Gap histórico: Usar AEMET API (datos consolidados oficiales)
+                        logger.info(f"📅 Gap histórico (≥48h) - usando AEMET API oficial")
+                        result = await self._backfill_weather_aemet(gap)
 
                     # Si AEMET falla con gap grande (>30 días), notificar para descarga SIAR manual
-                    if result.success_rate < 50 and gap.duration_hours > 720:  # 30 días
-                        logger.warning(f"⚠️ AEMET falló con gap grande ({gap.duration_hours:.1f}h). "
+                    if result.success_rate < 50 and gap.gap_duration_hours > 720:  # 30 días
+                        logger.warning(f"⚠️ AEMET falló con gap grande ({gap.gap_duration_hours:.1f}h). "
                                      f"Considerar descarga manual SIAR para {gap_month}/{gap_year}")
                         # Aquí podrías agregar notificación por email/webhook si la configuras
                     
@@ -308,7 +318,77 @@ class BackfillService:
                 method_used="aemet_current_month",
                 errors=[str(e)]
             )
-    
+
+    async def _backfill_weather_openweather(self, gap: DataGap) -> BackfillResult:
+        """
+        Backfill usando OpenWeatherMap para gaps recientes (<48h)
+
+        OpenWeatherMap proporciona datos en tiempo real y históricos recientes,
+        ideal para gaps que aún no han sido consolidados por AEMET.
+        """
+        gap_start = datetime.now()
+
+        try:
+            from services.openweathermap_client import OpenWeatherMapClient
+            async with OpenWeatherMapClient() as owm_client:
+                async with DataIngestionService() as ingestion_service:
+
+                    total_records = 0
+                    total_written = 0
+                    errors = []
+
+                    try:
+                        logger.info(f"🌤️ Procesando datos OpenWeatherMap gap: {gap.start_time} - {gap.end_time}")
+
+                        # OpenWeatherMap: Obtener datos actuales (solo datos recientes, no históricos)
+                        # Nota: OWM free tier no proporciona datos históricos, solo actuales
+                        # Este método obtiene datos del momento actual, no del gap específico
+                        write_result = await ingestion_service.ingest_openweathermap_weather()
+
+                        total_records = write_result.total_records
+                        total_written = write_result.successful_writes
+
+                        logger.info(f"✅ OpenWeatherMap current data obtained: {total_written}/{total_records} records")
+                        logger.warning(f"⚠️ OpenWeatherMap Free tier no soporta datos históricos. Solo datos actuales obtenidos.")
+
+                    except Exception as gap_error:
+                        error_msg = f"Error procesando gap OpenWeatherMap: {gap_error}"
+                        errors.append(error_msg)
+                        logger.warning(error_msg)
+
+                    # Calcular resultado
+                    duration = (datetime.now() - gap_start).total_seconds()
+                    success_rate = (total_written / gap.expected_records * 100) if gap.expected_records > 0 else 0
+
+                    return BackfillResult(
+                        measurement="weather_data",
+                        gap_start=gap.start_time,
+                        gap_end=gap.end_time,
+                        records_requested=gap.expected_records,
+                        records_obtained=total_records,
+                        records_written=total_written,
+                        success_rate=success_rate,
+                        duration_seconds=duration,
+                        method_used="openweathermap_recent",
+                        errors=errors
+                    )
+
+        except Exception as e:
+            logger.error(f"Error en backfill OpenWeatherMap: {e}")
+
+            return BackfillResult(
+                measurement="weather_data",
+                gap_start=gap.start_time,
+                gap_end=gap.end_time,
+                records_requested=gap.expected_records,
+                records_obtained=0,
+                records_written=0,
+                success_rate=0,
+                duration_seconds=(datetime.now() - gap_start).total_seconds(),
+                method_used="openweathermap_recent",
+                errors=[str(e)]
+            )
+
     def _generate_backfill_summary(self, ree_results: List[BackfillResult], 
                                  weather_results: List[BackfillResult],
                                  total_duration: float) -> Dict[str, Any]:

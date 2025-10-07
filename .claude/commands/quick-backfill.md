@@ -68,9 +68,8 @@ El comando `quick-backfill` ejecuta operaciones de backfill de forma inmediata, 
 ## Endpoints API Utilizados
 
 - `GET /gaps/summary` - Resumen de gaps
-- `POST /gaps/backfill/auto` - Backfill automático
-- `POST /gaps/backfill/ree` - Solo REE
-- `POST /gaps/backfill/weather` - Solo weather
+- `POST /gaps/backfill/auto?max_gap_hours=6.0` - Backfill automático inteligente
+- `POST /gaps/backfill?days_back=N` - Backfill completo (REE + Weather)
 
 ## Ejemplo de Uso Típico
 
