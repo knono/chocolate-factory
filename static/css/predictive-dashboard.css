@@ -1,0 +1,950 @@
+/**
+ * Predictive Dashboard Styles - Sprint 09 (UNIFIED CARD)
+ * =======================================================
+ *
+ * Estilos compactos para dashboard integrado con fuente reducida
+ * Componentes: Optimal Windows, REE Deviation, Alerts, Savings
+ */
+
+/* ============ UNIFIED CARD COMPACT STYLES ============ */
+.heatmap-card {
+    font-size: 0.85rem !important;
+}
+
+.heatmap-card h3,
+.heatmap-card h4 {
+    font-size: 0.95rem !important;
+}
+
+/* FIX: Override ALL white text colors for light background - AGGRESSIVE */
+.heatmap-card .stat-value,
+.heatmap-card .metric-value,
+.heatmap-card .card-value,
+.heatmap-card .projection-value,
+.heatmap-card .savings-amount,
+.heatmap-card .roi-value {
+    font-size: 1.4rem !important;
+    color: #333 !important;
+}
+
+.heatmap-card .stat-label,
+.heatmap-card .metric-label,
+.heatmap-card .card-label,
+.heatmap-card .card-sublabel,
+.heatmap-card .projection-label {
+    font-size: 0.75rem !important;
+    color: #666 !important;
+}
+
+.heatmap-card .window-card,
+.heatmap-card .summary-stat,
+.heatmap-card .reliability-card,
+.heatmap-card .alert-card,
+.heatmap-card .comparison-card,
+.heatmap-card .projection-metric,
+.heatmap-card .savings-section {
+    padding: 0.75rem !important;
+    background: rgba(0, 0, 0, 0.02) !important;
+}
+
+.heatmap-card .window-title {
+    font-size: 0.9rem !important;
+}
+
+.heatmap-card .window-time,
+.heatmap-card .section-title,
+.heatmap-card .window-day,
+.heatmap-card .window-hours,
+.heatmap-card .window-date,
+.heatmap-card .price-value,
+.heatmap-card .price-label,
+.heatmap-card .duration,
+.heatmap-card .rec-text,
+.heatmap-card .savings-text,
+.heatmap-card .comparison-value,
+.heatmap-card .comparison-label {
+    color: #333 !important;
+}
+
+.heatmap-card .price-display {
+    font-size: 1.2rem !important;
+    color: #333 !important;
+}
+
+.heatmap-card .window-details,
+.heatmap-card .window-info,
+.heatmap-card .reliability-deviation,
+.heatmap-card .reliability-status,
+.heatmap-card .insight-text,
+.heatmap-card .note-text,
+.heatmap-card .roi-breakdown {
+    color: #666 !important;
+}
+
+.heatmap-card .alert-item,
+.heatmap-card .alert-card {
+    padding: 0.75rem !important;
+    font-size: 0.8rem !important;
+}
+
+.heatmap-card .alert-title,
+.heatmap-card .alert-message,
+.heatmap-card .alert-time,
+.heatmap-card .alert-type {
+    color: #333 !important;
+}
+
+/* REE Deviation specific */
+.heatmap-card .deviation-metric,
+.heatmap-card .deviation-value,
+.heatmap-card .reliability-period {
+    color: #333 !important;
+}
+
+/* Savings Tracking specific */
+.heatmap-card .savings-metric,
+.heatmap-card .savings-value,
+.heatmap-card .savings-percentage,
+.heatmap-card .stat-value,
+.heatmap-card .roi-amount,
+.heatmap-card .roi-description {
+    color: #333 !important;
+}
+
+/* Alerts specific */
+.heatmap-card .summary-badge,
+.heatmap-card .rec-label {
+    color: #333 !important;
+}
+
+/* ============ OPTIMAL WINDOWS COMPONENT ============ */
+
+.optimal-windows-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.window-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.summary-stat {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.summary-stat.success {
+    border-left: 4px solid #10b981;
+}
+
+.summary-stat.info {
+    border-left: 4px solid #3b82f6;
+}
+
+.summary-stat.warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: white;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 0.25rem;
+}
+
+.windows-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.section-title {
+    color: white;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.window-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 1rem;
+    border-left: 4px solid #10b981;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.window-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.window-card.avoid {
+    border-left-color: #dc2626;
+}
+
+.window-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.window-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: white;
+}
+
+.window-icon {
+    font-size: 1.2rem;
+}
+
+.window-day {
+    font-size: 0.9rem;
+    color: #f59e0b;
+}
+
+.window-date {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.window-hours {
+    font-size: 1rem;
+    color: white;
+    font-weight: bold;
+}
+
+.window-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.window-badge.excellent {
+    background: #10b981;
+    color: white;
+}
+
+.window-badge.optimal {
+    background: #3b82f6;
+    color: white;
+}
+
+.window-badge.avoid {
+    background: #dc2626;
+    color: white;
+}
+
+.window-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.window-price {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.price-label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.price-value {
+    color: white;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.window-price.danger .price-value {
+    color: #ef4444;
+}
+
+.window-tariff {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tariff-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.tariff-badge.tariff-valle {
+    background: #10b981;
+    color: white;
+}
+
+.tariff-badge.tariff-llano {
+    background: #f59e0b;
+    color: white;
+}
+
+.tariff-badge.tariff-punta {
+    background: #dc2626;
+    color: white;
+}
+
+.duration {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.window-recommendation {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(139, 92, 246, 0.15);
+    border-radius: 6px;
+    border-left: 3px solid #8b5cf6;
+}
+
+.window-recommendation.warning {
+    background: rgba(239, 68, 68, 0.15);
+    border-left-color: #ef4444;
+}
+
+.rec-icon {
+    color: #8b5cf6;
+    font-weight: bold;
+}
+
+.rec-text {
+    flex: 1;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.4;
+}
+
+.window-savings {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.savings-icon {
+    font-size: 1rem;
+}
+
+/* ============ REE DEVIATION COMPONENT ============ */
+
+.ree-deviation-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.deviation-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.deviation-metric {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.metric-icon {
+    font-size: 2rem;
+}
+
+.metric-content {
+    flex: 1;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+}
+
+.metric-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 0.25rem;
+}
+
+.reliability-section,
+.worst-deviation-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.reliability-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.reliability-card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #10b981;
+}
+
+.reliability-card.success {
+    border-left-color: #10b981;
+}
+
+.reliability-card.warning {
+    border-left-color: #f59e0b;
+}
+
+.reliability-period {
+    font-weight: bold;
+    color: white;
+    margin-bottom: 0.5rem;
+}
+
+.reliability-deviation {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 0.5rem;
+}
+
+.reliability-status {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+}
+
+.worst-deviation-card {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.deviation-time {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fbbf24;
+    margin-bottom: 1rem;
+}
+
+.deviation-comparison {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.comparison-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.comparison-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.comparison-value {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: white;
+}
+
+.comparison-arrow {
+    font-size: 1.5rem;
+    color: #fbbf24;
+}
+
+.deviation-value {
+    text-align: center;
+    font-size: 0.95rem;
+    color: #fbbf24;
+    font-weight: 600;
+}
+
+.deviation-insights {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid #8b5cf6;
+}
+
+.insight-icon {
+    font-size: 1.5rem;
+}
+
+.insight-text {
+    flex: 1;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* ============ PREDICTIVE ALERTS COMPONENT ============ */
+
+.predictive-alerts-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.alerts-summary {
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.summary-badge {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    background: rgba(59, 130, 246, 0.2);
+    border: 2px solid rgba(59, 130, 246, 0.4);
+    color: white;
+}
+
+.summary-badge.high-severity {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    animation: pulse-alert 2s ease-in-out infinite;
+}
+
+@keyframes pulse-alert {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.alert-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 1rem;
+    border-left: 4px solid #3b82f6;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.alert-card:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.alert-card.severity-high {
+    border-left-color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.alert-card.severity-medium {
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.alert-card.severity-info {
+    border-left-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.alert-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.alert-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.alert-title {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.alert-type {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: white;
+}
+
+.alert-severity-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.alert-severity-badge.severity-high {
+    background: #ef4444;
+    color: white;
+}
+
+.alert-severity-badge.severity-medium {
+    background: #f59e0b;
+    color: white;
+}
+
+.alert-severity-badge.severity-info {
+    background: #3b82f6;
+    color: white;
+}
+
+.alert-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.alert-message {
+    font-size: 0.95rem;
+    color: white;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.alert-recommendation {
+    background: rgba(139, 92, 246, 0.15);
+    padding: 0.75rem;
+    border-radius: 6px;
+    border-left: 3px solid #8b5cf6;
+}
+
+.rec-label {
+    font-size: 0.8rem;
+    color: #c4b5fd;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.alert-footer {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.alert-time {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: right;
+}
+
+.no-alerts-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 10px;
+    border: 2px dashed rgba(16, 185, 129, 0.3);
+}
+
+.no-alerts-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.no-alerts-message {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #10b981;
+    margin-bottom: 0.5rem;
+}
+
+.no-alerts-submessage {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ============ SAVINGS TRACKING COMPONENT ============ */
+
+.savings-tracking-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.savings-section {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1.25rem;
+    border-radius: 10px;
+}
+
+.comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.comparison-card {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.comparison-card.baseline {
+    border: 2px solid rgba(245, 158, 11, 0.4);
+}
+
+.comparison-card.optimized {
+    border: 2px solid rgba(16, 185, 129, 0.4);
+}
+
+.card-label {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 0.5rem;
+}
+
+.card-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: white;
+    margin-bottom: 0.25rem;
+}
+
+.card-sublabel {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.comparison-arrow {
+    font-size: 2rem;
+    color: #10b981;
+    text-align: center;
+}
+
+.savings-highlight {
+    text-align: center;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2));
+    border-radius: 8px;
+    border: 2px solid rgba(16, 185, 129, 0.4);
+}
+
+.savings-amount {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #10b981;
+    margin-bottom: 0.25rem;
+}
+
+.savings-percentage {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.projection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.projection-metric {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.projection-metric.highlight {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+    border: 2px solid rgba(59, 130, 246, 0.4);
+}
+
+.metric-value.success {
+    color: #10b981;
+}
+
+.metric-value.warning {
+    color: #f59e0b;
+}
+
+.metric-value.highlight {
+    color: #3b82f6;
+    font-size: 1.8rem;
+}
+
+.monthly-progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.progress-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #059669);
+    border-radius: 12px;
+    transition: width 1s ease-in-out;
+}
+
+.progress-status {
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 0.5rem;
+}
+
+.progress-status.on-track {
+    color: #10b981;
+}
+
+.progress-status.below-target {
+    color: #f59e0b;
+}
+
+.annual-roi-card {
+    text-align: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.2));
+    border: 2px solid rgba(139, 92, 246, 0.4);
+    border-radius: 10px;
+}
+
+.roi-amount {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #c4b5fd;
+    margin-bottom: 0.5rem;
+}
+
+.roi-description {
+    font-size: 1.1rem;
+    color: white;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.roi-breakdown {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: italic;
+}
+
+.savings-note {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+}
+
+.note-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.note-text {
+    flex: 1;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ============ SHARED ERROR STATES ============ */
+
+.empty-state,
+.error-state {
+    text-align: center;
+    padding: 2rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.error-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 768px) {
+    .window-summary-grid,
+    .deviation-summary-grid,
+    .reliability-grid,
+    .projection-grid,
+    .progress-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .comparison-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .comparison-arrow {
+        transform: rotate(90deg);
+    }
+
+    .window-header,
+    .alert-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}

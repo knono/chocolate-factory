@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chocolate Factory - Dashboard</title>
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/predictive-dashboard.css">
 </head>
 <body>
     <div class="header">
@@ -28,83 +29,63 @@
             </div>
         </div>
 
-        <!-- Métricas principales -->
-        <div class="grid grid-3">
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-icon">⚡</span>
-                    <span class="card-title">Precio Energía</span>
-                </div>
-                <div class="metric-value" id="energy-price">--</div>
-                <div class="metric-label">€/kWh</div>
-                <div id="energy-trend" class="metric-trend trend-stable">--</div>
-                <div style="margin-top: 1rem; font-size: 0.85rem; color: #666;">
-                    <div>MWh: <span id="energy-mwh">--</span></div>
-                    <div>Fecha: <span id="energy-datetime">--</span></div>
-                </div>
+        <!-- Dashboard Principal Unificado (Sprint 09: Fusión Energía + Clima + Sistema) -->
+        <div class="card" style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a8c 100%); color: white;">
+            <div class="card-header">
+                <span class="card-icon">📊</span>
+                <span class="card-title" style="color: white;">Dashboard Principal - Estado Actual</span>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <span class="card-icon">🌡️</span>
-                    <span class="card-title">Condiciones Climáticas</span>
-                </div>
-                <div class="metric-value" id="temperature">--</div>
-                <div class="metric-label">°C</div>
-                <div style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
-                    <div>💧 Humedad: <span id="humidity">--%</span></div>
-                    <div>🌫️ Presión: <span id="pressure">-- hPa</span></div>
-                    <div>🎯 Confort: <span id="comfort-index">--</span></div>
-                </div>
-            </div>
-
-            <!-- Tarjeta Información del Sistema Unificada -->
-            <div class="card system-info-unified">
-                <div class="card-header">
-                    <span class="card-icon">🏭</span>
-                    <span class="card-title">Información del Sistema</span>
-                </div>
-
-                <div class="unified-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
-                    <!-- Ubicación -->
-                    <div>
-                        <strong style="display: block; margin-bottom: 0.5rem; color: #f59e0b;">📍 Fábrica</strong>
-                        <div style="font-size: 0.9rem; line-height: 1.3;">
-                            <div>🏭 Linares, Andalucía</div>
-                            <div>⛰️ 515m • 🕐 CET</div>
-                            <div style="font-size: 0.8rem; opacity: 0.7;">38.151°N, -3.629°W</div>
-                        </div>
+            <div class="grid grid-3" style="gap: 1.5rem; margin-top: 1.5rem;">
+                <!-- Precio Energía -->
+                <div style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                        <span style="font-size: 1.5rem;">⚡</span>
+                        <strong style="font-size: 1rem;">Precio Energía</strong>
                     </div>
-
-                    <!-- Estado Operativo -->
-                    <div>
-                        <strong style="display: block; margin-bottom: 0.5rem; color: #10b981;">🏭 Estado</strong>
-                        <div style="font-size: 0.9rem; line-height: 1.3;">
-                            <div id="production-status">🟢 Operativo</div>
-                            <div>📊 Eficiencia: <span id="factory-efficiency">85%</span></div>
-                        </div>
+                    <div style="font-size: 2.2rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.5rem;" id="energy-price">--</div>
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.75rem;">€/kWh</div>
+                    <div id="energy-trend" style="font-size: 0.85rem; padding: 0.25rem 0.5rem; background: rgba(255,255,255,0.15); border-radius: 4px; display: inline-block;">--</div>
+                    <div style="margin-top: 1rem; font-size: 0.8rem; opacity: 0.8; line-height: 1.4;">
+                        <div>MWh: <span id="energy-mwh">--</span></div>
+                        <div>Fecha: <span id="energy-datetime">--</span></div>
                     </div>
                 </div>
 
-                <div class="unified-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2);">
-                    <!-- Sistema -->
-                    <div>
-                        <strong style="display: block; margin-bottom: 0.5rem; color: #3b82f6;">⚙️ Sistema</strong>
-                        <div style="font-size: 0.85rem; line-height: 1.3;">
-                            <div>⚡ <span id="ree-status">✅ REE + Históricos</span></div>
-                            <div>🌡️ <span id="weather-status">✅ AEMET/OpenWeather</span></div>
-                            <div>🤖 <span id="ml-models-status">✅ Enhanced ML</span></div>
-                        </div>
+                <!-- Condiciones Climáticas -->
+                <div style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border-left: 4px solid #10b981;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                        <span style="font-size: 1.5rem;">🌡️</span>
+                        <strong style="font-size: 1rem;">Condiciones Clima</strong>
+                    </div>
+                    <div style="font-size: 2.2rem; font-weight: bold; color: #34d399; margin-bottom: 0.5rem;" id="temperature">--</div>
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.75rem;">°C</div>
+                    <div style="font-size: 0.85rem; line-height: 1.6; opacity: 0.9;">
+                        <div>💧 Humedad: <span id="humidity">--%</span></div>
+                        <div>🌫️ Presión: <span id="pressure">-- hPa</span></div>
+                        <div>🎯 Confort: <span id="comfort-index">--</span></div>
+                    </div>
+                </div>
+
+                <!-- Sistema & Fábrica -->
+                <div style="background: rgba(255,255,255,0.1); padding: 1.25rem; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                        <span style="font-size: 1.5rem;">🏭</span>
+                        <strong style="font-size: 1rem;">Sistema & Fábrica</strong>
                     </div>
 
-                    <!-- Fuentes de Datos -->
-                    <div>
-                        <strong style="display: block; margin-bottom: 0.5rem; color: #8b5cf6;">📊 Fuentes</strong>
-                        <div style="font-size: 0.85rem; line-height: 1.3;">
-                            <div>⚡ REE (Precios)</div>
-                            <div>🌡️ AEMET 5279X (00-07h)</div>
-                            <div>☁️ OpenWeather (08-23h)</div>
-                            <div>🤖 ML Direct</div>
+                    <div style="margin-bottom: 1rem;">
+                        <div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.25rem;">Estado</div>
+                        <div id="production-status" style="font-size: 1.1rem; font-weight: 600;">🟢 Operativo</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.25rem;">Eficiencia: <span id="factory-efficiency" style="color: #34d399; font-weight: 600;">85%</span></div>
+                    </div>
+
+                    <div style="padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.2);">
+                        <div style="font-size: 0.8rem; opacity: 0.85; line-height: 1.6;">
+                            <div style="margin-bottom: 0.25rem;"><strong>📍 Linares, Andalucía</strong></div>
+                            <div style="opacity: 0.9;">⛰️ Altitud: 515m</div>
+                            <div style="opacity: 0.9;">📐 38.151°N, -3.629°W</div>
+                            <div style="margin-top: 0.5rem; opacity: 0.9;">🌡️ AEMET 5279X + OpenWeather</div>
                         </div>
                     </div>
                 </div>
@@ -196,11 +177,11 @@
             </div>
         </div>
 
-        <!-- Mini Calendario Heatmap Semanal -->
-        <div class="card heatmap-card" style="margin-top: 2rem;">
+        <!-- DASHBOARD PREDICTIVO UNIFICADO (Sprint 09 + Pronóstico Semanal) -->
+        <div class="card heatmap-card" style="margin-top: 2rem; font-size: 0.85rem;">
             <div class="card-header">
-                <span class="card-icon">📅</span>
-                <span class="card-title">Pronóstico Semanal - Heatmap de Precios</span>
+                <span class="card-icon">📊</span>
+                <span class="card-title">Dashboard Predictivo Completo - Análisis y Pronósticos</span>
             </div>
             <div class="heatmap-content">
                 <div class="heatmap-legend" id="heatmap-legend">
@@ -269,6 +250,53 @@
                     </div>
                 </div>
             </div>
+
+            <!-- SPRINT 09: VENTANAS ÓPTIMAS -->
+            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 2px solid rgba(0,0,0,0.1);">
+                <div style="margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 1.1rem; color: #10b981; margin-bottom: 0.5rem;">🟢 Próximas Ventanas Óptimas (7 Días)</h3>
+                    <p style="font-size: 0.75rem; color: #666; margin: 0;">Basado en predicciones Prophet ML + periodos tarifarios</p>
+                </div>
+                <div id="optimal-windows-container">
+                    <div style="text-align: center; padding: 1.5rem; opacity: 0.5; font-size: 0.8rem;">
+                        ⏳ Cargando ventanas óptimas...
+                    </div>
+                </div>
+            </div>
+
+            <!-- SPRINT 09: ANÁLISIS & TRACKING -->
+            <div class="grid grid-2" style="margin-top: 2rem; gap: 1.5rem;">
+                <!-- REE Deviation Analysis -->
+                <div style="background: rgba(59, 130, 246, 0.05); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <h4 style="font-size: 1rem; color: #3b82f6; margin-bottom: 1rem;">📊 REE D-1 vs REAL (Últimas 24h)</h4>
+                    <div id="ree-deviation-container">
+                        <div style="text-align: center; padding: 1.5rem; opacity: 0.5; font-size: 0.8rem;">
+                            ⏳ Cargando análisis REE...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Savings Tracking -->
+                <div style="background: rgba(139, 92, 246, 0.05); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                    <h4 style="font-size: 1rem; color: #8b5cf6; margin-bottom: 1rem;">💰 Ahorro Energético Semanal</h4>
+                    <div id="savings-tracking-container">
+                        <div style="text-align: center; padding: 1.5rem; opacity: 0.5; font-size: 0.8rem;">
+                            ⏳ Cargando tracking ahorros...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SPRINT 09: ALERTAS PREDICTIVAS -->
+            <div style="margin-top: 2rem; background: rgba(245, 158, 11, 0.05); padding: 1.5rem; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                <h4 style="font-size: 1rem; color: #f59e0b; margin-bottom: 1rem;">⚠️ Alertas Predictivas (Próximas 24-48h)</h4>
+                <div id="predictive-alerts-container">
+                    <div style="text-align: center; padding: 1.5rem; opacity: 0.5; font-size: 0.8rem;">
+                        ⏳ Cargando alertas predictivas...
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- SIAR Historical Analysis -->
@@ -349,10 +377,22 @@
     </div>
 
     <div class="footer">
-        Chocolate Factory - Linares, Andalucía | Dashboard v0.42.0 (Sprint 08) |
-        Powered by FastAPI + ML (131k+ Historical Records) + Hourly Optimization
+        Chocolate Factory - Linares, Andalucía | Dashboard v0.44.0 (Sprint 09 - Unified Predictive Dashboard) |
+        Powered by FastAPI + ML (131k+ Historical Records) + Prophet Forecasting + Predictive Insights
     </div>
 
-    <script src="js/dashboard.js?v=0.42.0"></script>
+    <!-- Core Scripts -->
+    <script src="js/utils/api.js"></script>
+    <script src="js/utils/formatters.js"></script>
+    <script src="js/services/dashboard-service.js"></script>
+
+    <!-- Sprint 09 Components -->
+    <script src="js/components/optimal-windows.js"></script>
+    <script src="js/components/ree-deviation.js"></script>
+    <script src="js/components/predictive-alerts.js"></script>
+    <script src="js/components/savings-tracking.js"></script>
+
+    <!-- Main Dashboard (legacy app.js removed - using only dashboard.js) -->
+    <script src="js/dashboard.js?v=0.43.0"></script>
 </body>
 </html>

@@ -41,9 +41,10 @@ src/fastapi-app/
 │   │   ├── ree.py             # REE electricity prices
 │   │   ├── weather.py         # Weather data endpoints
 │   │   ├── dashboard.py       # Dashboard data
-│   │   ├── optimization.py    # Production optimization
-│   │   ├── analysis.py        # SIAR historical analysis
-│   │   └── gaps.py            # Gap detection & backfill (Oct 7, 2025) ✅
+│   │   ├── optimization.py    # Production optimization (Sprint 08)
+│   │   ├── analysis.py        # SIAR historical analysis (Sprint 07)
+│   │   ├── gaps.py            # Gap detection & backfill
+│   │   └── insights.py        # Predictive insights (Sprint 09) ✅
 │   └── schemas/
 │       ├── common.py          # Shared Pydantic models
 │       └── ree.py             # REE-specific schemas
@@ -59,8 +60,9 @@ src/fastapi-app/
 │   ├── aemet_service.py       # AEMET API + InfluxDB
 │   ├── weather_aggregation_service.py  # Multi-source weather
 │   ├── dashboard.py           # Dashboard data consolidation
-│   ├── siar_analysis_service.py  # SIAR historical analysis
-│   └── hourly_optimizer_service.py  # Production optimization
+│   ├── siar_analysis_service.py  # SIAR historical analysis (Sprint 07)
+│   ├── hourly_optimizer_service.py  # Production optimization (Sprint 08)
+│   └── predictive_insights_service.py  # Predictive insights (Sprint 09) ✅
 │
 ├── infrastructure/             # 🔷 Infrastructure Layer (External systems)
 │   ├── influxdb/
@@ -104,14 +106,16 @@ src/fastapi-app/
 
 ## Development Status ✅ PRODUCTION SYSTEM
 
-### 🚀 Recent Completion: Sprint 08 - Hourly Production Optimization ✅
-**Status**: ✅ **COMPLETED** (October 6, 2025)
+### 🚀 Recent Completion: Sprint 09 - Unified Predictive Dashboard ✅
+**Status**: ✅ **COMPLETED** (October 7, 2025)
 **Achievements**:
-- Timeline horaria 24h con granularidad por hora (precio + periodo + proceso)
-- Clasificación periodos tarifarios españoles (P1/P2/P3)
-- Integración Prophet REE + SIAR clima + constraints producción
-- ROI 228k€/año demostrable (85.33% ahorro vs horario fijo)
-**Details**: See [`.claude/sprints/ml-evolution/SPRINT_08_HOURLY_OPTIMIZATION.md`](.claude/sprints/ml-evolution/SPRINT_08_HOURLY_OPTIMIZATION.md)
+- Dashboard unificado: 5 tarjetas → 1 tarjeta "Dashboard Predictivo Completo"
+- Widget ventanas óptimas: 7 días predicción Prophet + periodos tarifarios
+- Análisis desviación REE: 87.5% accuracy, MAE ±0.0183 €/kWh
+- Alertas predictivas: picos precio + oportunidades producción + clima extremo
+- ROI tracking: 1,661€/año con comparativa baseline vs optimizado
+- Integración Tailnet: endpoints `/insights/*` en nginx sidecar
+**Details**: See [`.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md`](.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md)
 **Sprint Roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
 
 ### Sprint History (Completed)
@@ -132,9 +136,15 @@ src/fastapi-app/
   - Vista granular: identificación cruces proceso/periodo
   - ROI 228k€/año (85.33% ahorro vs horario fijo)
   - Validación NaN/inf para JSON compliance
+- ✅ **Sprint 09**: Unified Predictive Dashboard (Oct 7, 2025)
+  - Dashboard unificado: Pronóstico Semanal + 4 widgets Sprint 09 en 1 tarjeta
+  - Componentes: Ventanas Óptimas, REE Deviation, Alertas Predictivas, Savings Tracking
+  - 4 endpoints `/insights/*`: optimal-windows, ree-deviation, alerts, savings-tracking
+  - Tailnet integration: nginx sidecar bind mount template + envsubst processing
+  - UX fix: fuente compacta 0.85rem + colores oscuros legibles sobre fondo blanco
+  - Flujo temporal: presente → 24h → semana → mes
 
 ### ML Evolution Sprints (Remaining)
-- 🔴 **Sprint 09**: Predictive Dashboard Complete
 - 🔴 **Sprint 10**: ML Consolidation & Cleanup
 
 ### Core Infrastructure (2-Container Architecture)
