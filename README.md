@@ -26,18 +26,18 @@ Industrial-grade system for energy cost optimization and production planning. In
 ### Dashboard Preview
 
 <table>
-<tr>
-<td width="50%">
-<img src="docs/images/dashboard-main.png" alt="Main Dashboard" />
-<p align="center"><em>Main Dashboard - System Overview & ML Predictions</em></p>
-</td>
-<td width="50%">
-<img src="docs/images/dashboard-detail.png" alt="Dashboard Details" />
-<p align="center"><em>Detailed Metrics - Historical Analysis & Forecasting</em></p>
-</td>
-</tr>
+  <tr>
+    <!-- 1 celda que ocupa las 2 columnas originales -->
+    <td colspan="2" style="text-align:center;">
+      <!-- GIF -->
+      <img src="docs/images/demo.gif"
+           alt="Demo de la aplicación"
+           style="max-width:100%; height:auto; border:1px solid #eaeaea;" />
+      <!-- Pie de foto (opcional) -->
+      <p><em>Demo de la aplicación </em></p>
+    </td>
+  </tr>
 </table>
-
 ---
 
 ## System Architecture
@@ -192,24 +192,26 @@ The system implements a **hybrid architecture** combining complete on-premise da
 
 ## Machine Learning System
 
-### Current Status: ✅ Sprint 08 Completed (Hourly Production Optimization)
+### Current Status: ✅ Sprint 09 Completed (Unified Predictive Dashboard)
 
-**Sprint Progress**: 8/10 ML Evolution
+**Sprint Progress**: 9/10 ML Evolution (90% Complete)
 
 | Sprint | Status | Completion |
 |--------|--------|------------|
 | **06** | ✅ REE Price Forecasting (Prophet 168h) | Oct 3, 2025 |
 | **07** | ✅ SIAR Historical Analysis (88k records) | Oct 4, 2025 |
-| **08** | ✅ Hourly Optimization (85% savings, 228k€/year ROI) | Oct 6, 2025 |
-| **09-10** | 🔴 Pending | - |
+| **08** | ✅ Hourly Optimization (228k€/year ROI) | Oct 6, 2025 |
+| **09** | ✅ Unified Predictive Dashboard (1.6k€/year insights) | Oct 7, 2025 |
+| **10** | 🔴 ML Consolidation & Cleanup | - |
 
-**Sprint 08 Summary**: Hourly production planning with 24h granular timeline. Prophet price predictions + Spanish tariff periods (P1/P2/P3) + active processes. Greedy heuristic optimization achieves 85.33% energy savings vs fixed schedule.
+**Sprint 09 Summary**: Unified predictive dashboard with optimal windows (7-day forecast), REE deviation analysis (87.5% accuracy), predictive alerts (price spikes + production opportunities), and savings tracking. Integrated Prophet ML + SIAR historical data into single comprehensive view.
 
 **Full roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
 
 ### ML Capabilities
 
 - **Price Forecasting**: Prophet 168h predictions (MAE: 0.033 €/kWh, R²: 0.49)
+- **Predictive Insights**: Optimal production windows, REE deviation tracking (87.5% accuracy)
 - **Historical Analysis**: SIAR correlations (R²: 0.049 temp, 0.057 humidity)
 - **Energy Optimization**: RandomForest regressor (R²: 0.89)
 - **Production Classification**: RandomForest classifier (90% accuracy)
@@ -360,6 +362,8 @@ https://<your-tailscale-hostname>.ts.net/dashboard  # Dashboard only
 ✓ /static/*               # Static resources (HTML/CSS/JS)
 ✓ /dashboard/complete     # Dashboard data API (JSON)
 ✓ /dashboard/heatmap      # Heatmap data API
+✓ /insights/*             # Predictive insights (Sprint 09)
+✓ /optimize/*             # Production optimization (Sprint 08)
 
 # Blocked remotely (403 Forbidden)
 ✗ /docs                   # API documentation
@@ -420,9 +424,14 @@ Comprehensive documentation available in `/docs/` and `.claude/`:
 
 ## Milestones
 
+### ✅ Recent
+
+- **Sprint 09**: Unified predictive dashboard with optimal windows, REE deviation, alerts, and savings tracking
+- **Dashboard v0.44.0**: Compact font (0.85rem), temporal flow (present → 24h → week → month)
+
 ### 🔴 Planned
 
-- **Sprint 09-10**: Predictive dashboard enhancement & ML consolidation
+- **Sprint 10**: ML consolidation & cleanup (final sprint)
 - **Mobile Dashboard**: Responsive design optimization
 - **Extended Forecasts**: 14-day price predictions
 - **Export Functionality**: PDF/CSV production planning reports
