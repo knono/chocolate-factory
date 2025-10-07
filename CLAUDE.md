@@ -40,9 +40,10 @@ src/fastapi-app/
 │   │   ├── health.py          # System health endpoints
 │   │   ├── ree.py             # REE electricity prices
 │   │   ├── weather.py         # Weather data endpoints
-│   │   ├── dashboard.py       # Dashboard data (NEW)
-│   │   ├── optimization.py    # Production optimization (NEW)
-│   │   └── analysis.py        # SIAR historical analysis (NEW)
+│   │   ├── dashboard.py       # Dashboard data
+│   │   ├── optimization.py    # Production optimization
+│   │   ├── analysis.py        # SIAR historical analysis
+│   │   └── gaps.py            # Gap detection & backfill (Oct 7, 2025) ✅
 │   └── schemas/
 │       ├── common.py          # Shared Pydantic models
 │       └── ree.py             # REE-specific schemas
@@ -274,12 +275,19 @@ src/fastapi-app/
 - **P2 (Llano)**: 8-9h, 14-17h, 22-23h → Amarillo (#f59e0b)
 - **P3 (Valle)**: 0-7h, resto → Verde (#10b981)
 
-### Dashboard & Monitoring
+### Gap Detection & Backfill (gaps_router) ✅
+- `GET /gaps/summary` - Quick data status (REE + Weather gap hours)
+- `GET /gaps/detect?days_back=N` - Detailed gap analysis with recommended strategy
+- `POST /gaps/backfill?days_back=N` - Manual backfill execution (default: 10 days)
+- `POST /gaps/backfill/auto?max_gap_hours=N` - Automatic intelligent backfill (default: 6.0h threshold)
+- `POST /gaps/backfill/range` - Date range specific backfill with data_source filter
+
+**Migration Note (Oct 7, 2025)**: Endpoints migrated to Clean Architecture router. Hooks updated to use query parameters instead of JSON body. See `docs/GAPS_ROUTER_MIGRATION.md`.
+
+### System Monitoring
 - `GET /dashboard` - Visual dashboard with interactive heatmap
 - `GET /dashboard/complete` - Integrated dashboard JSON data
 - `GET /scheduler/status` - APScheduler job status
-- `GET /gaps/summary` - Data gap detection  
-- `POST /gaps/backfill/auto` - Automatic backfill recovery
 
 ### Weekly Forecast System (✅ Sprint 06 Enhanced)
 - **7-day Prophet predictions**: Real ML forecasts (not simulated)
@@ -472,9 +480,34 @@ docker compose up -d chocolate-factory
 - **Data freshness**: Always check backfill status when container starts (system not always running)
 - **Gap recovery**: Use backfill when necessary to maintain data currency
 - **API updates**: Ensure REE and AEMET data stays current (remember OpenWeather for 08:00-23:00)
-- **Backfill strategy**: AEMET API primary for all gaps, SIAR manual download only for large failures
+- **Backfill strategy**: 48h intelligent strategy - OpenWeatherMap for gaps <48h, AEMET for ≥48h (see `docs/BACKFILL_48H_STRATEGY.md`)
+
+### Documentation Structure
+
+**`docs/`** - Technical documentation (permanent)
+- API references (API_REFERENCE.md, ENHANCED_ML_API_REFERENCE.md)
+- Troubleshooting guides (AEMET_TROUBLESHOOTING.md, DATA_PIPELINE_TROUBLESHOOTING.md)
+- System guides (AUTOMATIC_BACKFILL_SYSTEM.md, GAP_DETECTION_STRATEGY.md)
+- Migration docs (GAPS_ROUTER_MIGRATION.md, BACKFILL_48H_STRATEGY.md)
+
+**`.claude/`** - Claude Code context (sprints, rules, completion reports)
+- Sprint documentation (`.claude/sprints/ml-evolution/`)
+- Business rules (`.claude/rules/`)
+- Completion reports (CLEAN_ARCHITECTURE_COMPLETED.md)
+- Architecture decisions (architecture.md)
 
 ## Recent System Updates
+
+### ⚡ **Intelligent Backfill Strategy 48h (Oct 7, 2025)**
+- **Issue**: AEMET API fails for gaps <48h (needs 24-48h to consolidate daily data)
+- **Solution**: Dual strategy based on gap age
+  - **Gaps <48h**: Use OpenWeatherMap (current data only, free tier limitation)
+  - **Gaps ≥48h**: Use AEMET API (consolidated official data)
+- **Implementation**: `services/backfill_service.py:183-393`
+- **Result**: ✅ System automatically selects optimal data source based on gap age
+- **Limitation**: OpenWeatherMap Free doesn't support historical data for gaps
+- **Recommendation**: Accept 48h gap window OR implement hourly OWM preventive ingestion
+- **Documentation**: `docs/BACKFILL_48H_STRATEGY.md`
 
 ### 🔧 **AEMET Integration Fix (Sept 19, 2025)**
 - **Issue**: System was only using OpenWeatherMap, AEMET integration broken
