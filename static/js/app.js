@@ -5,8 +5,8 @@ class DashboardApp {
         this.components = {
             heatmap: new WeeklyHeatmap('weeklyHeatmap'),
             alerts: new AlertsComponent('alerts'),
-            recommendations: new RecommendationsComponent('recommendations'),
-            siarAnalysis: new SIARAnalysisComponent('siarAnalysis')  // Sprint 07
+            recommendations: new RecommendationsComponent('recommendations')
+            // siarAnalysis removed - Sprint 07 component not loaded in index.html
         };
 
         this.autoRefreshInterval = null;
@@ -52,8 +52,7 @@ class DashboardApp {
                 this.components.recommendations.render(data.recommendations);
             }
 
-            // Sprint 07: SIAR Historical Analysis (loaded independently)
-            this.components.siarAnalysis.render();
+            // Sprint 07: SIAR component removed (not loaded in this version)
 
             this.updateSystemStatus('success');
             this.updateLastUpdateTime();
@@ -230,6 +229,10 @@ class DashboardApp {
 
     updateSystemStatus(status) {
         const indicator = document.getElementById('systemStatus');
+        if (!indicator) {
+            console.warn('systemStatus element not found, skipping status update');
+            return;
+        }
         const dot = indicator.querySelector('.status-dot');
         const text = indicator.querySelector('.status-text');
 

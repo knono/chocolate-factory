@@ -773,3 +773,38 @@ function renderOptimizationError(errorMessage) {
 
 // Auto-refresh cada 2 minutos
 setInterval(loadData, 2 * 60 * 1000);
+
+// ============ SPRINT 09: PREDICTIVE DASHBOARD COMPONENTS ============
+
+// Initialize Sprint 09 components
+async function initPredictiveDashboard() {
+    console.log('🚀 Initializing Sprint 09 Predictive Dashboard...');
+
+    try {
+        // Initialize components
+        const optimalWindows = new OptimalWindowsComponent('optimal-windows-container');
+        const reeDeviation = new REEDeviationComponent('ree-deviation-container');
+        const predictiveAlerts = new PredictiveAlertsComponent('predictive-alerts-container');
+        const savingsTracking = new SavingsTrackingComponent('savings-tracking-container');
+
+        // Render all components in parallel
+        await Promise.all([
+            optimalWindows.render(),
+            reeDeviation.render(),
+            predictiveAlerts.render(),
+            savingsTracking.render()
+        ]);
+
+        console.log('✅ Sprint 09 components loaded successfully');
+    } catch (error) {
+        console.error('❌ Failed to load Sprint 09 components:', error);
+    }
+}
+
+// Auto-load Sprint 09 on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPredictiveDashboard);
+} else {
+    // DOMContentLoaded already fired
+    initPredictiveDashboard();
+}

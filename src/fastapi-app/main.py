@@ -33,7 +33,8 @@ from api.routers import (
     dashboard_router,
     optimization_router,
     analysis_router,
-    gaps_router
+    gaps_router,
+    insights_router
 )
 
 # Setup logging (console only to avoid permission issues)
@@ -89,6 +90,7 @@ app.include_router(dashboard_router)
 app.include_router(optimization_router)
 app.include_router(analysis_router)
 app.include_router(gaps_router)
+app.include_router(insights_router)
 
 logger.info("✅ API routers registered")
 

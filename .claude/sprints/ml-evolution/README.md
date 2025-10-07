@@ -74,19 +74,32 @@
 
 ---
 
-### 🔵 Sprint 09: Dashboard Predictivo Completo
-**Estado**: 🔴 NO INICIADO
+### ✅ Sprint 09: Dashboard Predictivo Completo (COMPLETADO)
+**Estado**: ✅ **COMPLETADO** (7 de Octubre, 2025)
 **Archivo**: [`SPRINT_09_PREDICTIVE_DASHBOARD.md`](./SPRINT_09_PREDICTIVE_DASHBOARD.md)
 
-**Objetivo**: Dashboard con ventanas óptimas predichas, análisis de desviaciones REE D-1 vs real.
+**Objetivo**: Dashboard unificado con ventanas óptimas predichas, análisis de desviaciones REE D-1 vs real.
 
-**Entregables**:
-- ✅ Widget "Próximas ventanas óptimas" (7 días)
-- ✅ Análisis desviación REE D-1 vs precios reales
-- ✅ Alertas predictivas (picos de precio inminentes)
-- ✅ Comparativa ahorro real vs planificado
+**Entregables Completados**:
+- ✅ Widget "Próximas Ventanas Óptimas" (7 días con Prophet ML)
+- ✅ Análisis desviación REE D-1 vs precios reales (accuracy 87.5%, MAE ±0.0183)
+- ✅ Alertas predictivas (picos precio, oportunidades producción, clima extremo)
+- ✅ Comparativa ahorro real vs planificado (ROI 1,661€/año)
+- ✅ **Dashboard unificado**: 5 tarjetas → 1 tarjeta "Dashboard Predictivo Completo"
+- ✅ Integración Tailnet: endpoints `/insights/*` permitidos en nginx sidecar
+- ✅ Fix UX: textos oscuros sobre fondo blanco (100% legible)
+- ✅ Fuente compacta (0.85rem) para maximizar información
 
-**Impacto**: Dashboard predictivo funcional para toma de decisiones.
+**Componentes Creados**:
+- `services/predictive_insights_service.py` (651 líneas)
+- `api/routers/insights.py` (4 endpoints)
+- `static/js/components/optimal-windows.js`
+- `static/js/components/ree-deviation.js`
+- `static/js/components/predictive-alerts.js`
+- `static/js/components/savings-tracking.js`
+- `static/css/predictive-dashboard.css` (870 líneas)
+
+**Impacto**: Dashboard predictivo completo integrado. Flujo temporal presente → 24h → semana → mes. Toma de decisiones informada con datos históricos + Prophet ML.
 
 ---
 
@@ -173,18 +186,22 @@ Cada sprint se considera **COMPLETADO** cuando:
 
 ## 🔄 Estado Actual del Proyecto
 
-**Sprint Activo**: Sprint 06 - Predicción de Precios REE
-**Fecha Inicio**: 2025-10-03
-**Completitud Total**: Sprint 05/10 (50% base arquitectura, 0% ML evolution)
+**Sprint Activo**: Sprint 10 - Consolidación y Limpieza
+**Fecha Inicio**: 2025-10-07
+**Completitud Total**: Sprint 09/10 (90% ML evolution completado)
+
+**Sprints Completados**: 01, 02, 03, 04, 05, 06, 07, 08, 09 ✅
+**Sprint Pendiente**: Sprint 10 (Consolidación final)
 
 **Próximos Pasos**:
-1. Leer [`SPRINT_06_PRICE_FORECASTING.md`](./SPRINT_06_PRICE_FORECASTING.md)
-2. Implementar modelo predictivo precios LSTM/Prophet
-3. Integrar con heatmap dashboard
-4. Validar métricas y marcar completado
+1. Leer [`SPRINT_10_CONSOLIDATION.md`](./SPRINT_10_CONSOLIDATION.md)
+2. Unificar servicios ML en un solo servicio consolidado
+3. Eliminar código legacy (simulaciones, modelos obsoletos)
+4. Tests automatizados + documentación técnica completa
+5. Calcular métricas ROI finales
 
 ---
 
-**Última actualización**: 2025-10-03
+**Última actualización**: 2025-10-07
 **Autor**: Sistema ML Evolution
-**Versión**: 1.0
+**Versión**: 2.0

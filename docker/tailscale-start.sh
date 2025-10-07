@@ -94,10 +94,14 @@ fi
 log "⏳ Waiting a moment for all services to settle..."
 sleep 10
 
-# Procesar variables de entorno en nginx.conf
+# Procesar variables de entorno en nginx.conf desde template
 log "📝 Processing nginx configuration with envsubst..."
-envsubst '${TAILSCALE_DOMAIN}' < /etc/nginx/nginx.conf > /etc/nginx/nginx.conf.tmp
-mv /etc/nginx/nginx.conf.tmp /etc/nginx/nginx.conf
+if [ -f "/etc/nginx/nginx.conf.template" ]; then
+    envsubst '${TAILSCALE_DOMAIN}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+else
+    envsubst '${TAILSCALE_DOMAIN}' < /etc/nginx/nginx.conf > /tmp/nginx.conf
+    mv /tmp/nginx.conf /etc/nginx/nginx.conf
+fi
 
 # Verificar configuración nginx
 log "🔧 Testing nginx configuration..."
