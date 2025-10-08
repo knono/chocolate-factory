@@ -154,7 +154,7 @@ The system implements a **hybrid architecture** combining complete on-premise da
 |-----------|-----------|---------|
 | **Backend** | FastAPI (Python 3.11+) | REST API + Dashboard |
 | **Database** | InfluxDB 2.7 | Time series storage |
-| **ML Framework** | scikit-learn, Prophet (Facebook) | Time series forecasting |
+| **ML Framework** | scikit-learn, Prophet | Unified ML service (131k+ records) |
 | **Scheduling** | APScheduler | Automated data ingestion |
 | **Containerization** | Docker Compose | Orchestration |
 | **Reverse Proxy** | Nginx (Alpine) | Endpoint filtering |
@@ -192,29 +192,31 @@ The system implements a **hybrid architecture** combining complete on-premise da
 
 ## Machine Learning System
 
-### Current Status: ✅ Sprint 09 Completed (Unified Predictive Dashboard)
+### Current Status: ✅ ML Evolution Complete (Sprint 06-10)
 
-**Sprint Progress**: 9/10 ML Evolution (90% Complete)
+**Sprint Progress**: 10/10 ML Evolution (100% Complete)
 
-| Sprint | Status | Completion |
-|--------|--------|------------|
-| **06** | ✅ REE Price Forecasting (Prophet 168h) | Oct 3, 2025 |
-| **07** | ✅ SIAR Historical Analysis (88k records) | Oct 4, 2025 |
-| **08** | ✅ Hourly Optimization (228k€/year ROI) | Oct 6, 2025 |
-| **09** | ✅ Unified Predictive Dashboard (1.6k€/year insights) | Oct 7, 2025 |
-| **10** | 🔴 ML Consolidation & Cleanup | - |
+| Sprint | Status | Achievement |
+|--------|--------|-------------|
+| **06** | ✅ | REE Price Forecasting (Prophet 168h) |
+| **07** | ✅ | SIAR Historical Analysis (88k records) |
+| **08** | ✅ | Hourly Optimization (228k€/year ROI) |
+| **09** | ✅ | Unified Predictive Dashboard (1.6k€/year insights) |
+| **10** | ✅ | ML Consolidation & Cleanup (-48% code, 0 synthetic) |
 
-**Sprint 09 Summary**: Unified predictive dashboard with optimal windows (7-day forecast), REE deviation analysis (87.5% accuracy), predictive alerts (price spikes + production opportunities), and savings tracking. Integrated Prophet ML + SIAR historical data into single comprehensive view.
+**Latest Achievement**: Unified ML service consolidating 3 legacy services into single production-grade implementation. Code reduction of 48% (1,639→850 lines), elimination of synthetic data generation, comprehensive test suite, and complete documentation. System now uses 131k+ real historical records for training.
 
 **Full roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
+**Architecture**: [`docs/ML_ARCHITECTURE.md`](docs/ML_ARCHITECTURE.md)
 
 ### ML Capabilities
 
 - **Price Forecasting**: Prophet 168h predictions (MAE: 0.033 €/kWh, R²: 0.49)
 - **Predictive Insights**: Optimal production windows, REE deviation tracking (87.5% accuracy)
 - **Historical Analysis**: SIAR correlations (R²: 0.049 temp, 0.057 humidity)
-- **Energy Optimization**: RandomForest regressor (R²: 0.89)
-- **Production Classification**: RandomForest classifier (90% accuracy)
+- **Energy Optimization**: RandomForest regressor (R²: 0.89, MAE: 0.033)
+- **Production Recommendation**: RandomForest classifier (90% accuracy)
+- **Model Versioning**: Timestamp-based registry tracking 10 versions per model type
 
 ---
 
