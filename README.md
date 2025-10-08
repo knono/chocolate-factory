@@ -422,41 +422,11 @@ Comprehensive documentation available in `/docs/` and `.claude/`:
 - **Business Suggestions**: `.claude/rules/business-logic-suggestions.md`
 - **Security Guidelines**: `.claude/rules/security-sensitive-data.md`
 
----
 
-## Milestones
 
-### ✅ Recent
 
-- **Sprint 09**: Unified predictive dashboard with optimal windows, REE deviation, alerts, and savings tracking
-- **Dashboard v0.44.0**: Compact font (0.85rem), temporal flow (present → 24h → week → month)
 
-### 🔴 Planned
 
-- **Sprint 10**: ML consolidation & cleanup (final sprint)
-- **Mobile Dashboard**: Responsive design optimization
-- **Extended Forecasts**: 14-day price predictions
-- **Export Functionality**: PDF/CSV production planning reports
-
----
-
-## Contributing
-
-This is a reference implementation for industrial energy optimization. Contributions welcome:
-
-- **Bug Reports**: Open issue with reproduction steps
-- **Feature Requests**: Describe use case and expected behavior
-- **Pull Requests**: Follow existing code structure and documentation standards
-
-### Development Guidelines
-
-1. Read `.claude/sprints/ml-evolution/README.md` for current priorities
-2. Follow sprint-based development workflow
-3. Update documentation alongside code changes
-4. Maintain backward compatibility with existing APIs
-5. Add tests for new functionality
-
----
 
 ## License
 
