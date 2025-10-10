@@ -31,6 +31,10 @@ dependencies = [
     "httpx>=0.25.0",
     "requests>=2.31.0",
     "tenacity>=8.2.0",  # Phase 2: Retry logic for external APIs
+
+    # Chatbot BI (Sprint 11)
+    "anthropic>=0.40.0",  # Claude Haiku API
+    "slowapi>=0.1.9",  # Rate limiting for chatbot
     
     # Dashboard and UI
     "reflex>=0.4.0",

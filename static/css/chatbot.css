@@ -1,0 +1,211 @@
+/**
+ * Chatbot BI Styles
+ * Sprint 11 - Chatbot Conversacional
+ */
+
+/* Quick Question Buttons */
+.chatbot-quick-btn {
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.chatbot-quick-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.chatbot-quick-btn:active {
+    transform: translateY(0);
+}
+
+/* Chat Messages */
+.chat-message {
+    margin-bottom: 1.5rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.user-message {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.user-message > div {
+    max-width: 70%;
+}
+
+.user-message .message-bubble {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    padding: 1rem;
+    border-radius: 12px 12px 0 12px;
+    color: white;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.assistant-message {
+    /* Estilos inline en HTML para mantener coherencia con otras tarjetas */
+}
+
+/* Input Focus States */
+#chatbotInput:focus {
+    outline: none;
+    border-color: rgba(16, 185, 129, 0.6);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+#chatbotInput::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Send Button States */
+#chatbotSendBtn:hover {
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+#chatbotSendBtn:active {
+    transform: scale(0.95) !important;
+}
+
+#chatbotSendBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Scroll Behavior */
+#chatMessagesContainer {
+    scroll-behavior: smooth;
+}
+
+#chatMessagesContainer::-webkit-scrollbar {
+    width: 8px;
+}
+
+#chatMessagesContainer::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+#chatMessagesContainer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+#chatMessagesContainer::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Loading Animation */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+#chatbotLoadingIcon {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+/* Typing Indicator */
+.typing-indicator {
+    display: inline-flex;
+    gap: 4px;
+    padding: 0.75rem;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        opacity: 0.3;
+        transform: translateY(0);
+    }
+    30% {
+        opacity: 1;
+        transform: translateY(-10px);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .chatbot-quick-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    #chatbotInput {
+        font-size: 0.9rem !important;
+        padding: 0.85rem !important;
+    }
+
+    #chatbotSendBtn {
+        padding: 0.85rem 1.5rem !important;
+        font-size: 0.9rem !important;
+    }
+
+    #chatMessagesContainer {
+        max-height: 300px !important;
+    }
+}
+
+/* Error Message */
+.chat-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid #ef4444;
+    padding: 1rem;
+    border-radius: 8px;
+    color: #fca5a5;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+}
+
+/* Cost Display */
+.chat-cost-badge {
+    display: inline-block;
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    margin-left: 0.5rem;
+}

@@ -6,6 +6,7 @@
     <title>Chocolate Factory - Dashboard</title>
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/predictive-dashboard.css">
+    <link rel="stylesheet" href="css/chatbot.css">
 </head>
 <body>
     <div class="header">
@@ -374,11 +375,86 @@
             </div>
         </div>
 
+        <!-- SPRINT 11: CHATBOT BI CONVERSACIONAL -->
+        <div class="card" style="margin-top: 2rem; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white;">
+            <div class="card-header">
+                <span class="card-icon">🤖</span>
+                <span class="card-title" style="color: white;">Asistente BI Conversacional - Claude Haiku</span>
+            </div>
+
+            <!-- Chat Messages Container -->
+            <div id="chatMessagesContainer" style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 1.5rem; margin-top: 1.5rem; max-height: 400px; overflow-y: auto;">
+                <!-- Welcome Message -->
+                <div class="chat-message assistant-message">
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                        <div style="font-size: 2rem; flex-shrink: 0;">🤖</div>
+                        <div style="background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; flex: 1;">
+                            <strong style="display: block; margin-bottom: 0.5rem;">¡Hola! Soy tu asistente BI</strong>
+                            <div style="font-size: 0.9rem; line-height: 1.6; opacity: 0.95;">
+                                Puedo ayudarte con:
+                                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                                    <li>⚡ Precios energéticos y predicciones</li>
+                                    <li>🏭 Recomendaciones de producción</li>
+                                    <li>🌡️ Condiciones climáticas</li>
+                                    <li>💰 Análisis de ahorros</li>
+                                    <li>🚨 Alertas del sistema</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Questions -->
+            <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.75rem;">
+                <button onclick="askQuickQuestion('¿Cuándo debo producir hoy?')" class="chatbot-quick-btn">
+                    🏭 ¿Cuándo producir?
+                </button>
+                <button onclick="askQuickQuestion('¿Cuál es el precio actual?')" class="chatbot-quick-btn">
+                    ⚡ Precio actual
+                </button>
+                <button onclick="askQuickQuestion('¿Hay alertas?')" class="chatbot-quick-btn">
+                    🚨 Ver alertas
+                </button>
+                <button onclick="askQuickQuestion('Ahorro esta semana')" class="chatbot-quick-btn">
+                    💰 Ahorro semanal
+                </button>
+            </div>
+
+            <!-- Input Container -->
+            <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem;">
+                <input
+                    type="text"
+                    id="chatbotInput"
+                    placeholder="Escribe tu pregunta..."
+                    maxlength="500"
+                    autocomplete="off"
+                    style="flex: 1; padding: 1rem; border-radius: 8px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 1rem;"
+                    onkeypress="if(event.key==='Enter') sendChatbotMessage()"
+                >
+                <button
+                    id="chatbotSendBtn"
+                    onclick="sendChatbotMessage()"
+                    style="padding: 1rem 2rem; border-radius: 8px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.3s;"
+                    onmouseover="this.style.transform='scale(1.05)'"
+                    onmouseout="this.style.transform='scale(1)'"
+                >
+                    <span id="chatbotSendIcon">📤</span>
+                    <span id="chatbotLoadingIcon" style="display: none;">⏳</span>
+                </button>
+            </div>
+
+            <!-- Stats Footer -->
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.8rem; opacity: 0.7; text-align: center;">
+                <span id="chatbotStats">Powered by Claude Haiku API</span>
+            </div>
+        </div>
+
     </div>
 
     <div class="footer">
-        Chocolate Factory - Linares, Andalucía | Dashboard v0.44.0 (Sprint 09 - Unified Predictive Dashboard) |
-        Powered by FastAPI + ML (131k+ Historical Records) + Prophet Forecasting + Predictive Insights
+        Chocolate Factory - Linares, Andalucía | Dashboard v0.45.0 (Sprint 11 - Chatbot BI) |
+        Powered by FastAPI + ML (131k+ Historical Records) + Prophet Forecasting + Claude Haiku
     </div>
 
     <!-- Core Scripts -->
@@ -391,6 +467,9 @@
     <script src="js/components/ree-deviation.js"></script>
     <script src="js/components/predictive-alerts.js"></script>
     <script src="js/components/savings-tracking.js"></script>
+
+    <!-- Sprint 11: Chatbot BI -->
+    <script src="js/chatbot.js"></script>
 
     <!-- Main Dashboard (legacy app.js removed - using only dashboard.js) -->
     <script src="js/dashboard.js?v=0.43.0"></script>

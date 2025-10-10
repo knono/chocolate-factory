@@ -34,7 +34,8 @@ from api.routers import (
     optimization_router,
     analysis_router,
     gaps_router,
-    insights_router
+    insights_router,
+    chatbot_router  # Sprint 11
 )
 
 # Setup logging (console only to avoid permission issues)
@@ -91,6 +92,7 @@ app.include_router(optimization_router)
 app.include_router(analysis_router)
 app.include_router(gaps_router)
 app.include_router(insights_router)
+app.include_router(chatbot_router)  # Sprint 11
 
 logger.info("✅ API routers registered")
 
