@@ -1,26 +1,27 @@
 # 🏗️ Infrastructure Sprints - Chocolate Factory
 
-> **Objetivo**: Evolucionar infraestructura del proyecto con integración MCP, CI/CD local, y mejoras operacionales.
+> **Objetivo**: Evolucionar infraestructura del proyecto con Chatbot BI conversacional, CI/CD local, y mejoras operacionales.
 
 ---
 
 ## 📋 Índice de Sprints
 
-### Sprint 11: MCP Server - Chocolate Factory Integration ✨
+### Sprint 11: Chatbot BI Conversacional - Claude Haiku API ✨
 **Estado**: 🔴 NO INICIADO
 **Prioridad**: 🔴 ALTA
-**Duración estimada**: 2-3 días (12-16 horas)
-**Archivo**: [`SPRINT_11_MCP_SERVER.md`](./SPRINT_11_MCP_SERVER.md)
+**Duración estimada**: 1.5-2 días (8-12 horas)
+**Archivo**: [`SPRINT_11_CHATBOT_BI.md`](./SPRINT_11_CHATBOT_BI.md)
 
-**Objetivo**: Implementar MCP (Model Context Protocol) server para exponer datos del proyecto como herramienta nativa para Claude Code.
+**Objetivo**: Implementar chatbot BI conversacional con acceso móvil que permita consultas en lenguaje natural sobre producción, precios energéticos y clima.
 
 **Entregables clave**:
-- MCP server Python con 8-10 tools
-- Integración con API FastAPI existente
-- Configuración Claude Desktop
-- Documentación y ejemplos de uso
+- Chatbot service con Claude Haiku API (100% autónomo)
+- RAG local con keyword matching (sin vector DB)
+- UI móvil responsive (`static/chat.html`)
+- Integración Tailscale para acceso remoto
+- Cost tracking y monitoring
 
-**Valor**: Claude Code puede consultar datos de producción, precios, predicciones sin APIs HTTP manuales.
+**Valor**: Acceso móvil universal (Tailnet) con consultas conversacionales, costo predecible (~€1.50-3/mes), sin dependencias Claude Code.
 
 ---
 
@@ -43,22 +44,28 @@
 
 ---
 
-### Sprint 13: Tailscale Monitoring + Analytics MCP 📊
+### Sprint 13: Tailscale Observability - Enfoque Híbrido 📊
 **Estado**: 🔴 NO INICIADO
-**Prioridad**: 🟡 MEDIA-ALTA
-**Duración estimada**: 3-4 días (16-20 horas)
-**Archivo**: [`SPRINT_13_TAILSCALE_MONITORING.md`](./SPRINT_13_TAILSCALE_MONITORING.md)
+**Prioridad**: 🟡 MEDIA
+**Duración estimada**: 2-3 días (12-16 horas)
+**Archivo**: [`SPRINT_13_TAILSCALE_OBSERVABILITY.md`](./SPRINT_13_TAILSCALE_OBSERVABILITY.md)
 
-**Objetivo**: Usar Tailscale MCP para analytics de usuarios + métricas sistema (más ligero que Prometheus/Grafana).
+**Objetivo**: Observabilidad Tailscale con enfoque híbrido: sistema nativo práctico 24/7 (Fase 1) + MCP learning educacional (Fase 2 opcional).
 
-**Entregables**:
-- Tailscale API integration
-- Analytics service (access logs, usage stats)
-- 3 MCP tools analytics custom
-- Dashboard analytics widget
-- System performance metrics
+**Entregables Fase 1 (Práctico)**:
+- Analytics service con CLI nativo (tailscale status, whois)
+- Parser nginx logs + correlación Tailscale
+- 3 endpoints API analytics
+- Dashboard widget 24/7
+- APScheduler job automático
 
-**Valor**: Saber quién usa el sistema, features populares, performance endpoints. Todo integrado con Claude Code vía MCP.
+**Entregables Fase 2 (Educacional - Opcional)**:
+- Instalación Tailscale MCP (@tailscale/mcp-server)
+- Comparativa MCP vs CLI nativo
+- Documentación aprendizajes
+- Decisión final: mantener o remover MCP
+
+**Valor**: Observabilidad funcional autónoma + conocimiento ecosistema MCP (mejor de ambos mundos).
 
 ---
 
@@ -67,15 +74,15 @@
 ### Orden Recomendado
 
 ```
-Sprint 11 (MCP Server) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Monitoring)
+Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Monitoring)
       ↓                        ↓                            ↓
-  2-3 días                  1 semana                   1 semana
-  Valor inmediato           Infraestructura            Nice-to-have
+  1.5-2 días               1 semana                   1 semana
+  Valor inmediato          Infraestructura            Nice-to-have
 ```
 
 ### Filosofía
 
-1. **MCP primero**: Valor inmediato para desarrollo con Claude Code
+1. **Chatbot BI primero**: Acceso móvil universal + consultas conversacionales
 2. **CI/CD después**: Tests automatizados + registry privado
 3. **Monitoring opcional**: Cuando sistema esté en producción 24/7
 
@@ -83,35 +90,50 @@ Sprint 11 (MCP Server) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Monitoring)
 
 ## 📊 Comparativa Sprints
 
-| Sprint | Complejidad | Valor Inmediato | Dependencias | Riesgo |
-|--------|-------------|-----------------|--------------|--------|
-| Sprint 11 (MCP) | Media | ⭐⭐⭐⭐⭐ | Ninguna | Bajo |
-| Sprint 12 (Forgejo) | Alta | ⭐⭐⭐⭐ | Ninguna | Medio |
-| Sprint 13 (Tailscale) | Media | ⭐⭐⭐⭐ | Sprint 11, Tailscale activo | Bajo |
+| Sprint | Complejidad | Valor Inmediato | Dependencias | Riesgo | Costo/mes |
+|--------|-------------|-----------------|--------------|--------|-----------|
+| Sprint 11 (Chatbot) | Media | ⭐⭐⭐⭐⭐ | Ninguna | Bajo | ~€2 |
+| Sprint 12 (Forgejo) | Alta | ⭐⭐⭐⭐ | Ninguna | Medio | €0 |
+| Sprint 13 (Observability) | Media | ⭐⭐⭐⭐ | Tailscale activo | Bajo | €0 |
 
 ---
 
-## 🚀 Sprint 11 (MCP) - Vista Rápida
+## 🚀 Sprint 11 (Chatbot BI) - Vista Rápida
 
-### ¿Por qué MCP primero?
+### ¿Por qué Chatbot en lugar de MCP?
 
-- ✅ **Valor inmediato**: Claude Code puede consultar datos chocolate factory directamente
-- ✅ **Bajo riesgo**: No modifica sistema existente, solo añade capa MCP
-- ✅ **Rápido**: 2-3 días vs 1 semana para Forgejo
-- ✅ **Prueba de concepto**: Si funciona bien, facilita otros sprints
+**Problema real del usuario**:
+- ✅ Acceso **móvil** (smartphone conectado a Tailnet)
+- ✅ Consultas **conversacionales** simples
+- ✅ Usuarios **no técnicos** (sin Claude Desktop)
+- ✅ Sistema **100% autónomo** (sin Claude Code background)
 
-### Ejemplo de uso MCP
+**Ventajas Chatbot vs MCP**:
+- ✅ **Acceso universal**: Móvil, tablet, desktop (MCP solo desktop)
+- ✅ **Independiente**: FastAPI standalone (MCP requiere Claude Desktop)
+- ✅ **Costo predecible**: ~€1.50-3/mes con Haiku (MCP: €0 pero limitado)
+- ✅ **Escalable**: Multi-usuario (MCP: 1 usuario)
 
-```python
-# Claude Code podrá hacer directamente:
-User: "¿Cuál es el precio eléctrico actual?"
-Claude: [usa tool mcp_get_current_price]
-Response: 0.1234 €/kWh (periodo P2 - Llano)
+### Ejemplo de uso Chatbot
 
-User: "¿Qué ventanas óptimas tenemos esta semana?"
-Claude: [usa tool mcp_get_optimal_windows]
-Response: Lun 02-05h (0.06€), Mar 01-06h (0.07€)...
 ```
+📱 Usuario desde móvil (Tailnet):
+User: "¿Cuándo debo producir hoy?"
+Chatbot: "✅ Ventanas óptimas hoy:
+- 02:00-05:00h (0.06€/kWh - Valle P3)
+- 14:00-16:00h (0.09€/kWh - Llano P2)
+Recomiendo madrugada para máximo ahorro."
+
+Time to answer: ~1.5s
+Cost: €0.001
+```
+
+### Optimización de Costos
+
+**Tu arquitectura Clean Architecture ahorra 6-10x tokens**:
+- Context típico: 600 tokens (vs 5,000 proyecto mal diseñado)
+- Ahorro mensual: ~€10/mes gracias a buena estructura
+- Costo real: ~€1.50-3/mes (50-150 preguntas/día)
 
 ---
 
@@ -139,11 +161,12 @@ services:
 
 ## 📝 Notas para Claude Code
 
-### Al iniciar Sprint 11 (MCP)
-1. Leer [`SPRINT_11_MCP_SERVER.md`](./SPRINT_11_MCP_SERVER.md)
-2. Verificar endpoints disponibles: `curl http://localhost:8000/openapi.json`
-3. Instalar dependencias MCP: `pip install mcp anthropic-mcp`
-4. Crear directorio: `mkdir -p mcp-server/`
+### Al iniciar Sprint 11 (Chatbot BI)
+1. Leer [`SPRINT_11_CHATBOT_BI.md`](./SPRINT_11_CHATBOT_BI.md)
+2. Obtener API Key: https://console.anthropic.com/ → "API Keys" → "Create Key"
+3. Añadir `ANTHROPIC_API_KEY` a `.env`
+4. Instalar dependencias: `pip install anthropic fastapi-limiter`
+5. Verificar endpoints disponibles: `curl http://localhost:8000/openapi.json`
 
 ### Al iniciar Sprint 12 (Forgejo)
 1. Leer [`SPRINT_12_FORGEJO_CICD.md`](./SPRINT_12_FORGEJO_CICD.md)
@@ -161,11 +184,11 @@ services:
 **Tailscale**: ✅ Sidecar activo
 **Docker Compose**: ✅ 3 servicios running
 
-**Próximo Sprint**: Sprint 11 - MCP Server
+**Próximo Sprint**: Sprint 11 - Chatbot BI Conversacional
 **Preparación**: Sistema estable, listo para extensión
 
 ---
 
-**Última actualización**: 2025-10-08
+**Última actualización**: 2025-10-10
 **Autor**: Infrastructure Planning Team
-**Versión**: 1.0
+**Versión**: 2.0 (Actualizado con enfoque Chatbot BI)
