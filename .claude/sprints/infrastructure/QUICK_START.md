@@ -10,46 +10,46 @@
 
 Has completado Sprint 10 (ML consolidation). Ahora tienes **3 sprints planeados**:
 
-## 🎯 Sprint 11: MCP Server (PRIMERO - Máxima prioridad)
+## 🎯 Sprint 11: Chatbot BI Conversacional (PRIMERO - Máxima prioridad)
 
 ### ¿Qué es?
-Exponer datos Chocolate Factory como **tools MCP** para que Claude Code pueda consultarlos directamente.
+**Chatbot conversacional** con acceso móvil usando Claude Haiku API para consultas en lenguaje natural sobre producción, precios y clima.
 
 ### ¿Por qué primero?
+- 📱 Acceso móvil universal (Tailnet)
 - ⚡ Valor inmediato máximo
-- 🎯 Solo 2-3 días
-- 🔧 Bajo riesgo (no modifica sistema existente)
-- ✨ Claude Code podrá hacer: "¿Cuándo debo producir?" → respuesta automática con datos reales
+- 🎯 Solo 1.5-2 días
+- 💰 Costo predecible (~€1.50-3/mes)
+- 🚀 100% autónomo (sin Claude Desktop)
+- ✨ "¿Cuándo debo producir?" → respuesta conversacional desde móvil
 
-### 10 Tools MCP
+### Componentes Clave
 ```python
-Realtime (3):
-├─ get_current_price()      # Precio REE actual
-├─ get_current_weather()    # Temperatura, humedad
-└─ get_system_health()      # Estado servicios
+Stack:
+├─ ChatbotContextService    # RAG local (keyword matching)
+├─ ChatbotService            # Claude Haiku API integration
+├─ /chat/ask endpoint        # FastAPI router
+├─ static/chat.html          # UI móvil responsive
+├─ Nginx integration         # Tailscale /chat/* route
+└─ Cost tracking             # InfluxDB metrics
 
-Predictions (3):
-├─ get_weekly_forecast()    # 168h Prophet
-├─ get_optimal_windows()    # Ventanas óptimas 7 días
-└─ get_production_recommendation()
-
-Analysis (2):
-├─ get_siar_analysis()      # Correlaciones históricas
-└─ get_daily_optimization() # Plan 24h
-
-Alerts (2):
-├─ get_predictive_alerts()  # Picos precio, clima extremo
-└─ get_savings_tracking()   # ROI real vs baseline
+Features:
+- Consultas conversacionales naturales
+- Quick questions sugeridas
+- Typing indicator (UX)
+- Rate limiting (protección costos)
+- Monitoring tokens/latency
 ```
 
 ### Empezar YA
 ```bash
 # Leer plan detallado
-cat .claude/sprints/infrastructure/SPRINT_11_MCP_SERVER.md
+cat .claude/sprints/infrastructure/SPRINT_11_CHATBOT_BI.md
 
-# Fase 1: Setup (2-3h)
-mkdir -p mcp-server/tools
-pip install mcp anthropic-mcp httpx
+# Fase 1: Setup (1-2h)
+# 1. Obtener API Key en https://console.anthropic.com/
+# 2. Añadir ANTHROPIC_API_KEY a .env
+pip install anthropic fastapi-limiter
 
 # Ver roadmap visual
 cat .claude/sprints/infrastructure/ROADMAP_VISUAL.md
@@ -81,46 +81,43 @@ cat .claude/sprints/infrastructure/SPRINT_12_FORGEJO_CICD.md
 
 ---
 
-## 📊 Sprint 13: Tailscale Analytics (TERCERO - Monitoring)
+## 📊 Sprint 13: Tailscale Observability Híbrido (TERCERO - Monitoring)
 
-### ¿Qué es? ✨ (ACTUALIZADO)
-Analytics usuarios + métricas usando **Tailscale MCP** (más ligero que Prometheus)
+### ¿Qué es? ✨ (ENFOQUE HÍBRIDO)
+**Fase 1 (Práctico)**: Observabilidad nativa 24/7 con CLI + nginx logs
+**Fase 2 (Educacional)**: Aprender Tailscale MCP (opcional)
 
-### ¿Por qué Tailscale MCP?
+### ¿Por qué Enfoque Híbrido?
 ```
-Prometheus + Grafana:
-- Setup: 6-8 horas
-- RAM: +500MB
-- User analytics: ❌ No
-- Claude integration: ❌ No
+Fase 1 - Sistema Nativo:
+- Setup: 4 horas ✅
+- RAM: +5MB ✅
+- Autonomía: 24/7 ✅
+- Dashboard: Widget analytics ✅
 
-Tailscale MCP:
-- Setup: 3-4 horas ✅
-- RAM: +50MB ✅
-- User analytics: ✅ Nativo (quién, cuándo, qué)
-- Claude integration: ✅ Tools MCP
+Fase 2 - MCP Learning:
+- Conocimiento: MCP ecosistema ✅
+- Comparativa: MCP vs CLI ✅
+- Decisión informada: Basada en datos ✅
 ```
 
-### Qué obtienes
-- 📊 Saber quién usa el dashboard
-- 📈 Features más populares
-- ⚡ Endpoints lentos detectados
-- 👥 Analytics usuarios Tailnet
-- 🔧 Todo integrado con Claude Code
+### Qué obtienes (Fase 1)
+- 📊 Saber quién usa el dashboard (24/7)
+- 📈 Features más populares (históricos InfluxDB)
+- ⚡ Métricas performance (latencias)
+- 👥 Analytics usuarios via nginx logs
+- 🔧 APScheduler automático cada 15 min
 
-### Casos de uso
-```
-User: "¿Quién está usando el dashboard?"
-Claude: [usa tool get_active_users]
-Response: "2 usuarios activos:
-- user@example.com (macbook) → /dashboard
-- user2@example.com (iphone) → /insights"
-```
+### Qué aprendes (Fase 2 - Opcional)
+- 🎓 Usar MCP externo (@tailscale/mcp-server)
+- 📊 Comparar MCP vs CLI (performance, autonomía)
+- 📝 Documentar trade-offs
+- ✅ Decidir mejor solución
 
 ### Empezar después Sprint 12
 ```bash
-# Leer plan detallado
-cat .claude/sprints/infrastructure/SPRINT_13_TAILSCALE_MONITORING.md
+# Leer plan detallado híbrido
+cat .claude/sprints/infrastructure/SPRINT_13_TAILSCALE_OBSERVABILITY.md
 ```
 
 ---
@@ -128,15 +125,15 @@ cat .claude/sprints/infrastructure/SPRINT_13_TAILSCALE_MONITORING.md
 ## 🗺️ Roadmap Completo (3 semanas)
 
 ```
-Semana 1 (Oct 8-10)      Semana 2 (Oct 11-18)     Semana 3 (Oct 19-22)
+Semana 1 (Oct 10-12)     Semana 2 (Oct 13-20)     Semana 3 (Oct 21-24)
 ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
 │  Sprint 11  │─────────▶│  Sprint 12  │─────────▶│  Sprint 13  │
-│ MCP Server  │          │   Forgejo   │          │  Tailscale  │
-│             │          │    CI/CD    │          │  Analytics  │
-│  10 tools   │          │ Git + Tests │          │3 endpoints  │
-│   FastAPI   │          │  Registry   │          │  + 3 tools  │
+│  Chatbot BI │          │   Forgejo   │          │  Tailscale  │
+│             │          │    CI/CD    │          │  Monitoring │
+│ Haiku API   │          │ Git + Tests │          │  Híbrido    │
+│ Mobile UI   │          │  Registry   │          │Native + MCP │
 │             │          │             │          │             │
-│    2-3d     │          │   1 semana  │          │    3-4d     │
+│   1.5-2d    │          │   1 semana  │          │    2-3d     │
 └─────────────┘          └─────────────┘          └─────────────┘
 ```
 
@@ -146,10 +143,11 @@ Semana 1 (Oct 8-10)      Semana 2 (Oct 11-18)     Semana 3 (Oct 19-22)
 
 ### Si tienes 1 semana disponible AHORA:
 ```
-✅ Hacer SOLO Sprint 11 (MCP Server)
-→ Máximo valor inmediato
-→ 2-3 días
+✅ Hacer SOLO Sprint 11 (Chatbot BI)
+→ Máximo valor inmediato (acceso móvil)
+→ 1.5-2 días
 → Bajo riesgo
+→ Costo ~€2/mes
 ```
 
 ### Si tienes 3 semanas completas:
@@ -174,9 +172,9 @@ Semana 1 (Oct 8-10)      Semana 2 (Oct 11-18)     Semana 3 (Oct 19-22)
 ```
 .claude/sprints/infrastructure/
 ├── README.md                          # Índice completo sprints
-├── SPRINT_11_MCP_SERVER.md            # Plan detallado MCP (10 tools)
+├── SPRINT_11_CHATBOT_BI.md            # Plan detallado Chatbot BI (Haiku API)
 ├── SPRINT_12_FORGEJO_CICD.md          # Plan detallado Forgejo + CI/CD
-├── SPRINT_13_TAILSCALE_MONITORING.md  # Plan detallado Tailscale Analytics ✨
+├── SPRINT_13_TAILSCALE_OBSERVABILITY.md # Plan híbrido Observabilidad (Nativo + MCP)
 ├── ROADMAP_VISUAL.md                  # Timeline + gráficos comparativa
 └── QUICK_START.md                     # Este archivo (resumen ejecutivo)
 ```
@@ -189,7 +187,7 @@ Semana 1 (Oct 8-10)      Semana 2 (Oct 11-18)     Semana 3 (Oct 19-22)
 - [x] Sistema funcional (http://localhost:8000/health = healthy)
 - [x] 30 endpoints API operacionales
 - [x] Tailscale sidecar activo (opcional pero recomendado)
-- [ ] Leer `SPRINT_11_MCP_SERVER.md` completo
+- [ ] Leer `SPRINT_11_CHATBOT_BI.md` completo
 - [ ] Decidir fecha inicio (recomendado: HOY)
 
 ---
@@ -202,16 +200,17 @@ curl http://localhost:8000/health
 # Expected: {"status": "healthy"}
 
 # 2. Leer plan Sprint 11 completo
-cat .claude/sprints/infrastructure/SPRINT_11_MCP_SERVER.md | less
+cat .claude/sprints/infrastructure/SPRINT_11_CHATBOT_BI.md | less
 
-# 3. Crear estructura MCP
-mkdir -p mcp-server/{tools,client,schemas}
+# 3. Obtener API Key Anthropic
+# → https://console.anthropic.com/ → "API Keys" → "Create Key"
+# → Añadir ANTHROPIC_API_KEY=sk-ant-... a .env
 
 # 4. Instalar dependencias
-pip install mcp anthropic-mcp httpx pytest
+pip install anthropic fastapi-limiter
 
 # 5. Iniciar Fase 1 (Setup básico)
-# → Ver SPRINT_11_MCP_SERVER.md línea 186-191
+# → Ver SPRINT_11_CHATBOT_BI.md línea 369-385
 ```
 
 ---
