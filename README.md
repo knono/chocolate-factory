@@ -19,6 +19,7 @@ Industrial-grade system for energy cost optimization and production planning. In
 
 - **Energy Price Forecasting**: Prophet ML model for 168-hour electricity price prediction (MAE: 0.033 €/kWh)
 - **Production Optimization**: Hourly production planning based on energy costs and weather conditions
+- **Conversational BI**: Claude Haiku chatbot with natural language queries (10-13s latency, €1.74-5.21/month)
 - **Historical Analysis**: 131,513+ records (88,935 SIAR + 42,578 REE) for robust ML training
 - **Autonomous Operation**: Self-healing data pipeline with automatic gap detection and recovery
 - **Real-time Dashboard**: Interactive weekly heatmap with production recommendations
@@ -27,14 +28,19 @@ Industrial-grade system for energy cost optimization and production planning. In
 
 <table>
   <tr>
-    <!-- 1 celda que ocupa las 2 columnas originales -->
-    <td colspan="2" style="text-align:center;">
-      <!-- GIF -->
+    <!-- Dashboard Principal -->
+    <td style="text-align:center; width:50%;">
       <img src="docs/images/demo.gif"
-           alt="Demo de la aplicación"
+           alt="Dashboard Principal - ML Predictions & Insights"
            style="max-width:100%; height:auto; border:1px solid #eaeaea;" />
-      <!-- Pie de foto (opcional) -->
-      <p><em>Demo de la aplicación </em></p>
+      <p><em>Dashboard Principal - ML Predictions & Insights</em></p>
+    </td>
+    <!-- Chatbot BI -->
+    <td style="text-align:center; width:50%;">
+      <img src="docs/images/chat_Bot.gif"
+           alt="Chatbot BI Conversacional - Claude Haiku"
+           style="max-width:100%; height:auto; border:1px solid #eaeaea;" />
+      <p><em>Chatbot BI Conversacional - Claude Haiku (Sprint 11)</em></p>
     </td>
   </tr>
 </table>
@@ -155,6 +161,7 @@ The system implements a **hybrid architecture** combining complete on-premise da
 | **Backend** | FastAPI (Python 3.11+) | REST API + Dashboard |
 | **Database** | InfluxDB 2.7 | Time series storage |
 | **ML Framework** | scikit-learn, Prophet | Unified ML service (131k+ records) |
+| **Chatbot** | Claude Haiku 3.5 | Conversational BI (RAG local) |
 | **Scheduling** | APScheduler | Automated data ingestion |
 | **Containerization** | Docker Compose | Orchestration |
 | **Reverse Proxy** | Nginx (Alpine) | Endpoint filtering |
@@ -192,9 +199,9 @@ The system implements a **hybrid architecture** combining complete on-premise da
 
 ## Machine Learning System
 
-### Current Status: ✅ ML Evolution Complete (Sprint 06-10)
+### Current Status: ✅ ML Evolution Complete + Infrastructure Sprint 11
 
-**Sprint Progress**: 10/10 ML Evolution (100% Complete)
+**Sprint Progress**: ML Evolution (06-10) + Infrastructure (11) Complete
 
 | Sprint | Status | Achievement |
 |--------|--------|-------------|
@@ -203,8 +210,9 @@ The system implements a **hybrid architecture** combining complete on-premise da
 | **08** | ✅ | Hourly Optimization (228k€/year ROI) |
 | **09** | ✅ | Unified Predictive Dashboard (1.6k€/year insights) |
 | **10** | ✅ | ML Consolidation & Cleanup (-48% code, 0 synthetic) |
+| **11** | ✅ | Chatbot BI Conversacional (Claude Haiku, 10-13s latency) |
 
-**Latest Achievement**: Unified ML service consolidating 3 legacy services into single production-grade implementation. Code reduction of 48% (1,639→850 lines), elimination of synthetic data generation, comprehensive test suite, and complete documentation. System now uses 131k+ real historical records for training.
+**Latest Achievement (Sprint 11)**: Conversational BI chatbot integrated with Claude Haiku 3.5 API. RAG local implementation with keyword matching (7 categories), optimized latency 10-13s (50% reduction via asyncio.gather), context optimization 600-1200 tokens/query (6x efficiency), cost €1.74-5.21/month. Widget integrated in dashboard with quick questions, rate limiting 20 requests/minute, 100% test coverage (5/5 passing).
 
 **Full roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
 **Architecture**: [`docs/ML_ARCHITECTURE.md`](docs/ML_ARCHITECTURE.md)
@@ -229,6 +237,7 @@ The system implements a **hybrid architecture** combining complete on-premise da
   - REE: Public access (no key required)
   - AEMET: https://opendata.aemet.es/centrodedescargas/obtencionAPIKey
   - OpenWeatherMap: https://openweathermap.org/api
+  - Anthropic (optional, for Chatbot BI): https://console.anthropic.com/ ($5 free credits)
 
 ### Project Structure
 
@@ -249,14 +258,16 @@ chocolate-factory/
 │   │   └── dashboard.css      # Styles (826 lines)
 │   └── js/
 │       └── dashboard.js       # Logic + API calls (890 lines)
-├── docker/                    # Container infrastructure
-│   ├── docker-compose.yml     # Main orchestration (2 containers)
-│   ├── docker-compose.override.yml  # Tailscale sidecar
+├── docker-compose.yml         # Main orchestration (2 containers)
+├── docker-compose.override.yml # Tailscale sidecar (optional)
+├── docker/                    # Container configuration
+│   ├── fastapi.Dockerfile     # FastAPI image build
+│   ├── tailscale-sidecar.Dockerfile # Tailscale sidecar image
 │   ├── sidecar-nginx.conf     # Nginx reverse proxy config
 │   ├── tailscale-start.sh     # Sidecar startup script
 │   └── services/              # Persistent data
 │       ├── influxdb/data/     # Time series database
-│       └── fastapi/models/    # ML model storage (pickle)
+│       └── fastapi/           # Application data
 ├── .claude/                   # Project documentation
 │   ├── sprints/ml-evolution/  # Sprint 06-10 roadmap
 │   ├── architecture.md        # System architecture
@@ -366,6 +377,9 @@ https://<your-tailscale-hostname>.ts.net/dashboard  # Dashboard only
 ✓ /dashboard/heatmap      # Heatmap data API
 ✓ /insights/*             # Predictive insights (Sprint 09)
 ✓ /optimize/*             # Production optimization (Sprint 08)
+✓ /chat/ask               # Chatbot BI queries (Sprint 11)
+✓ /chat/stats             # Chatbot usage statistics
+✓ /chat/health            # Chatbot health check
 
 # Blocked remotely (403 Forbidden)
 ✗ /docs                   # API documentation
