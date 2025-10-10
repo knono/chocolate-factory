@@ -257,8 +257,8 @@ location /chat {
 ```
 
 **Acceso remoto**:
-- Dashboard: `https://factory.tailnet.ts.net/`
-- Chatbot: `https://factory.tailnet.ts.net/chat`
+- Dashboard: `https://tu-tailnet.ts.net/`
+- Chatbot: `https://tu-tailnet.ts.net/chat`
 
 ---
 
@@ -451,7 +451,7 @@ src/fastapi-app/
   docker compose build chocolate-factory
   docker compose up -d chocolate-factory
   ```
-- [ ] Test acceso remoto: `https://factory.tailnet.ts.net/chat`
+- [ ] Test acceso remoto: `https://tu-tailnet.ts.net/chat`
 
 ### Fase 7: Monitoring & Docs (1-2 horas)
 
@@ -502,7 +502,7 @@ src/fastapi-app/
 5. **Test Tailscale Remoto**:
    - [ ] Abrir smartphone
    - [ ] Conectar a Tailnet
-   - [ ] Ir a `https://factory.tailnet.ts.net/chat`
+   - [ ] Ir a `https://tu-tailnet.ts.net/chat`
    - [ ] Hacer pregunta desde móvil
    - [ ] Verificar respuesta correcta
 
@@ -816,7 +816,7 @@ Cost: €0.001
 
 ### Testing
 - [ ] Test local: `http://localhost:8000/static/chat.html`
-- [ ] Test Tailnet: `https://factory.tailnet.ts.net/chat`
+- [ ] Test Tailnet: `https://tu-tailnet.ts.net/chat`
 - [ ] Test móvil: iPhone/Android real
 - [ ] Test costos: Verificar < €0.002/pregunta
 

@@ -127,7 +127,7 @@ http://localhost:8000/dashboard
 
 ### Tailscale Remote Access
 ```bash
-https://chocolate-factory.azules-elver.ts.net/dashboard
+https://tu-tailnet.ts.net/dashboard
 ```
 
 Both endpoints now show:
