@@ -8,6 +8,7 @@ from .optimization import router as optimization_router
 from .analysis import router as analysis_router
 from .gaps import router as gaps_router
 from .insights import router as insights_router
+from .chatbot import router as chatbot_router  # Sprint 11
 
 __all__ = [
     "health_router",
@@ -18,4 +19,5 @@ __all__ = [
     "analysis_router",
     "gaps_router",
     "insights_router",
+    "chatbot_router",  # Sprint 11
 ]

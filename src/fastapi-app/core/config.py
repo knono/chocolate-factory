@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     REE_API_TOKEN: Optional[str] = None  # REE API doesn't require auth
     AEMET_API_KEY: str
     OPENWEATHERMAP_API_KEY: str
+    ANTHROPIC_API_KEY: str  # Sprint 11: Chatbot BI with Claude Haiku
 
     # API endpoints (with fallback defaults)
     REE_API_BASE_URL: str = "https://apidatos.ree.es/es/datos"
@@ -168,6 +169,14 @@ class Settings(BaseSettings):
     }
 
     # =================================================================
+    # CHATBOT SETTINGS (Sprint 11)
+    # =================================================================
+    CHATBOT_MODEL: str = "claude-3-5-haiku-20241022"
+    CHATBOT_MAX_TOKENS: int = 300  # Respuestas concisas
+    CHATBOT_RATE_LIMIT: str = "20/minute"  # Max requests per minute
+    CHATBOT_CONTEXT_MAX_TOKENS: int = 2000  # Max tokens for context
+
+    # =================================================================
     # FEATURE FLAGS (Sprint control)
     # =================================================================
     SPRINT03_ENABLED: bool = False  # Service Layer
@@ -175,6 +184,7 @@ class Settings(BaseSettings):
     SPRINT06_ENABLED: bool = True   # Prophet forecasting
     SPRINT07_ENABLED: bool = True   # SIAR historical analysis
     SPRINT08_ENABLED: bool = True   # Hourly production optimization
+    SPRINT11_ENABLED: bool = True   # Chatbot BI conversacional
 
     # =================================================================
     # VALIDATION

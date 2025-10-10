@@ -44,7 +44,8 @@ src/fastapi-app/
 │   │   ├── optimization.py    # Production optimization (Sprint 08)
 │   │   ├── analysis.py        # SIAR historical analysis (Sprint 07)
 │   │   ├── gaps.py            # Gap detection & backfill
-│   │   └── insights.py        # Predictive insights (Sprint 09) ✅
+│   │   ├── insights.py        # Predictive insights (Sprint 09) ✅
+│   │   └── chatbot.py         # Chatbot BI conversacional (Sprint 11) ✅
 │   └── schemas/
 │       ├── common.py          # Shared Pydantic models
 │       └── ree.py             # REE-specific schemas
@@ -62,7 +63,9 @@ src/fastapi-app/
 │   ├── dashboard.py           # Dashboard data consolidation
 │   ├── siar_analysis_service.py  # SIAR historical analysis (Sprint 07)
 │   ├── hourly_optimizer_service.py  # Production optimization (Sprint 08)
-│   └── predictive_insights_service.py  # Predictive insights (Sprint 09) ✅
+│   ├── predictive_insights_service.py  # Predictive insights (Sprint 09) ✅
+│   ├── chatbot_service.py        # Claude Haiku API integration (Sprint 11) ✅
+│   └── chatbot_context_service.py  # RAG local con keyword matching (Sprint 11) ✅
 │
 ├── infrastructure/             # 🔷 Infrastructure Layer (External systems)
 │   ├── influxdb/
@@ -143,9 +146,21 @@ src/fastapi-app/
   - Tailnet integration: nginx sidecar bind mount template + envsubst processing
   - UX fix: fuente compacta 0.85rem + colores oscuros legibles sobre fondo blanco
   - Flujo temporal: presente → 24h → semana → mes
+- ✅ **Sprint 11**: Chatbot BI Conversacional - Claude Haiku API (Oct 10, 2025)
+  - Chatbot con Claude Haiku 3.5 integrado en dashboard
+  - RAG local sin vector DB: keyword matching 7 categorías
+  - Optimización latencia: asyncio.gather() (80% reducción HTTP calls)
+  - Context optimizado: 600-1200 tokens/pregunta (6x vs mal diseñado)
+  - Costo: €1.74-5.21/mes (uso normal/intensivo)
+  - 3 endpoints `/chat/*`: ask, stats, health
+  - Widget conversacional con quick questions
+  - Tests: 100% passing (5/5 preguntas)
+  - Métricas: 10-13s latencia, $0.0012/pregunta
+  - Rate limiting: 20 requests/minuto con slowapi
 
-### ML Evolution Sprints (Remaining)
+### Infrastructure Sprints (Remaining)
 - 🔴 **Sprint 10**: ML Consolidation & Cleanup
+- 🔴 **Sprint 12**: Forgejo CI/CD
 
 ### Core Infrastructure (2-Container Architecture)
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
@@ -293,6 +308,22 @@ src/fastapi-app/
 - `POST /gaps/backfill/range` - Date range specific backfill with data_source filter
 
 **Migration Note (Oct 7, 2025)**: Endpoints migrated to Clean Architecture router. Hooks updated to use query parameters instead of JSON body. See `docs/GAPS_ROUTER_MIGRATION.md`.
+
+### Chatbot BI Conversacional (Sprint 11 - chatbot_router) ✅
+- `POST /chat/ask` - Chatbot conversational endpoint
+  - **Input**: `{"question": str}` (max 500 chars)
+  - **Output**: `{"answer": str, "tokens": dict, "latency_ms": int, "cost_usd": float}`
+  - **Rate limiting**: 20 requests/minute
+  - **Features**: RAG local con keyword matching, context 600-1200 tokens
+- `GET /chat/stats` - Usage statistics (total questions, tokens, cost)
+- `GET /chat/health` - Chatbot service health check
+
+**Example usage**:
+```bash
+curl -X POST http://localhost:8000/chat/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "¿Cuándo debo producir hoy?"}'
+```
 
 ### System Monitoring
 - `GET /dashboard` - Visual dashboard with interactive heatmap

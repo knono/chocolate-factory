@@ -415,7 +415,61 @@ async def test_prediction_performance():
 
 ---
 
-**Estado**: 🟡 PENDIENTE
-**Próximo paso**: Decidir Prophet vs LSTM e implementar `PriceForecastingService`
+**Estado**: ⚠️ **PARCIALMENTE COMPLETADO**
+**Próximo paso**: Implementar endpoints faltantes o actualizar documentación
 
-**Última actualización**: 2025-10-03
+**Última actualización**: 2025-10-10
+
+---
+
+## ⚠️ CORRECCIÓN POST-SPRINT (Oct 10, 2025)
+
+### Endpoints Documentados vs Realidad
+
+**DOCUMENTADO** (líneas 54-58):
+```
+- GET /predict/prices/weekly
+- GET /predict/prices/hourly?hours=24
+- GET /models/price-forecast/status
+- POST /models/price-forecast/train
+```
+
+**REALIDAD** (verificado con `/openapi.json`):
+```
+❌ NO EXISTEN - Estos endpoints nunca se implementaron
+```
+
+### Estado Actual del Sprint 06
+
+**✅ LO QUE SÍ SE IMPLEMENTÓ:**
+- Servicio Prophet operacional (`price_forecasting_service.py`)
+- Modelo entrenado con MAE 0.033 €/kWh
+- APScheduler job para actualizaciones horarias
+- Almacenamiento en InfluxDB
+
+**❌ LO QUE NO SE IMPLEMENTÓ:**
+- Endpoints API REST para predicciones
+- No hay forma de consultar predicciones via HTTP
+- Dashboard NO muestra predicciones Prophet (usa datos históricos)
+
+### Endpoints Disponibles Relacionados
+
+Los únicos endpoints de precios son:
+- `GET /ree/prices` - Precios históricos (requiere start_date)
+- `GET /ree/prices/latest` - Último precio registrado
+- `GET /ree/prices/stats` - Estadísticas REE
+
+### Solución para Sprint 11 Chatbot
+
+El chatbot usa los endpoints **reales disponibles**:
+- `/ree/prices/latest` - Precio actual
+- `/ree/prices/stats` - Estadísticas históricas
+- `/insights/optimal-windows` - Ventanas calculadas (Sprint 09)
+
+### Recomendación
+
+**Opción A**: Implementar los endpoints faltantes del Sprint 06
+**Opción B**: Actualizar documentación para reflejar la realidad
+**Opción C**: Considerar Sprint 06 "parcialmente completado" y documentar como conocimiento
+
+**Decisión tomada**: Opción C + usar endpoints existentes (Sprint 09) que SÍ funcionan.
