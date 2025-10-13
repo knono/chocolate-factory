@@ -108,12 +108,14 @@ services:
       - backend
     environment:
       - GITEA_INSTANCE_URL=http://forgejo:3000
-      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN_DEV}
+      - GITEA_RUNNER_REGISTRATION_TOKEN_FILE=/run/secrets/runner_token_dev
       - GITEA_RUNNER_NAME=chocolate-dev-runner
       - GITEA_RUNNER_LABELS=dev,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
     volumes:
       - gitea_runner_dev_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - runner_token_dev
     restart: unless-stopped
     depends_on:
       - forgejo
@@ -128,12 +130,14 @@ services:
       - backend
     environment:
       - GITEA_INSTANCE_URL=http://forgejo:3000
-      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN_PROD}
+      - GITEA_RUNNER_REGISTRATION_TOKEN_FILE=/run/secrets/runner_token_prod
       - GITEA_RUNNER_NAME=chocolate-prod-runner
       - GITEA_RUNNER_LABELS=prod,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
     volumes:
       - gitea_runner_prod_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - runner_token_prod
     restart: unless-stopped
     depends_on:
       - forgejo
@@ -226,6 +230,30 @@ volumes:
   # Docker Registry data
   registry_data:
     driver: local
+
+# =============================================================================
+# DOCKER SECRETS
+# =============================================================================
+secrets:
+  # Gitea Actions Runners
+  runner_token_dev:
+    file: ./docker/secrets/runner_token_dev.txt
+  runner_token_prod:
+    file: ./docker/secrets/runner_token_prod.txt
+
+  # Docker Registry
+  registry_user:
+    file: ./docker/secrets/registry_user.txt
+  registry_password:
+    file: ./docker/secrets/registry_password.txt
+
+  # Tailscale Auth Keys
+  tailscale_authkey:
+    file: ./docker/secrets/tailscale_authkey.txt
+  tailscale_authkey_dev:
+    file: ./docker/secrets/tailscale_authkey_dev.txt
+  tailscale_authkey_git:
+    file: ./docker/secrets/tailscale_authkey_git.txt
 
 # =============================================================================
 # RED OPTIMIZADA PARA TAILSCALE
