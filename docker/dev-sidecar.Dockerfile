@@ -1,12 +1,12 @@
 # =============================================================================
-# DOCKERFILE - GIT TAILSCALE SIDECAR WITH NGINX
+# DOCKERFILE - DEV TAILSCALE SIDECAR WITH NGINX
 # =============================================================================
-# Sidecar que combina Tailscale + nginx para exponer Forgejo en la Tailnet
+# Sidecar que combina Tailscale + nginx para exponer dev environment
 # =============================================================================
 
 FROM alpine:3.19
 
-# Instalar Tailscale + nginx
+# Instalar Tailscale + nginx + gettext (envsubst)
 RUN apk add --no-cache \
     ca-certificates \
     iptables \
@@ -24,11 +24,11 @@ RUN wget https://pkgs.tailscale.com/stable/tailscale_1.56.1_amd64.tgz -O /tmp/ta
     && mv /tmp/tailscale_1.56.1_amd64/tailscaled /usr/local/bin/ \
     && rm -rf /tmp/tailscale*
 
-# Script de inicio (patrón igual a producción)
-COPY docker/git-start.sh /usr/local/bin/git-start.sh
-RUN chmod +x /usr/local/bin/git-start.sh
+# Script de inicio
+COPY docker/dev-start.sh /usr/local/bin/dev-start.sh
+RUN chmod +x /usr/local/bin/dev-start.sh
 
 # Exponer puertos HTTP y HTTPS
 EXPOSE 80 443
 
-CMD ["/usr/local/bin/git-start.sh"]
+CMD ["/usr/local/bin/dev-start.sh"]

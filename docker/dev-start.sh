@@ -1,14 +1,14 @@
 #!/bin/sh
 # =============================================================================
-# GIT NODE - TAILSCALE SIDECAR STARTUP SCRIPT
+# DEV NODE - TAILSCALE SIDECAR STARTUP SCRIPT
 # =============================================================================
-# Inicia Tailscale daemon + nginx con SSL para Forgejo
+# Inicia Tailscale daemon + nginx con SSL para desarrollo
 # =============================================================================
 
 set -e
 
-echo "🔧 Git Node - Tailscale Sidecar Starting..."
-echo "📍 Hostname: ${TAILSCALE_HOSTNAME:-git}"
+echo "🔧 Dev Node - Tailscale Sidecar Starting..."
+echo "📍 Hostname: ${TAILSCALE_HOSTNAME:-chocolate-factory-dev}"
 
 # Función para logging
 log() {
@@ -61,7 +61,7 @@ fi
 log "🔗 Connecting to Tailscale network..."
 tailscale up \
     --authkey="$TAILSCALE_AUTHKEY" \
-    --hostname="${TAILSCALE_HOSTNAME:-git}" \
+    --hostname="${TAILSCALE_HOSTNAME:-chocolate-factory-dev}" \
     --accept-routes \
     --accept-dns
 
@@ -114,8 +114,8 @@ if ! pgrep -f nginx > /dev/null; then
 fi
 
 log "✅ All services started successfully!"
-log "🌐 Forgejo available at: https://${TAILSCALE_DOMAIN}/"
-log "📊 Proxying to: 192.168.100.7:3000"
+log "🌐 Development dashboard available at: https://${TAILSCALE_DOMAIN}/dashboard"
+log "📊 Proxying to: chocolate_factory_dev:8000"
 
 # Mantener el contenedor corriendo y monitorear servicios
 while true; do
@@ -124,7 +124,7 @@ while true; do
         log "❌ ERROR: Tailscale daemon died, restarting..."
         tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
         sleep 3
-        tailscale up --authkey="$TAILSCALE_AUTHKEY" --hostname="${TAILSCALE_HOSTNAME:-git}"
+        tailscale up --authkey="$TAILSCALE_AUTHKEY" --hostname="${TAILSCALE_HOSTNAME:-chocolate-factory-dev}"
     fi
 
     # Verificar que nginx sigue corriendo
