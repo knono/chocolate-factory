@@ -99,6 +99,46 @@ services:
       - git
 
   # ---------------------------------------------------------------------------
+  # GITEA ACTIONS RUNNER - DESARROLLO
+  # ---------------------------------------------------------------------------
+  gitea-runner-dev:
+    image: gitea/act_runner:latest
+    container_name: chocolate_factory_runner_dev
+    networks:
+      - backend
+    environment:
+      - GITEA_INSTANCE_URL=http://forgejo:3000
+      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN_DEV}
+      - GITEA_RUNNER_NAME=chocolate-dev-runner
+      - GITEA_RUNNER_LABELS=dev,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
+    volumes:
+      - gitea_runner_dev_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    depends_on:
+      - forgejo
+
+  # ---------------------------------------------------------------------------
+  # GITEA ACTIONS RUNNER - PRODUCCIÓN
+  # ---------------------------------------------------------------------------
+  gitea-runner-prod:
+    image: gitea/act_runner:latest
+    container_name: chocolate_factory_runner_prod
+    networks:
+      - backend
+    environment:
+      - GITEA_INSTANCE_URL=http://forgejo:3000
+      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN_PROD}
+      - GITEA_RUNNER_NAME=chocolate-prod-runner
+      - GITEA_RUNNER_LABELS=prod,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
+    volumes:
+      - gitea_runner_prod_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    depends_on:
+      - forgejo
+
+  # ---------------------------------------------------------------------------
   # NODO TAILSCALE - DESARROLLO
   # ---------------------------------------------------------------------------
   chocolate-factory-dev:
@@ -151,6 +191,11 @@ volumes:
     driver: local
   # Forgejo data
   forgejo_data:
+    driver: local
+  # Gitea Actions Runners data
+  gitea_runner_dev_data:
+    driver: local
+  gitea_runner_prod_data:
     driver: local
 
 # =============================================================================
