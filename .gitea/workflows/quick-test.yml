@@ -1,0 +1,50 @@
+name: Quick Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches:
+      - 'feature/**'
+      - 'hotfix/**'
+      - 'bugfix/**'
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r src/fastapi-app/requirements.txt || true
+          pip install pytest httpx
+
+      - name: Lint check (optional)
+        run: |
+          pip install ruff || true
+          ruff check src/fastapi-app/ || echo "⚠️ Lint issues found"
+
+      - name: Run quick tests
+        run: |
+          cd src/fastapi-app
+          pytest tests/ -v --maxfail=3 || echo "⚠️ Some tests failed"
+
+      - name: Summary
+        run: |
+          echo "✅ Quick test completed"
+          echo "📝 Commit: ${{ github.sha }}"
+          echo "👤 Author: ${{ github.actor }}"

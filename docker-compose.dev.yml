@@ -1,69 +1,126 @@
 # =============================================================================
 # CHOCOLATE FACTORY - DEVELOPMENT ENVIRONMENT
 # =============================================================================
-# Override para desarrollo con hot reload y bind mounts del código fuente
-# Uso: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# Entorno de desarrollo completo e independiente
+# Desplegado en nodo Tailscale: chocolate-factory-dev.azules-elver.ts.net
+# Uso: docker compose -f docker-compose.dev.yml up -d
 # =============================================================================
 
 services:
   # ---------------------------------------------------------------------------
-  # FASTAPI - DESARROLLO CON HOT RELOAD
+  # FASTAPI APP - DESARROLLO
   # ---------------------------------------------------------------------------
-  fastapi-app:
-    # En desarrollo, usar bind mount del código fuente para hot reload
-    volumes:
-      - ./src/fastapi-app:/app/src  # Código fuente para hot reload
-      - ./data:/app/data
-      - ./src/configs:/app/configs
-      - ./docker/services/fastapi/logs:/app/logs
-      - ./models:/app/models
-      # Excluir __pycache__ y .pyc para evitar conflictos
-      - /app/src/__pycache__
+  fastapi-app-dev:
+    image: localhost:5000/chocolate-factory:develop
+    container_name: chocolate_factory_dev
+    ports:
+      - "8001:8000"  # Puerto diferente para evitar conflictos
     environment:
-      # Habilitar hot reload en desarrollo
       - ENVIRONMENT=development
-      - PYTHONPATH=/app/src
+      - APP_NAME=chocolate-factory-dev
       - LOG_LEVEL=DEBUG
+      - TZ=Europe/Madrid
+      - PYTHONPATH=/app
       # APIs Externas
-      - REE_API_TOKEN=${REE_API_TOKEN}
-      - AEMET_API_KEY=${AEMET_API_KEY}
-      - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
-      # Conexiones internas Docker
-      - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
-      - INFLUXDB_ORG=${INFLUXDB_ORG}
-      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
-      # Desarrollo: Auto-reload
-      - UVICORN_RELOAD=true
-    command: >
-      uvicorn main:app 
-      --host 0.0.0.0 
-      --port 8000 
-      --reload
-      --reload-dir /app/src
-      --log-level debug
-    # Mantener puertos para desarrollo local
-    ports:
-      - "${FASTAPI_PORT:-8000}:8000"
+      - REE_API_TOKEN_FILE=/run/secrets/ree_api_token
+      - AEMET_API_KEY_FILE=/run/secrets/aemet_api_key
+      - OPENWEATHERMAP_API_KEY_FILE=/run/secrets/openweathermap_api_key
+      - ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic_api_key
+      # InfluxDB
+      - INFLUXDB_URL=http://influxdb-dev:8086
+      - INFLUXDB_TOKEN_FILE=/run/secrets/influxdb_token
+      - INFLUXDB_ORG=chocolate-factory-dev
+      - INFLUXDB_BUCKET=energy_data_dev
+    volumes:
+      # Código fuente para hot reload
+      - ./src/fastapi-app:/app/src
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./static:/app/static
+      - ./.claude:/app/.claude
+      - ./logs/dev:/app/logs
+    secrets:
+      - ree_api_token
+      - aemet_api_key
+      - openweathermap_api_key
+      - anthropic_api_key
+      - influxdb_token
+    depends_on:
+      - influxdb-dev
+    networks:
+      - dev-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # ---------------------------------------------------------------------------  
-  # INFLUXDB - Sin cambios en desarrollo
   # ---------------------------------------------------------------------------
-  influxdb:
+  # INFLUXDB - DESARROLLO
+  # ---------------------------------------------------------------------------
+  influxdb-dev:
+    image: influxdb:2.7
+    container_name: influxdb_dev
     ports:
-      - "${INFLUXDB_PORT:-8086}:8086"
+      - "8087:8086"  # Puerto diferente
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD_FILE=/run/secrets/influxdb_admin_password
+      - DOCKER_INFLUXDB_INIT_ORG=chocolate-factory-dev
+      - DOCKER_INFLUXDB_INIT_BUCKET=energy_data_dev
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN_FILE=/run/secrets/influxdb_token
+    volumes:
+      - influxdb_dev_data:/var/lib/influxdb2
+      - influxdb_dev_config:/etc/influxdb2
+    secrets:
+      - influxdb_token
+      - influxdb_admin_password
+    networks:
+      - dev-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 # =============================================================================
-# NOTAS DE USO - DESARROLLO
+# DOCKER SECRETS
 # =============================================================================
-# 1. Ejecutar en desarrollo:
-#    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-#
-# 2. Cambios en /src/fastapi-app/ se reflejan automáticamente
-#
-# 3. Para volver a producción:
-#    docker-compose -f docker-compose.yml up -d
-#
-# 4. Logs de desarrollo:
-#    docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f fastapi-app
+secrets:
+  ree_api_token:
+    file: ./docker/secrets/ree_api_token.txt
+  aemet_api_key:
+    file: ./docker/secrets/aemet_api_key.txt
+  openweathermap_api_key:
+    file: ./docker/secrets/openweathermap_api_key.txt
+  anthropic_api_key:
+    file: ./docker/secrets/anthropic_api_key.txt
+  influxdb_token:
+    file: ./docker/secrets/influxdb_token.txt
+  influxdb_admin_password:
+    file: ./docker/secrets/influxdb_admin_password.txt
+
 # =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  influxdb_dev_data:
+    driver: local
+  influxdb_dev_config:
+    driver: local
+
+# =============================================================================
+# NETWORK
+# =============================================================================
+networks:
+  dev-backend:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1280"
+    ipam:
+      driver: default
+      config:
+        - subnet: "192.168.101.0/24"
