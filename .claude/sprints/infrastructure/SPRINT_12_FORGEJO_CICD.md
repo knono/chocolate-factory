@@ -439,9 +439,10 @@ echo "Configuración completada. Ahora 'git push origin' enviará a ambos servid
 
 ---
 
-### 9. Docker Secrets - Gestión Segura de Credenciales (Fase 4.5)
+### 9. Docker Secrets - Sistema Híbrido con Fallback (Fase 4.5) ⚠️
 
 **Archivo**: `docker/secrets/create_secrets.sh`
+**Estado**: ⚠️ Implementado con fallback a variables de entorno (no nativos)
 
 #### ❌ ANTES: Variables de Entorno Inseguras
 ```yaml
@@ -451,7 +452,7 @@ environment:
   - AEMET_API_KEY=xxxxxxxx           # ❌ Visible en logs
 ```
 
-#### ✅ AHORA: Docker Secrets
+#### ⚠️ AHORA: Intento de Docker Secrets (con fallback)
 ```yaml
 services:
   fastapi-app-dev:
@@ -872,6 +873,50 @@ curl https://${TAILSCALE_DOMAIN}/health
 - [ ] Investigar y solucionar errores de Actions workflow
 - [x] Test completo de extremo a extremo
 
+### Fase 9: SOPS para Gestión de Secrets (PENDIENTE - Con Gitea Actions)
+
+**Estado**: 🔴 NO INICIADO - Planificado para cuando se prueben Gitea Actions
+
+**Objetivo**: Resolver el problema actual con Docker Secrets (permisos UID/GID) usando **Mozilla SOPS** (Secrets OPerationS).
+
+**Por qué SOPS**:
+- ✅ Git-friendly: Secrets encriptados commiteables
+- ✅ CI/CD nativo: Desencriptación automática en pipeline
+- ✅ Auditoría: Git history muestra quién cambió qué
+- ✅ Sin runtime overhead: Desencripta a `.env` en tiempo de despliegue
+- ✅ Rotación simple: `sops rotate` para cambiar claves
+
+**Plan de implementación**:
+```yaml
+# .gitea/workflows/ci-cd-dual.yml
+jobs:
+  deploy-dev:
+    steps:
+      - name: Decrypt secrets with SOPS
+        run: |
+          echo "${{ secrets.SOPS_AGE_KEY }}" > /tmp/key.txt
+          sops --decrypt --age-key-file /tmp/key.txt docker/secrets.enc.yaml > .env
+          rm /tmp/key.txt
+      - name: Deploy with decrypted secrets
+        run: docker compose -f docker-compose.dev.yml up -d
+```
+
+**Ventajas vs Docker Secrets actuales**:
+- ❌ Docker Secrets: No funcionan en Compose (permisos)
+- ✅ SOPS: Funciona perfectamente en CI/CD
+- ✅ SOPS: Secrets versionados de forma segura en Git
+- ✅ SOPS: Una sola clave GPG/age en Forgejo (vs 13 secrets individuales)
+
+**Tareas pendientes**:
+- [ ] Instalar SOPS en runners (`apk add sops age` o `apt install sops age`)
+- [ ] Generar clave age: `age-keygen -o /tmp/age-key.txt`
+- [ ] Encriptar secrets actuales: `sops --encrypt --age <pubkey> docker/secrets/.env > docker/secrets.enc.yaml`
+- [ ] Añadir clave age como secret de Forgejo: `SOPS_AGE_KEY`
+- [ ] Actualizar pipelines con paso de desencriptación
+- [ ] Documentar en `docs/SOPS_SECRETS_MANAGEMENT.md`
+
+**Cuando implementar**: Al probar Gitea Actions workflows (Fase 8 pendiente)
+
 ---
 
 ## 🧪 Criterios de Éxito
@@ -1153,6 +1198,12 @@ deploy-prod:
 
 **Pendiente**:
 - ⚠️ **Investigar errores Actions workflow**: Runners muestran connection refused a Forgejo
+
+**⚠️ Aclaración Docker Secrets** (2025-10-13):
+- **Realidad**: Docker Secrets configurados pero **NO funcionan** en Docker Compose (problema permisos UID/GID)
+- **Sistema actual**: Fallback automático a variables de entorno del `.env` ✅ Funcional
+- **Futuro**: Funcionará perfectamente en Docker Swarm sin cambios de código
+- **Documentación actualizada**: `docs/DOCKER_SECRETS_MIGRATION.md` refleja realidad actual
 
 ---
 

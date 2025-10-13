@@ -21,7 +21,7 @@ services:
       - LOG_LEVEL=DEBUG
       - TZ=Europe/Madrid
       - PYTHONPATH=/app
-      # APIs Externas
+      # APIs Externas (usando Docker Secrets)
       - REE_API_TOKEN_FILE=/run/secrets/ree_api_token
       - AEMET_API_KEY_FILE=/run/secrets/aemet_api_key
       - OPENWEATHERMAP_API_KEY_FILE=/run/secrets/openweathermap_api_key
@@ -32,8 +32,16 @@ services:
       - INFLUXDB_ORG=chocolate-factory-dev
       - INFLUXDB_BUCKET=energy_data_dev
     volumes:
-      # Código fuente para hot reload
-      - ./src/fastapi-app:/app/src
+      # Código fuente para hot reload (mapeo directo)
+      - ./src/fastapi-app/main.py:/app/main.py
+      - ./src/fastapi-app/core:/app/core
+      - ./src/fastapi-app/api:/app/api
+      - ./src/fastapi-app/services:/app/services
+      - ./src/fastapi-app/infrastructure:/app/infrastructure
+      - ./src/fastapi-app/domain:/app/domain
+      - ./src/fastapi-app/tasks:/app/tasks
+      - ./src/fastapi-app/dependencies.py:/app/dependencies.py
+      # Datos y configuración
       - ./data:/app/data
       - ./models:/app/models
       - ./static:/app/static
@@ -48,7 +56,7 @@ services:
     depends_on:
       - influxdb-dev
     networks:
-      - dev-backend
+      - chocolate-factory_backend
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -66,7 +74,7 @@ services:
       - "8087:8086"  # Puerto diferente
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER}
       - DOCKER_INFLUXDB_INIT_PASSWORD_FILE=/run/secrets/influxdb_admin_password
       - DOCKER_INFLUXDB_INIT_ORG=chocolate-factory-dev
       - DOCKER_INFLUXDB_INIT_BUCKET=energy_data_dev
@@ -78,7 +86,7 @@ services:
       - influxdb_token
       - influxdb_admin_password
     networks:
-      - dev-backend
+      - chocolate-factory_backend
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
@@ -116,11 +124,5 @@ volumes:
 # NETWORK
 # =============================================================================
 networks:
-  dev-backend:
-    driver: bridge
-    driver_opts:
-      com.docker.network.driver.mtu: "1280"
-    ipam:
-      driver: default
-      config:
-        - subnet: "192.168.101.0/24"
+  chocolate-factory_backend:
+    external: true  # Usar la red del compose principal

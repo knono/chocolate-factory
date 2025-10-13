@@ -26,13 +26,21 @@ Esta guía explica cómo desplegar y gestionar los entornos de desarrollo y prod
 
 ## 📋 Prerequisitos
 
-1. **Docker Secrets creados**:
+1. **Archivo `.env` configurado**:
+   ```bash
+   cp .env.example .env
+   # Editar .env con tus valores reales
+   ```
+
+2. **Docker Secrets creados**:
    ```bash
    cd docker/secrets
    ./create_secrets.sh
+   # Verifica que se crearon con permisos 600
+   ls -la *.txt
    ```
 
-2. **Imágenes en el registry**:
+3. **Imágenes en el registry**:
    ```bash
    # Tagear y pushear imágenes
    docker tag chocolate-factory-fastapi-app:latest localhost:5000/chocolate-factory:develop
@@ -131,10 +139,11 @@ docker compose -f docker-compose.prod.yml up -d --no-deps fastapi-app-prod
 
 ## 🔐 Seguridad
 
-### Docker Secrets
+### Docker Secrets ⚠️ IMPLEMENTADO CON FALLBACK
 
-Ambos entornos usan Docker Secrets para credenciales sensibles:
+**Realidad actual**: Sistema híbrido que intenta Docker Secrets pero usa variables de entorno como fallback.
 
+**Secrets configurados en compose**:
 ```yaml
 secrets:
   - ree_api_token
@@ -145,21 +154,74 @@ secrets:
   - influxdb_admin_password
 ```
 
-Los secrets se leen desde archivos en `/run/secrets/` dentro de los contenedores.
+**Cómo funciona REALMENTE**:
+1. Los archivos de secrets están en `docker/secrets/*.txt` con permisos `600`
+2. Docker Compose monta estos archivos en `/run/secrets/` dentro de los contenedores
+3. ⚠️ **Problema**: Usuario `appuser` no puede leerlos (Permission denied)
+4. ✅ **Solución automática**: El código Python hace fallback a variables del `.env`
 
-### Variables de Entorno
+**Orden de búsqueda** (`core/config.py`):
+```python
+# 1. Intenta /run/secrets/{secret_name} (Docker Swarm)
+#    └─> ❌ Falla: Permission denied en Compose
 
-**Desarrollo:**
+# 2. Intenta ${SECRET}_FILE (variable apuntando a archivo)
+#    └─> ⏭️  No definida, skip
+
+# 3. Fallback a ${SECRET} (variable de entorno del .env)
+#    └─> ✅ ÉXITO: Lee desde .env
+```
+
+**Ventajas del sistema actual**:
+- ✅ Funciona en desarrollo (Docker Compose)
+- ✅ Funcionará en producción (Docker Swarm sin cambios)
+- ✅ Código robusto con fallback inteligente
+- ⚠️ Seguridad media (mejor que antes, no óptima)
+
+**Limitaciones actuales**:
+- ⚠️ Secrets visibles en `docker inspect` (variables de entorno)
+- ⚠️ No usa Docker Secrets nativos (problema de permisos)
+- ✅ Preparado para Swarm futuro (sin cambios de código)
+
+### Variables de Entorno vs Secrets (Realidad)
+
+**Variables de entorno (no sensibles)**:
+
+Desarrollo:
 - `ENVIRONMENT=development`
 - `LOG_LEVEL=DEBUG`
 - `INFLUXDB_ORG=chocolate-factory-dev`
 - `INFLUXDB_BUCKET=energy_data_dev`
 
-**Producción:**
+Producción:
 - `ENVIRONMENT=production`
 - `LOG_LEVEL=INFO`
 - `INFLUXDB_ORG=chocolate-factory`
 - `INFLUXDB_BUCKET=energy_data`
+
+**Secrets (sensibles - INTENTA archivos, USA variables)**:
+
+Configuración compose:
+```yaml
+environment:
+  - REE_API_TOKEN_FILE=/run/secrets/ree_api_token  # Intenta leer
+  - AEMET_API_KEY_FILE=/run/secrets/aemet_api_key
+  # ... etc
+```
+
+**Pero realmente usa**:
+```bash
+# Del archivo .env (fallback automático)
+REE_API_TOKEN=valor_real
+AEMET_API_KEY=valor_real
+OPENWEATHERMAP_API_KEY=valor_real
+ANTHROPIC_API_KEY=valor_real
+INFLUXDB_TOKEN=valor_real
+```
+
+El código Python:
+1. Intenta leer `/run/secrets/*` → Falla (Permission denied)
+2. Hace fallback a variables de entorno del `.env` → ✅ Funciona
 
 ## 🌐 Acceso via Tailscale
 
@@ -244,14 +306,53 @@ docker build -t localhost:5000/chocolate-factory:develop -f docker/fastapi.Docke
 docker push localhost:5000/chocolate-factory:develop
 ```
 
-### Error: "secret not found"
+### Warning: "Failed to read secret from /run/secrets/X" (NORMAL)
+
+**Este warning es ESPERADO y no es un error**:
 
 ```bash
-# Verificar que los secrets existen
-ls -la docker/secrets/*.txt
+⚠️  Failed to read secret from /run/secrets/influxdb_token: [Errno 13] Permission denied
+```
 
-# Si no existen, generarlos
-cd docker/secrets && ./create_secrets.sh
+**¿Por qué aparece?**
+- Docker Compose monta secrets con permisos del host
+- Usuario `appuser` del contenedor no puede leerlos
+- **Sistema hace fallback automático a .env**
+
+**¿Es un problema?**
+- ❌ NO - La aplicación funciona correctamente
+- ✅ Sistema carga credenciales desde `.env` (fallback)
+- ✅ Aplicación arranca sin errores
+
+**¿Cómo verificar que funciona?**
+```bash
+# 1. Ver logs de inicio
+docker logs chocolate_factory_dev 2>&1 | grep -i "startup complete"
+# Debe mostrar: INFO: Application startup complete.
+
+# 2. Test health endpoint
+curl http://localhost:8001/health
+# Debe responder: {"status":"healthy", ...}
+
+# 3. Verificar que usa .env (esperado)
+docker logs chocolate_factory_dev 2>&1 | grep "WARNING.*not found"
+# Verás warnings pero app funciona igual
+```
+
+### Error: "secret not found" o falla real
+
+**Solo si la aplicación NO arranca**:
+
+```bash
+# 1. Verificar que .env existe y tiene valores
+cat .env | grep -E "INFLUXDB_TOKEN|AEMET_API_KEY"
+
+# 2. Si .env está vacío, configurarlo
+cp .env.example .env
+vim .env  # Editar con valores reales
+
+# 3. Reiniciar contenedor
+docker compose -f docker-compose.dev.yml restart fastapi-app-dev
 ```
 
 ### Error: "network dev-backend not found"

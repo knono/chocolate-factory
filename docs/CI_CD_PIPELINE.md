@@ -178,12 +178,19 @@ Los archivos deben estar en el repositorio:
 - `docker-compose.dev.yml`
 - `docker-compose.prod.yml`
 
-### 4. Docker Secrets
+### 4. Docker Secrets ⚠️
 
-Los secrets deben existir en el host donde corre el runner:
+**⚠️ Nota Importante (2025-10-13)**: El sistema actualmente usa **fallback a variables de entorno** del `.env`. Docker Secrets están configurados pero no funcionan en Docker Compose por problemas de permisos UID/GID. Ver `docs/DOCKER_SECRETS_MIGRATION.md` para detalles.
+
+Los archivos de secrets deben existir en el host donde corre el runner:
 ```bash
 ls -la docker/secrets/*.txt
 ```
+
+**Realidad actual**:
+- ✅ Sistema funcional usando variables de entorno del `.env`
+- ⚠️ Docker Secrets nativos NO funcionan en Compose
+- ✅ Preparado para Docker Swarm (futuro)
 
 ## 📊 Monitoreo del Pipeline
 

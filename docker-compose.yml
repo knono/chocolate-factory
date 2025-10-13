@@ -21,14 +21,14 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - TZ=${TZ:-Europe/Madrid}
       - PYTHONPATH=/app
-      # APIs Externas
-      - REE_API_TOKEN=${REE_API_TOKEN}
-      - AEMET_API_KEY=${AEMET_API_KEY}
-      - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}  # Sprint 11: Chatbot BI
+      # APIs Externas (usando Docker Secrets)
+      - REE_API_TOKEN_FILE=/run/secrets/ree_api_token
+      - AEMET_API_KEY_FILE=/run/secrets/aemet_api_key
+      - OPENWEATHERMAP_API_KEY_FILE=/run/secrets/openweathermap_api_key
+      - ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic_api_key  # Sprint 11: Chatbot BI
       # Conexiones internas Docker
       - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_TOKEN_FILE=/run/secrets/influxdb_token
       - INFLUXDB_ORG=${INFLUXDB_ORG}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
     volumes:
@@ -59,6 +59,12 @@ services:
       - ./src/fastapi-app/test_foundation.py:/app/test_foundation.py
       - ./src/fastapi-app/test_infrastructure.py:/app/test_infrastructure.py
       - ./src/fastapi-app/test_architecture.py:/app/test_architecture.py
+    secrets:
+      - ree_api_token
+      - aemet_api_key
+      - openweathermap_api_key
+      - anthropic_api_key
+      - influxdb_token
     depends_on:
       - influxdb
     networks:
@@ -81,13 +87,16 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER}
-      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_PASSWORD_FILE=/run/secrets/influxdb_admin_password
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN_FILE=/run/secrets/influxdb_token
     volumes:
       - ./docker/services/influxdb/data:/var/lib/influxdb2
       - ./docker/services/influxdb/config:/etc/influxdb2
+    secrets:
+      - influxdb_token
+      - influxdb_admin_password
     networks:
       - backend
     restart: unless-stopped
@@ -108,6 +117,23 @@ services:
 # =============================================================================
 # Los datos ahora se mapean directamente a ./docker/services/[servicio]
 # para acceso directo, backups y monitoreo en tiempo real
+
+# =============================================================================
+# DOCKER SECRETS
+# =============================================================================
+secrets:
+  ree_api_token:
+    file: ./docker/secrets/ree_api_token.txt
+  aemet_api_key:
+    file: ./docker/secrets/aemet_api_key.txt
+  openweathermap_api_key:
+    file: ./docker/secrets/openweathermap_api_key.txt
+  anthropic_api_key:
+    file: ./docker/secrets/anthropic_api_key.txt
+  influxdb_token:
+    file: ./docker/secrets/influxdb_token.txt
+  influxdb_admin_password:
+    file: ./docker/secrets/influxdb_admin_password.txt
 
 # =============================================================================
 # RED INTERNA

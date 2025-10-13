@@ -21,6 +21,47 @@ from pathlib import Path
 import os
 
 
+def get_secret(secret_name: str, env_var_name: Optional[str] = None) -> Optional[str]:
+    """
+    Read a secret from Docker Secrets or environment variable.
+
+    Order of precedence:
+    1. Docker Secret file at /run/secrets/{secret_name}
+    2. Environment variable {ENV_VAR_NAME}_FILE pointing to a file
+    3. Environment variable {ENV_VAR_NAME} directly
+
+    Args:
+        secret_name: Name of the secret file (without path)
+        env_var_name: Environment variable name (if different from secret_name)
+
+    Returns:
+        Secret value or None if not found
+    """
+    if env_var_name is None:
+        env_var_name = secret_name.upper()
+
+    # 1. Try Docker Secret path
+    secret_path = Path(f"/run/secrets/{secret_name}")
+    if secret_path.exists():
+        try:
+            return secret_path.read_text().strip()
+        except Exception as e:
+            print(f"⚠️  Failed to read secret from {secret_path}: {e}")
+
+    # 2. Try environment variable pointing to file (e.g., INFLUXDB_TOKEN_FILE)
+    file_env_var = f"{env_var_name}_FILE"
+    if file_env_var in os.environ:
+        file_path = Path(os.environ[file_env_var])
+        if file_path.exists():
+            try:
+                return file_path.read_text().strip()
+            except Exception as e:
+                print(f"⚠️  Failed to read secret from {file_path}: {e}")
+
+    # 3. Fallback to direct environment variable (for local development)
+    return os.environ.get(env_var_name)
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -28,7 +69,8 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="ignore"
+        extra="ignore",
+        validate_default=False  # Don't validate defaults, secrets loaded in post_init
     )
 
     # =================================================================
@@ -43,7 +85,7 @@ class Settings(BaseSettings):
     # INFLUXDB SETTINGS
     # =================================================================
     INFLUXDB_URL: str = "http://influxdb:8086"
-    INFLUXDB_TOKEN: str
+    INFLUXDB_TOKEN: str = ""  # Will be loaded from secret
     INFLUXDB_ORG: str = "chocolate_factory"
     INFLUXDB_BUCKET: str = "energy_data"
     INFLUXDB_BUCKET_SIAR: str = "siar_historical"
@@ -56,10 +98,10 @@ class Settings(BaseSettings):
     # =================================================================
     # EXTERNAL API KEYS
     # =================================================================
-    REE_API_TOKEN: Optional[str] = None  # REE API doesn't require auth
-    AEMET_API_KEY: str
-    OPENWEATHERMAP_API_KEY: str
-    ANTHROPIC_API_KEY: str  # Sprint 11: Chatbot BI with Claude Haiku
+    REE_API_TOKEN: Optional[str] = None  # REE API doesn't require auth, will be loaded from secret
+    AEMET_API_KEY: str = ""  # Will be loaded from secret
+    OPENWEATHERMAP_API_KEY: str = ""  # Will be loaded from secret
+    ANTHROPIC_API_KEY: str = ""  # Sprint 11: Chatbot BI with Claude Haiku, will be loaded from secret
 
     # API endpoints (with fallback defaults)
     REE_API_BASE_URL: str = "https://apidatos.ree.es/es/datos"
@@ -204,6 +246,40 @@ class Settings(BaseSettings):
     def influxdb_url_local(self) -> str:
         """Get InfluxDB URL for local development."""
         return self.INFLUXDB_URL.replace("influxdb", "localhost")
+
+    def model_post_init(self, __context) -> None:
+        """Load secrets from Docker Secrets after model initialization."""
+        # Load InfluxDB secrets
+        influxdb_token = get_secret("influxdb_token", "INFLUXDB_TOKEN")
+        if influxdb_token:
+            self.INFLUXDB_TOKEN = influxdb_token
+
+        # Load external API keys
+        ree_token = get_secret("ree_api_token", "REE_API_TOKEN")
+        if ree_token:
+            self.REE_API_TOKEN = ree_token
+
+        aemet_key = get_secret("aemet_api_key", "AEMET_API_KEY")
+        if aemet_key:
+            self.AEMET_API_KEY = aemet_key
+
+        openweather_key = get_secret("openweathermap_api_key", "OPENWEATHERMAP_API_KEY")
+        if openweather_key:
+            self.OPENWEATHERMAP_API_KEY = openweather_key
+
+        anthropic_key = get_secret("anthropic_api_key", "ANTHROPIC_API_KEY")
+        if anthropic_key:
+            self.ANTHROPIC_API_KEY = anthropic_key
+
+        # Validate that required secrets were loaded
+        if not self.INFLUXDB_TOKEN:
+            print("⚠️  WARNING: INFLUXDB_TOKEN not found in secrets or environment")
+        if not self.AEMET_API_KEY:
+            print("⚠️  WARNING: AEMET_API_KEY not found in secrets or environment")
+        if not self.OPENWEATHERMAP_API_KEY:
+            print("⚠️  WARNING: OPENWEATHERMAP_API_KEY not found in secrets or environment")
+        if not self.ANTHROPIC_API_KEY:
+            print("⚠️  WARNING: ANTHROPIC_API_KEY not found in secrets or environment")
 
     def __repr__(self):
         """Safe representation without exposing secrets."""
