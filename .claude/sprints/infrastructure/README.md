@@ -26,22 +26,24 @@
 
 ---
 
-### Sprint 12: Forgejo Self-Hosted + CI/CD Local 🔐
+### Sprint 12: Forgejo Self-Hosted + CI/CD con Tres Nodos Tailscale 🔐
 **Estado**: 🔴 NO INICIADO
 **Prioridad**: 🟡 MEDIA
-**Duración estimada**: 1 semana (20-24 horas)
+**Duración estimada**: 1.5-2 semanas (30-40 horas)
 **Archivo**: [`SPRINT_12_FORGEJO_CICD.md`](./SPRINT_12_FORGEJO_CICD.md)
 
-**Objetivo**: Desplegar Forgejo self-hosted con CI/CD local, integrado con Tailscale para acceso seguro.
+**Objetivo**: Desplegar Forgejo self-hosted con CI/CD local + Docker Registry privado, integrado con **TRES nodos Tailscale** separados (git, desarrollo, producción).
 
 **Entregables clave**:
-- Forgejo instance en Docker
-- Gitea Actions runners
-- Pipelines tests automatizados
+- Forgejo instance en nodo Git/CI/CD dedicado
+- Gitea Actions runners diferenciados (dev/prod)
+- Pipelines CI/CD dual environment (develop/main)
 - Docker registry privado
-- Integración Tailscale
+- Configuración ACLs Tailscale por nodo
+- Entornos separados (docker-compose.dev.yml / docker-compose.prod.yml)
+- Git remotes dobles (GitHub + Forgejo)
 
-**Valor**: Control total sobre datos, CI/CD sin exponer GitHub, registry privado para imágenes Docker.
+**Valor**: Control total sobre datos, aislamiento completo por nodo, CI/CD automatizado dual, seguridad mejorada con ACLs, escalabilidad independiente.
 
 ---
 
@@ -94,7 +96,7 @@ Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Monitoring)
 | Sprint | Complejidad | Valor Inmediato | Dependencias | Riesgo | Costo/mes | Estado |
 |--------|-------------|-----------------|--------------|--------|-----------|--------|
 | Sprint 11 (Chatbot) | Media | ⭐⭐⭐⭐⭐ | Ninguna | Bajo | ~€2 | ✅ COMPLETADO |
-| Sprint 12 (Forgejo) | Alta | ⭐⭐⭐⭐ | Ninguna | Medio | €0 | 🔴 Pendiente |
+| Sprint 12 (Forgejo 3 nodos) | Muy Alta | ⭐⭐⭐⭐⭐ | Ninguna | Medio-Alto | €0 | 🔴 Pendiente |
 | Sprint 13 (Observability) | Media | ⭐⭐⭐⭐ | Tailscale activo | Bajo | €0 | 🔴 Pendiente |
 
 ---

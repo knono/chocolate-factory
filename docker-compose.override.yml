@@ -51,14 +51,159 @@ services:
       start_period: 30s
 
   # ---------------------------------------------------------------------------
+  # NODO TAILSCALE - GIT/CI/CD (con nginx proxy a Forgejo)
+  # ---------------------------------------------------------------------------
+  git:
+    build:
+      context: .
+      dockerfile: docker/git-sidecar.Dockerfile
+    container_name: tailscale_git
+    hostname: git
+    networks:
+      - backend
+    environment:
+      - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY_GIT}
+      - TAILSCALE_HOSTNAME=git
+      - TAILSCALE_STATE_DIR=/var/lib/tailscale
+    volumes:
+      - tailscale_git_state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+      - ./docker/git-nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun
+
+  # ---------------------------------------------------------------------------
+  # FORGEJO - Git Server accesible local + Tailnet
+  # ---------------------------------------------------------------------------
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:1.21
+    container_name: chocolate_factory_git_server
+    hostname: forgejo
+    networks:
+      - backend
+    ports:
+      - "3000:3000"  # HTTP UI - acceso local
+      - "2222:22"    # SSH git - acceso local
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+    volumes:
+      - forgejo_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    depends_on:
+      - git
+
+  # ---------------------------------------------------------------------------
+  # GITEA ACTIONS RUNNER - DESARROLLO
+  # ---------------------------------------------------------------------------
+  gitea-runner-dev:
+    image: gitea/act_runner:latest
+    container_name: chocolate_factory_runner_dev
+    networks:
+      - backend
+    environment:
+      - GITEA_INSTANCE_URL=http://forgejo:3000
+      - GITEA_RUNNER_REGISTRATION_TOKEN_FILE=/run/secrets/runner_token_dev
+      - GITEA_RUNNER_NAME=chocolate-dev-runner
+      - GITEA_RUNNER_LABELS=dev,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
+    volumes:
+      - gitea_runner_dev_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - runner_token_dev
+    restart: unless-stopped
+    depends_on:
+      - forgejo
+
+  # ---------------------------------------------------------------------------
+  # GITEA ACTIONS RUNNER - PRODUCCIÓN
+  # ---------------------------------------------------------------------------
+  gitea-runner-prod:
+    image: gitea/act_runner:latest
+    container_name: chocolate_factory_runner_prod
+    networks:
+      - backend
+    environment:
+      - GITEA_INSTANCE_URL=http://forgejo:3000
+      - GITEA_RUNNER_REGISTRATION_TOKEN_FILE=/run/secrets/runner_token_prod
+      - GITEA_RUNNER_NAME=chocolate-prod-runner
+      - GITEA_RUNNER_LABELS=prod,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
+    volumes:
+      - gitea_runner_prod_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    secrets:
+      - runner_token_prod
+    restart: unless-stopped
+    depends_on:
+      - forgejo
+
+  # ---------------------------------------------------------------------------
+  # DOCKER REGISTRY PRIVADO
+  # ---------------------------------------------------------------------------
+  registry:
+    image: registry:2.8
+    container_name: chocolate_factory_registry
+    networks:
+      - backend
+    ports:
+      - "${REGISTRY_PORT:-5000}:5000"
+    environment:
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/var/lib/registry
+      - REGISTRY_AUTH=htpasswd
+      - REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
+      - REGISTRY_AUTH_HTPASSWD_REALM=Chocolate Factory Registry
+    volumes:
+      - registry_data:/var/lib/registry
+      - ./docker/services/registry/auth:/auth:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/v2/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # NODO TAILSCALE - DESARROLLO
+  # ---------------------------------------------------------------------------
+  chocolate-factory-dev:
+    image: tailscale/tailscale:latest
+    container_name: tailscale_dev
+    hostname: chocolate-factory-dev
+    networks:
+      - backend
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY_DEV}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_ACCEPT_DNS=true
+    volumes:
+      - tailscale_dev_state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun
+
+  # ---------------------------------------------------------------------------
   # SERVICIOS EXISTENTES - Sin cambios de puertos
   # ---------------------------------------------------------------------------
-  
+
   # FastAPI: Mantener puertos para desarrollo local
   fastapi-app:
     ports:
       - "${FASTAPI_PORT:-8000}:8000"    # Mantener para desarrollo
-    
+
   # InfluxDB: Mantener puerto para administración
   influxdb:
     ports:
@@ -72,6 +217,45 @@ volumes:
   # Estado persistente de Tailscale para reconexiones
   tailscale_state:
     driver: local
+  tailscale_git_state:
+    driver: local
+  tailscale_dev_state:
+    driver: local
+  # Forgejo data
+  forgejo_data:
+    driver: local
+  # Gitea Actions Runners data
+  gitea_runner_dev_data:
+    driver: local
+  gitea_runner_prod_data:
+    driver: local
+  # Docker Registry data
+  registry_data:
+    driver: local
+
+# =============================================================================
+# DOCKER SECRETS
+# =============================================================================
+secrets:
+  # Gitea Actions Runners
+  runner_token_dev:
+    file: ./docker/secrets/runner_token_dev.txt
+  runner_token_prod:
+    file: ./docker/secrets/runner_token_prod.txt
+
+  # Docker Registry
+  registry_user:
+    file: ./docker/secrets/registry_user.txt
+  registry_password:
+    file: ./docker/secrets/registry_password.txt
+
+  # Tailscale Auth Keys
+  tailscale_authkey:
+    file: ./docker/secrets/tailscale_authkey.txt
+  tailscale_authkey_dev:
+    file: ./docker/secrets/tailscale_authkey_dev.txt
+  tailscale_authkey_git:
+    file: ./docker/secrets/tailscale_authkey_git.txt
 
 # =============================================================================
 # RED OPTIMIZADA PARA TAILSCALE

@@ -1,0 +1,69 @@
+# =============================================================================
+# CHOCOLATE FACTORY - DEVELOPMENT ENVIRONMENT
+# =============================================================================
+# Override para desarrollo con hot reload y bind mounts del código fuente
+# Uso: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # FASTAPI - DESARROLLO CON HOT RELOAD
+  # ---------------------------------------------------------------------------
+  fastapi-app:
+    # En desarrollo, usar bind mount del código fuente para hot reload
+    volumes:
+      - ./src/fastapi-app:/app/src  # Código fuente para hot reload
+      - ./data:/app/data
+      - ./src/configs:/app/configs
+      - ./docker/services/fastapi/logs:/app/logs
+      - ./models:/app/models
+      # Excluir __pycache__ y .pyc para evitar conflictos
+      - /app/src/__pycache__
+    environment:
+      # Habilitar hot reload en desarrollo
+      - ENVIRONMENT=development
+      - PYTHONPATH=/app/src
+      - LOG_LEVEL=DEBUG
+      # APIs Externas
+      - REE_API_TOKEN=${REE_API_TOKEN}
+      - AEMET_API_KEY=${AEMET_API_KEY}
+      - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
+      # Conexiones internas Docker
+      - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      # Desarrollo: Auto-reload
+      - UVICORN_RELOAD=true
+    command: >
+      uvicorn main:app 
+      --host 0.0.0.0 
+      --port 8000 
+      --reload
+      --reload-dir /app/src
+      --log-level debug
+    # Mantener puertos para desarrollo local
+    ports:
+      - "${FASTAPI_PORT:-8000}:8000"
+
+  # ---------------------------------------------------------------------------  
+  # INFLUXDB - Sin cambios en desarrollo
+  # ---------------------------------------------------------------------------
+  influxdb:
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"
+
+# =============================================================================
+# NOTAS DE USO - DESARROLLO
+# =============================================================================
+# 1. Ejecutar en desarrollo:
+#    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# 2. Cambios en /src/fastapi-app/ se reflejan automáticamente
+#
+# 3. Para volver a producción:
+#    docker-compose -f docker-compose.yml up -d
+#
+# 4. Logs de desarrollo:
+#    docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f fastapi-app
+# =============================================================================
