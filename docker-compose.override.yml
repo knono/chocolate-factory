@@ -51,22 +51,24 @@ services:
       start_period: 30s
 
   # ---------------------------------------------------------------------------
-  # NODO TAILSCALE - GIT/CI/CD
+  # NODO TAILSCALE - GIT/CI/CD (con nginx proxy a Forgejo)
   # ---------------------------------------------------------------------------
   git:
-    image: tailscale/tailscale:latest
+    build:
+      context: .
+      dockerfile: docker/git-sidecar.Dockerfile
     container_name: tailscale_git
     hostname: git
     networks:
       - backend
     environment:
-      - TS_AUTHKEY=${TAILSCALE_AUTHKEY_GIT}
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_USERSPACE=false
-      - TS_ACCEPT_DNS=true
+      - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY_GIT}
+      - TAILSCALE_HOSTNAME=git
+      - TAILSCALE_STATE_DIR=/var/lib/tailscale
     volumes:
       - tailscale_git_state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
+      - ./docker/git-nginx.conf:/etc/nginx/nginx.conf:ro
     restart: unless-stopped
     privileged: true
     cap_add:
