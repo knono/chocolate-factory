@@ -1,16 +1,27 @@
-# 🎯 SPRINT 12: Forgejo Self-Hosted + CI/CD Local
+# 🎯 SPRINT 12: Forgejo Self-Hosted + CI/CD con Tres Nodos Tailscale
 
 > **Estado**: 🔴 NO INICIADO
 > **Prioridad**: 🟡 MEDIA
-> **Prerequisito**: Sprint 11 completado (MCP server), Tailscale sidecar operacional
-> **Duración estimada**: 1 semana (20-24 horas)
-> **Fecha inicio planeada**: 2025-10-11
+> **Prerequisito**: Sprint 11 completado (Chatbot BI con RAG), Tailscale sidecar operacional
+> **Duración estimada**: 1.5-2 semanas (30-40 horas)
+> **Fecha inicio planeada**: 2025-10-13
 
 ---
 
-## 📋 Objetivo
+## 📋 Objetivo Principal
 
-**Desplegar Forgejo self-hosted** con CI/CD local (Gitea Actions) + Docker Registry privado, integrado con Tailscale para acceso seguro.
+Desplegar Forgejo self-hosted con CI/CD local (Gitea Actions) + Docker Registry privado, integrado con **TRES nodos Tailscale** separados:
+- **Git/CI/CD**: `git.chocolate-factory.ts.net` (servidor Forgejo + runners + registry)
+- **Desarrollo**: `chocolate-factory-dev.ts.net` (rama `develop`)
+- **Producción**: `chocolate-factory.ts.net` (rama `main`)
+
+### ¿Por qué Tres Nodos?
+
+- ✅ **Aislamiento completo**: Servidor Git separado de las aplicaciones
+- ✅ **Control de Acceso**: ACLs por nodo para diferentes niveles de acceso
+- ✅ **Seguridad aumentada**: Compromiso en un nodo no afecta a otros
+- ✅ **Gestión independiente**: Puedes actualizar Forgejo sin afectar apps
+- ✅ **Escalabilidad**: Cada nodo puede tener recursos ajustados a su función
 
 ### ¿Por qué Forgejo?
 
@@ -37,7 +48,7 @@ Forgejo es un **fork community-driven de Gitea**, enfocado en:
 
 ## 📦 Entregables
 
-### 1. Forgejo Instance (Docker)
+### 1. Forgejo Instance (Nodo Git/CI/CD)
 
 **Archivo**: `docker/forgejo-compose.yml`
 
@@ -47,14 +58,14 @@ services:
     image: codeberg.org/forgejo/forgejo:1.21
     container_name: chocolate_factory_git
     ports:
-      - "3000:3000"  # HTTP UI
-      - "2222:22"    # SSH git push/pull
+      - "3000:3000"
+      - "2222:22"
     environment:
       - USER_UID=1000
       - USER_GID=1000
       - FORGEJO__database__DB_TYPE=sqlite3
-      - FORGEJO__server__DOMAIN=${FORGEJO_DOMAIN:-localhost}
-      - FORGEJO__server__ROOT_URL=https://${FORGEJO_DOMAIN:-localhost}/
+      - FORGEJO__server__DOMAIN=${FORGEJO_DOMAIN:-git.chocolate-factory.ts.net}
+      - FORGEJO__server__ROOT_URL=https://${FORGEJO_DOMAIN:-git.chocolate-factory.ts.net}/
       - FORGEJO__security__INSTALL_LOCK=true
     volumes:
       - ./services/forgejo/data:/data
@@ -72,23 +83,40 @@ services:
 
 ---
 
-### 2. Gitea Actions Runner (CI/CD)
+### 2. Gitea Actions Runners Diferenciados
 
-**Archivo**: `docker/gitea-runner-compose.yml`
+**Archivo**: `docker/gitea-runners-compose.yml`
 
 ```yaml
 services:
-  gitea-runner:
+  gitea-runner-dev:
     image: gitea/act_runner:latest
-    container_name: chocolate_factory_runner
+    container_name: chocolate_factory_runner_dev
     environment:
       - GITEA_INSTANCE_URL=http://forgejo:3000
-      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN}
-      - GITEA_RUNNER_NAME=chocolate-runner-01
-      - GITEA_RUNNER_LABELS=ubuntu-latest,docker
+      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN_DEV}
+      - GITEA_RUNNER_NAME=chocolate-dev-runner
+      - GITEA_RUNNER_LABELS=dev,ubuntu-latest,docker
     volumes:
-      - ./services/gitea-runner/data:/data
-      - /var/run/docker.sock:/var/run/docker.sock  # Docker-in-Docker
+      - ./services/gitea-runner/dev-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+    depends_on:
+      - forgejo
+    restart: unless-stopped
+
+  gitea-runner-prod:
+    image: gitea/act_runner:latest
+    container_name: chocolate_factory_runner_prod
+    environment:
+      - GITEA_INSTANCE_URL=http://forgejo:3000
+      - GITEA_RUNNER_REGISTRATION_TOKEN=${RUNNER_TOKEN_PROD}
+      - GITEA_RUNNER_NAME=chocolate-prod-runner
+      - GITEA_RUNNER_LABELS=prod,ubuntu-latest,docker
+    volumes:
+      - ./services/gitea-runner/prod-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - backend
     depends_on:
@@ -129,19 +157,192 @@ services:
 
 ---
 
-### 4. Tailscale Integration
+### 4. Entornos Separados (Desarrollo vs Producción)
 
-**Actualizar**: `docker/tailscale-sidecar.Dockerfile`
+**Desarrollo** (`docker-compose.dev.yml`):
+```yaml
+services:
+  fastapi-app-dev:
+    image: localhost:5000/chocolate-factory:develop
+    container_name: chocolate_factory_dev
+    ports:
+      - "8001:8000"
+    environment:
+      - ENVIRONMENT=development
+      - APP_NAME=chocolate-factory-dev
+    volumes:
+      - ./src/fastapi-app:/app
+      - ./models:/app/models
+    networks:
+      - frontend
+      - backend
+    restart: unless-stopped
 
-```dockerfile
-# Añadir configuración nginx para Forgejo
+  influxdb-dev:
+    image: influxdb:2.7
+    container_name: influxdb_dev
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+    volumes:
+      - ./docker/services/influxdb/dev-data:/var/lib/influxdb2
+    networks:
+      - backend
+    restart: unless-stopped
+```
+
+**Producción** (`docker-compose.prod.yml`):
+```yaml
+services:
+  fastapi-app-prod:
+    image: localhost:5000/chocolate-factory:production
+    container_name: chocolate_factory_prod
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - APP_NAME=chocolate-factory-prod
+    volumes:
+      - ./models:/app/models
+    networks:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+  influxdb-prod:
+    image: influxdb:2.7
+    container_name: influxdb_prod
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+    volumes:
+      - ./docker/services/influxdb/prod-data:/var/lib/influxdb2
+    networks:
+      - backend
+    restart: unless-stopped
+```
+
+---
+
+### 5. CI/CD Dual Environment
+
+**Archivo**: `.gitea/workflows/ci-cd-dual.yml`
+
+```yaml
+name: Chocolate Factory CI/CD Dual Environment
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test-all:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r src/fastapi-app/requirements.txt
+          pip install pytest pytest-cov
+      - name: Run tests
+        run: pytest src/fastapi-app/ -v --cov
+
+  build-image:
+    needs: test-all
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - branch: main
+            tag: production
+          - branch: develop
+            tag: develop
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and push image
+        run: |
+          docker build -t localhost:5000/chocolate-factory:${{ matrix.tag }} -f docker/fastapi.Dockerfile .
+          docker push localhost:5000/chocolate-factory:${{ matrix.tag }}
+
+  deploy-dev:
+    needs: build-image
+    runs-on: dev  # Usará runners con etiqueta "dev"
+    if: github.ref == 'refs/heads/develop'
+    steps:
+      - name: Deploy to development
+        run: |
+          # Asumiendo que este pipeline se ejecuta en el nodo desarrollo
+          docker pull localhost:5000/chocolate-factory:develop
+          docker-compose -f docker-compose.dev.yml down
+          docker-compose -f docker-compose.dev.yml up -d
+      - name: Notification to dev channel
+        run: |
+          # Notificar a canal de desarrollo
+          echo "Desarrollo actualizado con commit ${{ github.sha }}"
+
+  deploy-prod:
+    needs: build-image
+    runs-on: prod  # Usará runners con etiqueta "prod"
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to production
+        run: |
+          # Asumiendo que este pipeline se ejecuta en el nodo producción
+          docker pull localhost:5000/chocolate-factory:production
+          docker-compose -f docker-compose.prod.yml down
+          docker-compose -f docker-compose.prod.yml up -d
+      - name: Notification to prod channel
+        run: |
+          # Notificar a canal de producción
+          echo "Producción actualizado con commit ${{ github.sha }}"
+```
+
+---
+
+### 6. Configuración de Tailscale con ACLs
+
+**Archivo**: `tailscale-acls.json`
+
+```json
+{
+  "acls": [
+    {"action": "accept", "users": ["*"], "ports": ["*:*"]}
+  ],
+  "tagOwners": {
+    "tag:git-server": ["group:admins"],
+    "tag:dev-app": ["group:admins", "group:developers"],
+    "tag:prod-app": ["group:admins"]
+  },
+  "hosts": {
+    "git-server": "100.100.100.10",
+    "dev-app": "100.100.100.11",
+    "prod-app": "100.100.100.12"
+  },
+  "groups": {
+    "group:admins": ["admin@yourdomain.com"],
+    "group:developers": ["dev1@yourdomain.com", "dev2@yourdomain.com"]
+  },
+  "autoApprovers": {
+    "routes": {
+      "10.0.0.0/8": ["tag:git-server"]
+    }
+  }
+}
+```
+
+**Nginx para Git/CI/CD** (`docker/sidecar-nginx-git.conf`):
+```nginx
 upstream forgejo_backend {
     server forgejo:3000;
 }
 
 server {
     listen 443 ssl http2;
-    server_name git.${TAILSCALE_DOMAIN};
+    server_name git.chocolate-factory.ts.net;
 
     location / {
         proxy_pass http://forgejo_backend;
@@ -153,235 +354,155 @@ server {
 }
 ```
 
----
+**Nginx para Desarrollo** (`docker/sidecar-nginx-dev.conf`):
+```nginx
+upstream fastapi_dev_backend {
+    server fastapi-app-dev:8000;
+}
 
-### 5. CI/CD Pipeline Templates
+server {
+    listen 443 ssl http2;
+    server_name chocolate-factory-dev.ts.net;
 
-**Archivo**: `.forgejo/workflows/test.yml`
-
-```yaml
-name: Chocolate Factory - Tests
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-jobs:
-  test-api:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install -r src/fastapi-app/requirements.txt
-          pip install pytest pytest-cov
-
-      - name: Run tests
-        run: |
-          cd src/fastapi-app
-          pytest test_architecture.py test_foundation.py -v --cov
-
-      - name: Test MCP server
-        run: |
-          cd mcp-server
-          pytest test_mcp_tools.py -v
-
-  build-docker:
-    runs-on: ubuntu-latest
-    needs: test-api
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Build Docker image
-        run: |
-          docker build -t localhost:5000/chocolate-factory:${{ github.sha }} -f docker/fastapi.Dockerfile .
-
-      - name: Push to registry
-        if: github.ref == 'refs/heads/main'
-        run: |
-          docker push localhost:5000/chocolate-factory:${{ github.sha }}
+    location / {
+        proxy_pass http://fastapi_dev_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
-**Archivo**: `.forgejo/workflows/ml-validation.yml`
+**Nginx para Producción** (`docker/sidecar-nginx-prod.conf`):
+```nginx
+upstream fastapi_prod_backend {
+    server fastapi-app-prod:8000;
+}
 
-```yaml
-name: ML Models Validation
+server {
+    listen 443 ssl http2;
+    server_name chocolate-factory.ts.net;
 
-on:
-  push:
-    paths:
-      - 'src/fastapi-app/services/direct_ml.py'
-      - 'src/fastapi-app/services/price_forecasting_service.py'
-      - 'models/**'
-
-jobs:
-  validate-models:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install ML dependencies
-        run: |
-          pip install scikit-learn prophet pandas numpy
-
-      - name: Validate model files
-        run: |
-          python scripts/validate_ml_models.py
-
-      - name: Test Prophet forecasting
-        run: |
-          pytest tests/test_price_forecasting.py -v
-
-      - name: Check model metrics
-        run: |
-          python scripts/check_model_metrics.py --mae-threshold 0.05
+    location / {
+        proxy_pass http://fastapi_prod_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
 ---
 
-### 6. Documentación Setup
+### 7. Configuración de Git Remotes Doble Destino
+
+**Archivo**: `scripts/setup-dual-remotes.sh`
+
+```bash
+#!/bin/bash
+# Configurar git para hacer push a ambos servidores
+
+# Asegurar que ambos remotes están configurados
+if ! git remote get-url forgejo &>/dev/null; then
+    echo "Agregando remote forgejo..."
+    git remote add forgejo https://git.chocolate-factory.ts.net/usuario/chocolate-factory.git
+fi
+
+# Configurar push a múltiples destinos para el remote 'origin'
+git remote set-url --add --push origin https://github.com/usuario/chocolate-factory.git
+git remote set-url --add --push origin https://git.chocolate-factory.ts.net/usuario/chocolate-factory.git
+
+echo "Configuración completada. Ahora 'git push origin' enviará a ambos servidores."
+```
+
+---
+
+### 8. Documentación Setup
 
 **Archivo**: `docs/FORGEJO_SETUP.md`
 
 **Contenido**:
-- Instalación Forgejo + Runner
+- Instalación Forgejo + Runners diferenciados
+- Configuración de tres nodos Tailscale con ACLs
 - Configuración SSH keys
 - Setup Docker registry
-- Configuración webhooks
-- Ejemplos pipelines
+- Configuración doble entorno (desarrollo/producción)
+- Configuración de ACLs por nodo
+- Configuración git remotes dobles
+- Ejemplos pipelines CI/CD dual
 - Troubleshooting
+- Guía de migración Git Flow
 
 ---
 
 ## 📝 Plan de Implementación
 
-### Fase 1: Despliegue Forgejo (3-4 horas)
+### Fase 1: Preparación Tailscale (3-4 horas)
 
-- [ ] Crear `docker/forgejo-compose.yml`
+- [ ] Crear 3 máquinas virtuales/contenedores separados
+- [ ] Asignar diferentes auth keys de Tailscale
+- [ ] Configurar ACLs en Tailscale console
+- [ ] Asignar tags: `tag:git-server`, `tag:dev-app`, `tag:prod-app`
+- [ ] Test conectividad entre nodos
+
+### Fase 2: Despliegue Forgejo (4-5 horas)
+
+- [ ] En nodo `tag:git-server` crear `docker/forgejo-compose.yml`
 - [ ] Configurar volúmenes persistentes
 - [ ] Iniciar servicio: `docker compose -f docker/forgejo-compose.yml up -d`
-- [ ] Completar wizard instalación inicial (http://localhost:3000)
-- [ ] Crear usuario admin
-- [ ] Migrar repositorio desde GitHub (opcional)
+- [ ] Completar wizard instalación inicial
+- [ ] Crear usuario admin con permisos diferenciados
+- [ ] Configurar permisos de acceso (desarrollo vs producción)
 
-### Fase 2: Configurar Gitea Actions Runner (2-3 horas)
+### Fase 3: Runners Diferenciados (3-4 horas)
 
-- [ ] Generar registration token en Forgejo UI
-- [ ] Crear `docker/gitea-runner-compose.yml`
-- [ ] Iniciar runner: `docker compose -f docker/gitea-runner-compose.yml up -d`
-- [ ] Verificar runner registrado en UI
-- [ ] Test básico: crear pipeline "Hello World"
+- [ ] Generar tokens de registro (dev y prod) en Forgejo UI
+- [ ] Crear `docker/gitea-runners-compose.yml`
+- [ ] Configurar runners con etiquetas diferenciadas (dev/prod)
+- [ ] Iniciar ambos runners en nodo git
+- [ ] Verificar que están registrados en UI con sus etiquetas
+- [ ] Test runners desde nodos correspondientes
 
-### Fase 3: Docker Registry Privado (2-3 horas)
+### Fase 4: Docker Registry Privado (2-3 horas)
 
-- [ ] Generar htpasswd: `htpasswd -Bbn admin YOUR_PASSWORD_HERE > auth/htpasswd`
+- [ ] En nodo `tag:git-server` configurar htpasswd para autenticación
 - [ ] Crear `docker/registry-compose.yml`
-- [ ] Iniciar registry: `docker compose -f docker/registry-compose.yml up -d`
-- [ ] Configurar Docker para usar registry insecure (localhost)
+- [ ] Iniciar registry
+- [ ] Configurar Docker para registry inseguro (localhost)
 - [ ] Test push/pull imagen
 
-### Fase 4: Integración Tailscale (3-4 horas)
+### Fase 5: Entornos Separados (5-7 horas)
 
-- [ ] Actualizar `docker/sidecar-nginx.conf` con upstream Forgejo
-- [ ] Añadir DNS `git.your-hostname.your-tailnet.ts.net`
-- [ ] Configurar SSL con Tailscale ACME
-- [ ] Verificar acceso remoto: `https://git.${TAILSCALE_DOMAIN}`
-- [ ] Configurar SSH forwarding para git push/pull
+- [ ] En nodos correspondientes crear archivos `docker-compose.dev.yml` y `docker-compose.prod.yml`
+- [ ] Configurar servicios con diferentes nombres, puertos y datos
+- [ ] Implementar variables de entorno diferenciadas
+- [ ] Test despliegue independiente de cada entorno
+- [ ] Configurar sidecar nginx para cada nodo
 
-### Fase 5: CI/CD Pipelines (4-6 horas)
+### Fase 6: CI/CD Dual (5-7 horas)
 
-- [ ] Crear directorio `.forgejo/workflows/`
-- [ ] Implementar `test.yml` (tests Python + Docker build)
-- [ ] Implementar `ml-validation.yml` (validación modelos ML)
-- [ ] Configurar secrets en Forgejo (tokens, passwords)
-- [ ] Test pipeline completo: push → tests → build → registry
+- [ ] Crear workflow `.gitea/workflows/ci-cd-dual.yml`
+- [ ] Configurar jobs con condiciones para cada rama
+- [ ] Configurar runners específicos para cada entorno
+- [ ] Implementar notificaciones diferenciadas
+- [ ] Test completo: push develop → deploy dev, push main → deploy prod
 
-### Fase 6: Scripts Validación ML (3-4 horas)
+### Fase 7: Configuración Git (1-2 horas)
 
-**Archivo**: `scripts/validate_ml_models.py`
+- [ ] Crear script para configurar remotes dobles
+- [ ] Documentar flujo de trabajo Git
+- [ ] Configurar hooks si es necesario
+- [ ] Validar push a ambos servidores
 
-```python
-#!/usr/bin/env python3
-"""Validate ML model files integrity."""
-
-import pickle
-from pathlib import Path
-
-def validate_models():
-    models_dir = Path("models")
-    required_models = [
-        "energy_optimization.pkl",
-        "production_classifier.pkl",
-        "prophet_price_model.pkl"
-    ]
-
-    for model_file in required_models:
-        model_path = models_dir / model_file
-        assert model_path.exists(), f"Missing model: {model_file}"
-
-        # Try loading
-        with open(model_path, "rb") as f:
-            model = pickle.load(f)
-
-        print(f"✓ {model_file} is valid")
-
-if __name__ == "__main__":
-    validate_models()
-```
-
-**Archivo**: `scripts/check_model_metrics.py`
-
-```python
-#!/usr/bin/env python3
-"""Check ML model metrics meet thresholds."""
-
-import argparse
-from services.direct_ml import DirectMLService
-
-def check_metrics(mae_threshold: float = 0.05):
-    ml_service = DirectMLService()
-    status = ml_service.get_model_status()
-
-    # Check energy model
-    energy_mae = status["energy_model"]["metrics"]["mae"]
-    assert energy_mae < mae_threshold, f"Energy MAE {energy_mae} > {mae_threshold}"
-
-    # Check production model
-    prod_accuracy = status["production_model"]["metrics"]["accuracy"]
-    assert prod_accuracy > 0.85, f"Production accuracy {prod_accuracy} < 0.85"
-
-    print(f"✓ All metrics pass thresholds")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mae-threshold", type=float, default=0.05)
-    args = parser.parse_args()
-    check_metrics(args.mae_threshold)
-```
-
-### Fase 7: Documentación (2-3 horas)
+### Fase 8: Documentación y Pruebas (3-4 horas)
 
 - [ ] Escribir `docs/FORGEJO_SETUP.md`
-- [ ] Documentar flujo CI/CD completo
-- [ ] Guía migración desde GitHub
-- [ ] Troubleshooting común
-- [ ] Actualizar CLAUDE.md
+- [ ] Documentar flujo CI/CD dual
+- [ ] Guía de migración de Git flow
+- [ ] Actualizar CLAUDE.md con nueva arquitectura
+- [ ] Test completo de extremo a extremo
 
 ---
 
@@ -389,106 +510,88 @@ if __name__ == "__main__":
 
 ### Tests Funcionales
 
-1. **Test Forgejo accesible**:
+1. **Forgejo operativo** en `git.chocolate-factory.ts.net`:
    ```bash
-   curl http://localhost:3000/api/healthz
+   curl https://git.chocolate-factory.ts.net/api/healthz
    # Expected: HTTP 200
    ```
 
-2. **Test pipeline CI/CD**:
+2. **Runners registrados**:
+   - Verificar que ambos runners están online con etiquetas `dev` y `prod`
+   - Test pipelines usando diferentes etiquetas
+
+3. **CI/CD funcional dual**:
    ```bash
-   # Push código → trigger pipeline
-   git push forgejo main
-   # Verificar en UI: pipeline ejecuta, tests pasan, imagen buildeada
+   # Push a develop → despliega en entorno desarrollo
+   git push origin develop
+   # Verificar en UI y en chocolate-factory-dev.ts.net
    ```
 
-3. **Test Docker registry**:
    ```bash
-   docker pull localhost:5000/chocolate-factory:latest
-   # Expected: imagen descargada correctamente
+   # Push a main → despliega en entorno producción
+   git push origin main
+   # Verificar en UI y en chocolate-factory.ts.net
    ```
 
-4. **Test acceso Tailnet**:
+4. **Registry funcional**:
    ```bash
-   curl https://git.your-hostname.your-tailnet.ts.net/api/healthz
-   # Expected: HTTP 200 via Tailscale
+   docker pull localhost:5000/chocolate-factory:develop
+   docker pull localhost:5000/chocolate-factory:production
+   # Expected: imágenes con ambos tags descargadas correctamente
+   ```
+
+5. **Acceso Tailscale triple**:
+   ```bash
+   curl https://git.chocolate-factory.ts.net/api/healthz
+   curl https://chocolate-factory-dev.ts.net/api/healthz
+   curl https://chocolate-factory.ts.net/api/healthz
+   # Expected: HTTP 200 en los tres nodos
    ```
 
 ### Métricas de Éxito
 
-- ✅ Forgejo operacional con UI accesible
-- ✅ Runner CI/CD registrado y funcional
-- ✅ Al menos 2 pipelines creados y testeados
-- ✅ Docker registry acepta push/pull
-- ✅ Acceso Tailnet con SSL funcionando
+- ✅ Tres nodos completamente aislados
+- ✅ Control de acceso diferenciado por ACLs
+- ✅ CI/CD automatizado para ambas ramas
+- ✅ Push único a ambos servidores (GitHub + Forgejo)
+- ✅ Acceso remoto separado para git, desarrollo y producción
 - ✅ Documentación completa
 
 ---
 
 ## 🚧 Problemas Potenciales
 
-### Problema 1: Runner no se registra
+### Problema 1: Comunicación entre nodos
 
-**Síntomas**: Runner offline en Forgejo UI
+**Síntomas**: Pipeline no puede desplegar en nodos remotos
 
 **Solución**:
 ```bash
-# Regenerar token
-# Forgejo UI: Site Administration → Actions → Runners → Create token
-
-# Verificar logs runner
-docker logs chocolate_factory_runner
-
-# Reiniciar runner
-docker restart chocolate_factory_runner
+# Configurar runners para acceder a nodos remotos via Tailscale
+# Usar IPs Tailscale o nombres de host internos
+# Asegurar que ACLs permiten comunicación entre nodos
 ```
 
-### Problema 2: Docker registry rechaza push
+### Problema 2: Acceso al registry desde nodos remotos
 
-**Síntomas**: "unauthorized" al hacer docker push
+**Síntomas**: Nodos de desarrollo/producción no pueden pull de registry
 
 **Solución**:
 ```bash
-# Login al registry
-docker login localhost:5000 -u admin -p YOUR_PASSWORD_HERE
-
-# Verificar /etc/docker/daemon.json
-{
-  "insecure-registries": ["localhost:5000"]
-}
-
-# Restart Docker daemon
-sudo systemctl restart docker
+# Configurar credenciales en nodos de destino
+# O usar registry público dentro de Tailscale
+# Asegurar que ACLs permiten acceso al registry
 ```
 
-### Problema 3: Pipeline falla con "permission denied"
+### Problema 3: DNS interno no resuelve
 
-**Síntomas**: Pipeline no puede ejecutar Docker commands
-
-**Solución**:
-```bash
-# Verificar runner tiene acceso a Docker socket
-ls -la /var/run/docker.sock
-
-# Ajustar permisos si necesario
-sudo chmod 666 /var/run/docker.sock  # Temporal
-# O añadir usuario runner al grupo docker
-```
-
-### Problema 4: Tailscale no expone Forgejo
-
-**Síntomas**: `https://git.${TAILSCALE_DOMAIN}` retorna 502
+**Síntomas**: Nodos no pueden comunicarse por nombres
 
 **Solución**:
 ```bash
-# Verificar nginx config
-docker exec chocolate-factory cat /etc/nginx/nginx.conf
-
-# Test upstream Forgejo accesible desde sidecar
-docker exec chocolate-factory curl http://forgejo:3000/api/healthz
-
-# Reiniciar sidecar
-docker restart chocolate-factory
+# Usar IPs Tailscale directas
+# O configurar DNS interno
+# O usar /etc/hosts en cada nodo
 ```
 
 ---
@@ -497,113 +600,120 @@ docker restart chocolate-factory
 
 ### Beneficios Inmediatos
 
-1. **Control total datos**: Git repos en tu infraestructura
-2. **CI/CD automatizado**: Tests corren en cada push
-3. **Registry privado**: Imágenes Docker sin Docker Hub
-4. **Integración Tailnet**: Acceso seguro remoto
-5. **Detección temprana bugs**: Pipeline valida antes de deploy
+1. **Aislamiento completo**: Cada capa en su propio nodo
+2. **Control de Acceso**: ACLs específicas por función
+3. **Seguridad mejorada**: Aislamiento de compromisos
+4. **CI/CD automatizado**: Tests y despliegues automáticos
+5. **Backup dual**: Código en GitHub y Forgejo
+6. **Escalabilidad**: Cada nodo puede dimensionarse independientemente
 
 ### Casos de Uso Reales
 
-#### Caso 1: Validación automática ML models
-
-```yaml
-# Push nuevo modelo → pipeline valida
-# Si MAE > threshold → pipeline falla → no merge
-# Si MAE OK → auto-merge → deploy
-
-# Antes (manual):
-# 1. Entrenar modelo
-# 2. Copiar .pkl a servidor
-# 3. Reiniciar FastAPI
-# 4. Verificar métricas manualmente
-
-# Después (automatizado):
-# 1. git push
-# (Pipeline hace pasos 2-4 automáticamente)
-```
-
-#### Caso 2: Docker images versionadas
+#### Caso 1: Gestión de accesos diferenciados
 
 ```bash
-# Cada commit main → imagen taggeada con SHA
-localhost:5000/chocolate-factory:abc123d  # Commit SHA
-localhost:5000/chocolate-factory:v0.42.0  # Tag release
-localhost:5000/chocolate-factory:latest   # Main branch
+# Desarrolladores:
+# - Acceso a git.chocolate-factory.ts.net (git, CI/CD)
+# - Acceso a chocolate-factory-dev.ts.net (desarrollo)
+# - Sin acceso a chocolate-factory.ts.net (producción)
 
-# Rollback instantáneo si falla deploy:
-docker-compose pull chocolate-factory:previous_sha
-docker-compose up -d
+# Administradores:
+# - Acceso a todos los nodos
+# - Pueden hacer deploy a producción
 ```
 
-#### Caso 3: Tests pre-merge obligatorios
+#### Caso 2: CI/CD seguro
 
 ```yaml
-# Configurar branch protection en Forgejo
-# → PR no mergeable hasta tests pasen
-# → Evita romper main branch
+# Pipelines se ejecutan en nodos dedicados
+# Despliegue solo a entornos autorizados
+# Aislamiento de credenciales
+```
+
+#### Caso 3: Git Flow dual con ACLs
+
+```bash
+# Flujo de trabajo:
+git checkout develop        # Trabajo en desarrollo
+git push origin develop     # → CI/CD → despliegue en dev
+git checkout main           # Fusión a producción
+git merge develop           # → revisión de admins
+git push origin main        # → CI/CD → despliegue en prod
 ```
 
 ---
 
-## 🔄 Integración con Sprint 11 (MCP)
+## 🔄 Integración con Sprint 11 (Chatbot BI con RAG)
 
-### MCP Server en CI/CD
+### Tests del Chatbot en CI/CD dual
 
 ```yaml
-# .forgejo/workflows/test-mcp.yml
-name: Test MCP Server
+# .gitea/workflows/test-chatbot.yml
+name: Test Chatbot BI (Claude Haiku)
 
 on:
   push:
     paths:
-      - 'mcp-server/**'
+      - 'src/fastapi-app/services/chatbot*.py'
+      - 'src/fastapi-app/api/routers/chatbot.py'
 
 jobs:
-  test-mcp-tools:
-    runs-on: ubuntu-latest
+  test-chatbot-dev:
+    runs-on: dev
+    if: github.ref == 'refs/heads/develop'
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install MCP dependencies
-        run: pip install mcp anthropic-mcp httpx pytest
-
-      - name: Test MCP tools
+      - name: Install Chatbot dependencies
+        run: pip install anthropic slowapi httpx pytest
+      - name: Test Chatbot services in dev
         run: |
-          cd mcp-server
-          pytest test_mcp_tools.py -v --cov
+          cd src/fastapi-app
+          pytest tests/test_chatbot_*.py -v --cov
+      - name: Validate RAG context building
+        run: python scripts/test_chatbot_integration.py
 
-      - name: Validate tool schemas
-        run: python mcp-server/validate_schemas.py
+  test-chatbot-prod:
+    runs-on: prod
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Chatbot dependencies
+        run: pip install anthropic slowapi httpx pytest
+      - name: Test Chatbot services in prod
+        run: |
+          cd src/fastapi-app
+          pytest tests/test_chatbot_*.py -v --cov
+      - name: Validate API Key and rate limiting
+        run: curl -X POST http://localhost:8000/chat/health
 ```
+
+**Nota importante**: Sprint 11 implementó un **chatbot con RAG local usando Claude Haiku API**, no un MCP server. El chatbot usa keyword matching para construcción de contexto inteligente.
 
 ---
 
 ## 🔐 Seguridad
 
-### Secrets Management
+### Seguridad de Acceso por Nodos
 
 ```bash
-# Almacenar secrets en Forgejo (no en código)
-# Site Administration → Actions → Secrets
-
-# Ejemplos:
-INFLUXDB_TOKEN=xxx
-AEMET_API_KEY=xxx
-DOCKER_REGISTRY_PASSWORD=xxx
-TAILSCALE_AUTHKEY=xxx
+# Tailscale ACLs:
+# tag:git-server → solo admins (gestión de código)
+# tag:dev-app → admins + developers (acceso desarrollo)
+# tag:prod-app → solo admins (acceso producción)
 ```
 
-### Network Isolation
+### Seguridad de Despliegue
 
 ```yaml
-# docker-compose.yml
-networks:
-  backend:
-    internal: true  # No acceso internet directo
+# Pipelines con acceso restringido:
+deploy-dev:
+  # Solo desarrolladores pueden desplegar en desarrollo
+  # Validaciones mínimas
 
-  internet:
-    # Solo servicios que necesitan internet (Forgejo, runner)
+deploy-prod:
+  # Solo admins pueden desplegar en producción
+  # Validaciones exhaustivas
+  # Confirmación manual opcional
 ```
 
 ---
@@ -613,26 +723,50 @@ networks:
 - **Forgejo Docs**: https://forgejo.org/docs/
 - **Gitea Actions**: https://docs.gitea.com/usage/actions/overview
 - **Docker Registry**: https://docs.docker.com/registry/
-- **Tailscale ACME**: https://tailscale.com/kb/1153/enabling-https
+- **Tailscale ACLs**: https://tailscale.com/kb/0008/acls/
+- **Three-node architecture**: https://tailscale.com/kb/1154/secure-admin-access/
 
 ---
 
 ## 🚀 Próximos Pasos después Sprint 12
 
 ### Sprint 13 (Monitoring) - Opcional
-- Prometheus + Grafana
-- Métricas custom FastAPI
-- Alerting Telegram/Discord
+- Prometheus + Grafana para todos los nodos
+- Métricas custom por servicio
+- Alerting diferenciado por nodos
+- Dashboard central para monitorear salud del sistema completo
 
-### Extensiones Forgejo
-- Webhooks para Telegram (notificaciones push)
-- Integración Woodpecker CI (alternativa Gitea Actions)
-- Forgejo CLI automation
+### Extensiones
+- Webhooks para notificaciones diferenciadas por nodo
+- Integración con herramientas de alerta (PagerDuty, etc.)
+- Backup automatizado de volúmenes persistentes
+- Alta disponibilidad para nodos críticos
 
 ---
 
 **Fecha creación**: 2025-10-08
+**Fecha actualización**: 2025-10-13
 **Autor**: Infrastructure Sprint Planning
-**Versión**: 1.0
-**Sprint anterior**: Sprint 11 - MCP Server (planeado)
+**Versión**: 2.0 (actualizado con tres nodos Tailscale + dual environment)
+**Sprint anterior**: Sprint 11 - Chatbot BI con RAG (✅ COMPLETADO)
 **Sprint siguiente**: Sprint 13 - Monitoring (opcional)
+
+---
+
+## 🔄 Changelog v2.0
+
+**Cambios vs v1.0**:
+- ✅ **Añadido**: Arquitectura de 3 nodos Tailscale separados
+- ✅ **Añadido**: Runners diferenciados por etiqueta (`dev`/`prod`)
+- ✅ **Añadido**: Entornos separados con `docker-compose.dev.yml` y `docker-compose.prod.yml`
+- ✅ **Añadido**: CI/CD dual con matrix strategy para build y deploy
+- ✅ **Añadido**: Configuración ACLs Tailscale por nodo
+- ✅ **Añadido**: Nginx configs separados por nodo
+- ✅ **Añadido**: Script setup dual remotes (GitHub + Forgejo)
+- ✅ **Corregido**: Referencias a "MCP server" → "Chatbot BI con RAG"
+- ⚡ **Aumentado**: Duración estimada 20-24h → 30-40h (arquitectura más compleja)
+
+**Justificación cambios**:
+- Arquitectura de 3 nodos proporciona **mejor aislamiento, seguridad y escalabilidad**
+- Dual environment permite **testing real antes de producción**
+- Git remotes dobles aseguran **backup y portabilidad**

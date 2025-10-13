@@ -130,6 +130,11 @@ Thumbs.db
 docker-compose.override.yml
 docker-compose.prod.yml
 
+# Docker secrets (CRÍTICO - NO SUBIR)
+docker/secrets/*
+!docker/secrets/.gitkeep
+!docker/secrets/README.md
+
 # Scripts de empaquetado
 package-for-windows.sh
 chocolate-factory-package/
