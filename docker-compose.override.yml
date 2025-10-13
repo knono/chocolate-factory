@@ -51,14 +51,87 @@ services:
       start_period: 30s
 
   # ---------------------------------------------------------------------------
+  # NODO TAILSCALE - GIT/CI/CD
+  # ---------------------------------------------------------------------------
+  git:
+    image: tailscale/tailscale:latest
+    container_name: tailscale_git
+    hostname: git
+    networks:
+      - backend
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY_GIT}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_ACCEPT_DNS=true
+    volumes:
+      - tailscale_git_state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun
+
+  # ---------------------------------------------------------------------------
+  # FORGEJO - Git Server accesible local + Tailnet
+  # ---------------------------------------------------------------------------
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:1.21
+    container_name: chocolate_factory_git_server
+    hostname: forgejo
+    networks:
+      - backend
+    ports:
+      - "3000:3000"  # HTTP UI - acceso local
+      - "2222:22"    # SSH git - acceso local
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+    volumes:
+      - forgejo_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    depends_on:
+      - git
+
+  # ---------------------------------------------------------------------------
+  # NODO TAILSCALE - DESARROLLO
+  # ---------------------------------------------------------------------------
+  chocolate-factory-dev:
+    image: tailscale/tailscale:latest
+    container_name: tailscale_dev
+    hostname: chocolate-factory-dev
+    networks:
+      - backend
+    environment:
+      - TS_AUTHKEY=${TAILSCALE_AUTHKEY_DEV}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_ACCEPT_DNS=true
+    volumes:
+      - tailscale_dev_state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    restart: unless-stopped
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun
+
+  # ---------------------------------------------------------------------------
   # SERVICIOS EXISTENTES - Sin cambios de puertos
   # ---------------------------------------------------------------------------
-  
+
   # FastAPI: Mantener puertos para desarrollo local
   fastapi-app:
     ports:
       - "${FASTAPI_PORT:-8000}:8000"    # Mantener para desarrollo
-    
+
   # InfluxDB: Mantener puerto para administración
   influxdb:
     ports:
@@ -71,6 +144,13 @@ services:
 volumes:
   # Estado persistente de Tailscale para reconexiones
   tailscale_state:
+    driver: local
+  tailscale_git_state:
+    driver: local
+  tailscale_dev_state:
+    driver: local
+  # Forgejo data
+  forgejo_data:
     driver: local
 
 # =============================================================================
