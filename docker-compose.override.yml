@@ -64,11 +64,12 @@ services:
     environment:
       - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY_GIT}
       - TAILSCALE_HOSTNAME=git
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN_GIT}
       - TAILSCALE_STATE_DIR=/var/lib/tailscale
     volumes:
       - tailscale_git_state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
-      - ./docker/git-nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/git-nginx.conf:/etc/nginx/nginx.conf.template:ro
     restart: unless-stopped
     privileged: true
     cap_add:
@@ -171,22 +172,25 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # NODO TAILSCALE - DESARROLLO
+  # NODO TAILSCALE - DESARROLLO (con nginx + SSL)
   # ---------------------------------------------------------------------------
   chocolate-factory-dev:
-    image: tailscale/tailscale:latest
+    build:
+      context: .
+      dockerfile: docker/dev-sidecar.Dockerfile
     container_name: tailscale_dev
     hostname: chocolate-factory-dev
     networks:
       - backend
     environment:
-      - TS_AUTHKEY=${TAILSCALE_AUTHKEY_DEV}
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_USERSPACE=false
-      - TS_ACCEPT_DNS=true
+      - TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY_DEV}
+      - TAILSCALE_HOSTNAME=chocolate-factory-dev
+      - TAILSCALE_DOMAIN=${TAILSCALE_DOMAIN_DEV}
+      - TAILSCALE_STATE_DIR=/var/lib/tailscale
     volumes:
       - tailscale_dev_state:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
+      - ./docker/dev-nginx.conf:/etc/nginx/nginx.conf.template:ro
     restart: unless-stopped
     privileged: true
     cap_add:
