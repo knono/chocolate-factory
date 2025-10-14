@@ -130,10 +130,17 @@ Thumbs.db
 docker-compose.override.yml
 docker-compose.prod.yml
 
-# Docker secrets (CRÍTICO - NO SUBIR)
+# Docker secrets (DEPRECATED - Eliminados, ahora usa SOPS)
 docker/secrets/*
 !docker/secrets/.gitkeep
 !docker/secrets/README.md
+
+# SOPS - Age encryption keys (CRÍTICO - NO SUBIR)
+.sops/age-key.txt
+.sops/secrets.yaml
+
+# Local .env file (decrypted from secrets.enc.yaml)
+.env
 
 # Scripts de empaquetado
 package-for-windows.sh
@@ -146,4 +153,4 @@ chocolate-factory-package/
 *.temp
 *.bak
 *.backup
-*.cache
+*.cacheage/

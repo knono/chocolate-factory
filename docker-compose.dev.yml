@@ -38,21 +38,16 @@ services:
       - LOG_LEVEL=DEBUG
       - TZ=Europe/Madrid
       - PYTHONPATH=/app
-      # APIs Externas (Docker Secrets + fallback a .env hasta implementar SOPS)
-      - REE_API_TOKEN_FILE=/run/secrets/ree_api_token
-      - REE_API_TOKEN=${REE_API_TOKEN}
-      - AEMET_API_KEY_FILE=/run/secrets/aemet_api_key
-      - AEMET_API_KEY=${AEMET_API_KEY}
-      - OPENWEATHERMAP_API_KEY_FILE=/run/secrets/openweathermap_api_key
-      - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
-      - ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic_api_key
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # APIs Externas (from SOPS-decrypted .env)
+      - REE_API_TOKEN=${ree_api_token}
+      - AEMET_API_KEY=${aemet_api_key}
+      - OPENWEATHERMAP_API_KEY=${openweathermap_api_key}
+      - ANTHROPIC_API_KEY=${anthropic_api_key}
       # InfluxDB - IMPORTANTE: Usa la DB de PRODUCCIÓN (read-only conceptualmente)
       # Este entorno NO debe ingestar datos, solo consumirlos para desarrollo
       # del dashboard, APIs y modelos ML. La ingesta se hace en producción.
       - INFLUXDB_URL=http://chocolate_factory_storage:8086
-      - INFLUXDB_TOKEN_FILE=/run/secrets/influxdb_token
-      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_TOKEN=${influxdb_token}
       - INFLUXDB_ORG=chocolate_factory
       - INFLUXDB_BUCKET=energy_data
     volumes:
@@ -71,12 +66,6 @@ services:
       - ./static:/app/static
       - ./.claude:/app/.claude
       - ./logs/dev:/app/logs
-    secrets:
-      - ree_api_token
-      - aemet_api_key
-      - openweathermap_api_key
-      - anthropic_api_key
-      - influxdb_token
     # No depends_on - usa InfluxDB de producción en la misma red
     networks:
       - chocolate-factory_backend
@@ -102,16 +91,13 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_ADMIN_USER}
-      - DOCKER_INFLUXDB_INIT_PASSWORD_FILE=/run/secrets/influxdb_admin_password
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${influxdb_admin_password}
       - DOCKER_INFLUXDB_INIT_ORG=chocolate-factory-dev
       - DOCKER_INFLUXDB_INIT_BUCKET=energy_data_dev
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN_FILE=/run/secrets/influxdb_token
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${influxdb_token_dev}
     volumes:
       - influxdb_dev_data:/var/lib/influxdb2
       - influxdb_dev_config:/etc/influxdb2
-    secrets:
-      - influxdb_token
-      - influxdb_admin_password
     networks:
       - chocolate-factory_backend
     restart: unless-stopped
@@ -120,23 +106,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
-# =============================================================================
-# DOCKER SECRETS
-# =============================================================================
-secrets:
-  ree_api_token:
-    file: ./docker/secrets/ree_api_token.txt
-  aemet_api_key:
-    file: ./docker/secrets/aemet_api_key.txt
-  openweathermap_api_key:
-    file: ./docker/secrets/openweathermap_api_key.txt
-  anthropic_api_key:
-    file: ./docker/secrets/anthropic_api_key.txt
-  influxdb_token:
-    file: ./docker/secrets/influxdb_token.txt
-  influxdb_admin_password:
-    file: ./docker/secrets/influxdb_admin_password.txt
 
 # =============================================================================
 # VOLUMES

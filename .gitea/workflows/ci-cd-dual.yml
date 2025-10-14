@@ -111,9 +111,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Decrypt secrets with SOPS
+        run: |
+          # Install SOPS if not present
+          if ! command -v sops &> /dev/null; then
+            echo "📦 Installing SOPS..."
+            sudo apt-get update && sudo apt-get install -y sops age
+          fi
+
+          # Decrypt secrets to .env file
+          echo "🔓 Decrypting secrets..."
+          echo "${{ secrets.SOPS_AGE_KEY }}" > /tmp/age-key.txt
+          export SOPS_AGE_KEY_FILE=/tmp/age-key.txt
+          sops --decrypt secrets.enc.yaml > .env
+          rm /tmp/age-key.txt
+          echo "✅ Secrets decrypted to .env"
+
       - name: Login to registry
         run: |
-          echo "chocolateregistry123" | docker login ${{ env.REGISTRY }} -u admin --password-stdin
+          # Extract registry password from .env
+          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | cut -d'"' -f2)
+          REGISTRY_USER=$(grep "^registry_user:" .env | cut -d'"' -f2)
+          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u $REGISTRY_USER --password-stdin
 
       - name: Pull latest development image
         run: |
@@ -148,9 +167,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Decrypt secrets with SOPS
+        run: |
+          # Install SOPS if not present
+          if ! command -v sops &> /dev/null; then
+            echo "📦 Installing SOPS..."
+            sudo apt-get update && sudo apt-get install -y sops age
+          fi
+
+          # Decrypt secrets to .env file
+          echo "🔓 Decrypting secrets..."
+          echo "${{ secrets.SOPS_AGE_KEY }}" > /tmp/age-key.txt
+          export SOPS_AGE_KEY_FILE=/tmp/age-key.txt
+          sops --decrypt secrets.enc.yaml > .env
+          rm /tmp/age-key.txt
+          echo "✅ Secrets decrypted to .env"
+
       - name: Login to registry
         run: |
-          echo "chocolateregistry123" | docker login ${{ env.REGISTRY }} -u admin --password-stdin
+          # Extract registry password from .env
+          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | cut -d'"' -f2)
+          REGISTRY_USER=$(grep "^registry_user:" .env | cut -d'"' -f2)
+          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u $REGISTRY_USER --password-stdin
 
       - name: Pull latest production image
         run: |
