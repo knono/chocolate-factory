@@ -1,8 +1,25 @@
 # =============================================================================
 # CHOCOLATE FACTORY - DEVELOPMENT ENVIRONMENT
 # =============================================================================
-# Entorno de desarrollo completo e independiente
-# Desplegado en nodo Tailscale: chocolate-factory-dev.azules-elver.ts.net
+# Entorno de desarrollo para DASHBOARD y APIs (NO para datos)
+#
+# PROPÓSITO:
+# - Desarrollo del dashboard y visualizaciones con HOT-RELOAD
+# - Desarrollo de APIs y endpoints de exposición de datos
+# - Desarrollo de modelos ML y servicios de análisis
+# - Testing de integraciones y transformaciones de datos
+#
+# BASE DE DATOS:
+# - USA LA MISMA InfluxDB de PRODUCCIÓN (datos reales)
+# - NO ingesta datos (evita duplicados y conflictos)
+# - Solo CONSUME y TRANSFORMA datos existentes
+#
+# HOT-RELOAD:
+# - Código fuente mapeado con bind mounts
+# - Cambios en Python/HTML/CSS/JS se aplican instantáneamente
+# - LOG_LEVEL=DEBUG para debugging detallado
+#
+# Desplegado en nodo Tailscale: chocolate-factory-dev.<your-tailnet>.ts.net
 # Uso: docker compose -f docker-compose.dev.yml up -d
 # =============================================================================
 
@@ -21,16 +38,23 @@ services:
       - LOG_LEVEL=DEBUG
       - TZ=Europe/Madrid
       - PYTHONPATH=/app
-      # APIs Externas (usando Docker Secrets)
+      # APIs Externas (Docker Secrets + fallback a .env hasta implementar SOPS)
       - REE_API_TOKEN_FILE=/run/secrets/ree_api_token
+      - REE_API_TOKEN=${REE_API_TOKEN}
       - AEMET_API_KEY_FILE=/run/secrets/aemet_api_key
+      - AEMET_API_KEY=${AEMET_API_KEY}
       - OPENWEATHERMAP_API_KEY_FILE=/run/secrets/openweathermap_api_key
+      - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
       - ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic_api_key
-      # InfluxDB
-      - INFLUXDB_URL=http://influxdb-dev:8086
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # InfluxDB - IMPORTANTE: Usa la DB de PRODUCCIÓN (read-only conceptualmente)
+      # Este entorno NO debe ingestar datos, solo consumirlos para desarrollo
+      # del dashboard, APIs y modelos ML. La ingesta se hace en producción.
+      - INFLUXDB_URL=http://chocolate_factory_storage:8086
       - INFLUXDB_TOKEN_FILE=/run/secrets/influxdb_token
-      - INFLUXDB_ORG=chocolate-factory-dev
-      - INFLUXDB_BUCKET=energy_data_dev
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=chocolate_factory
+      - INFLUXDB_BUCKET=energy_data
     volumes:
       # Código fuente para hot reload (mapeo directo)
       - ./src/fastapi-app/main.py:/app/main.py
@@ -53,8 +77,7 @@ services:
       - openweathermap_api_key
       - anthropic_api_key
       - influxdb_token
-    depends_on:
-      - influxdb-dev
+    # No depends_on - usa InfluxDB de producción en la misma red
     networks:
       - chocolate-factory_backend
     restart: unless-stopped
@@ -65,7 +88,11 @@ services:
       retries: 3
 
   # ---------------------------------------------------------------------------
-  # INFLUXDB - DESARROLLO
+  # INFLUXDB - DESARROLLO (DEPRECATED - No se usa)
+  # ---------------------------------------------------------------------------
+  # Este servicio ya NO se usa. El entorno dev apunta a la InfluxDB de producción
+  # para evitar duplicación de datos y trabajar con datos reales.
+  # Se mantiene comentado como referencia histórica.
   # ---------------------------------------------------------------------------
   influxdb-dev:
     image: influxdb:2.7

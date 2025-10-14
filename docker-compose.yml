@@ -21,14 +21,19 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - TZ=${TZ:-Europe/Madrid}
       - PYTHONPATH=/app
-      # APIs Externas (usando Docker Secrets)
+      # APIs Externas (Docker Secrets + fallback a .env hasta implementar SOPS)
       - REE_API_TOKEN_FILE=/run/secrets/ree_api_token
+      - REE_API_TOKEN=${REE_API_TOKEN}
       - AEMET_API_KEY_FILE=/run/secrets/aemet_api_key
+      - AEMET_API_KEY=${AEMET_API_KEY}
       - OPENWEATHERMAP_API_KEY_FILE=/run/secrets/openweathermap_api_key
-      - ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic_api_key  # Sprint 11: Chatbot BI
+      - OPENWEATHERMAP_API_KEY=${OPENWEATHERMAP_API_KEY}
+      - ANTHROPIC_API_KEY_FILE=/run/secrets/anthropic_api_key
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       # Conexiones internas Docker
       - INFLUXDB_URL=${INFLUXDB_URL_DOCKER}
       - INFLUXDB_TOKEN_FILE=/run/secrets/influxdb_token
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
       - INFLUXDB_ORG=${INFLUXDB_ORG}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
     volumes:

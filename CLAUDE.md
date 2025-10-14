@@ -107,60 +107,42 @@ src/fastapi-app/
 └── logs/                      # Application logs
 ```
 
-## Development Status ✅ PRODUCTION SYSTEM
+## Development Status
 
-### 🚀 Recent Completion: Sprint 09 - Unified Predictive Dashboard ✅
-**Status**: ✅ **COMPLETED** (October 7, 2025)
-**Achievements**:
-- Dashboard unificado: 5 tarjetas → 1 tarjeta "Dashboard Predictivo Completo"
-- Widget ventanas óptimas: 7 días predicción Prophet + periodos tarifarios
-- Análisis desviación REE: 87.5% accuracy, MAE ±0.0183 €/kWh
-- Alertas predictivas: picos precio + oportunidades producción + clima extremo
-- ROI tracking: 1,661€/año con comparativa baseline vs optimizado
-- Integración Tailnet: endpoints `/insights/*` en nginx sidecar
-**Details**: See [`.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md`](.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md)
-**Sprint Roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
+### Recent Completion: Sprint 09 - Unified Predictive Dashboard
+**Status**: COMPLETED (October 7, 2025)
+**Documentation**: [`.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md`](.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md)
+
+Implemented:
+- Dashboard unificado con 7 días predicción Prophet
+- Análisis desviación REE (87.5% accuracy, MAE ±0.0183 €/kWh)
+- Alertas predictivas
+- ROI tracking
+- Endpoints `/insights/*` en nginx sidecar
 
 ### Sprint History (Completed)
-- ✅ **Sprint 01-02**: Monolithic → Microservices migration
-- ✅ **Sprint 03**: Service Layer + Repository pattern
-- ✅ **Sprint 04**: SIAR ETL + 25 years historical data (88,935 records)
-- ✅ **Sprint 05**: Unified Dashboard + BusinessLogicService
-- ✅ **Sprint 06**: Prophet Price Forecasting + Dashboard Integration (Oct 3, 2025)
-- ✅ **Sprint 07**: SIAR Historical Analysis (Oct 4, 2025)
-  - Análisis correlaciones históricas: R²=0.049 (temp), R²=0.057 (humedad) con 88,935 registros
-  - Patrones estacionales: Septiembre mejor (48.2%), Enero peor (0%)
-  - Umbrales críticos: P90=28.8°C, P95=30.4°C, P99=32.2°C
-  - 5 endpoints API: `/analysis/*` + `/forecast/aemet-contextualized`
-  - Dashboard card con análisis histórico SIAR integrado
-- ✅ **Sprint 08**: Hourly Production Optimization (Oct 6, 2025)
-  - Timeline horaria 24h con precio Prophet + periodo tarifario + proceso activo
-  - Clasificación periodos P1/P2/P3 con códigos de color
-  - Vista granular: identificación cruces proceso/periodo
-  - ROI 228k€/año (85.33% ahorro vs horario fijo)
-  - Validación NaN/inf para JSON compliance
-- ✅ **Sprint 09**: Unified Predictive Dashboard (Oct 7, 2025)
-  - Dashboard unificado: Pronóstico Semanal + 4 widgets Sprint 09 en 1 tarjeta
-  - Componentes: Ventanas Óptimas, REE Deviation, Alertas Predictivas, Savings Tracking
-  - 4 endpoints `/insights/*`: optimal-windows, ree-deviation, alerts, savings-tracking
-  - Tailnet integration: nginx sidecar bind mount template + envsubst processing
-  - UX fix: fuente compacta 0.85rem + colores oscuros legibles sobre fondo blanco
-  - Flujo temporal: presente → 24h → semana → mes
-- ✅ **Sprint 11**: Chatbot BI Conversacional - Claude Haiku API (Oct 10, 2025)
-  - Chatbot con Claude Haiku 3.5 integrado en dashboard
-  - RAG local sin vector DB: keyword matching 7 categorías
-  - Optimización latencia: asyncio.gather() (80% reducción HTTP calls)
-  - Context optimizado: 600-1200 tokens/pregunta (6x vs mal diseñado)
-  - Costo: €1.74-5.21/mes (uso normal/intensivo)
-  - 3 endpoints `/chat/*`: ask, stats, health
-  - Widget conversacional con quick questions
-  - Tests: 100% passing (5/5 preguntas)
-  - Métricas: 10-13s latencia, $0.0012/pregunta
-  - Rate limiting: 20 requests/minuto con slowapi
+- Sprint 01-02: Monolithic → Microservices migration
+- Sprint 03: Service Layer + Repository pattern
+- Sprint 04: SIAR ETL (88,935 records, 25 years)
+- Sprint 05: Unified Dashboard + BusinessLogicService
+- Sprint 06: Prophet Price Forecasting (Oct 3, 2025)
+- Sprint 07: SIAR Historical Analysis (Oct 4, 2025)
+  - Correlaciones: R²=0.049 (temp), R²=0.057 (humedad)
+  - 5 endpoints `/analysis/*`
+- Sprint 08: Hourly Production Optimization (Oct 6, 2025)
+  - Timeline 24h con precio Prophet + periodo tarifario
+  - Clasificación P1/P2/P3
+- Sprint 09: Unified Predictive Dashboard (Oct 7, 2025)
+  - 4 endpoints `/insights/*`
+  - Tailnet integration
+- Sprint 11: Chatbot BI - Claude Haiku API (Oct 10, 2025)
+  - RAG local, keyword matching
+  - 3 endpoints `/chat/*`
+  - Latencia 10-13s, rate limiting 20/min
 
-### Infrastructure Sprints (Remaining)
-- 🔴 **Sprint 10**: ML Consolidation & Cleanup
-- 🔴 **Sprint 12**: Forgejo CI/CD
+### Pending
+- Sprint 10: ML Consolidation & Cleanup
+- Sprint 12: Forgejo CI/CD
 
 ### Core Infrastructure (2-Container Architecture)
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
@@ -360,25 +342,20 @@ curl -X POST http://localhost:8000/chat/ask \
 - **ML Models**: `/app/models/` (pickle files)
 - **System shutdown safe**: Data persists across restarts
 
-### Historical Data Status (Updated Sept 17, 2025)
-- **REE Data**: 42,578 records (2022-2025) including historical backfill
-- **Weather Current**: 2,902 records from AEMET/OpenWeatherMap hybrid (Sept 2025)
-- **✅ SIAR Historical**: **88,935 records** (2000-2025) - **COMPLETED**
-- **REE Historical**: Comprehensive coverage 2022-2024
-- **Backfill system**: Auto-detects and recovers gaps every 2 hours
+### Historical Data Status
+- REE Data: 42,578 records (2022-2025)
+- Weather Current: 2,902 records AEMET/OpenWeatherMap hybrid
+- SIAR Historical: 88,935 records (2000-2025)
+- Backfill system: Auto-recovery every 2 hours
 
-### ✅ SIAR Historical Data ETL Solution (COMPLETED)
-- **Data Source**: Sistema de Información Agroclimática para el Regadío (SIAR)
-- **Coverage**: 25+ years (August 2000 - September 2025)
-- **Total Records**: 88,935 weather observations
-- **Stations**:
-  - SIAR_J09_Linares (2000-2017): 62,842 records
-  - SIAR_J17_Linares (2018-2025): 26,093 records
-- **Storage**: Dedicated `siar_historical` bucket (separated from current weather)
-- **Fields**: 10 meteorological variables (temperature, humidity, wind, precipitation)
-- **Script**: `/scripts/test_siar_simple.py` - Processes all CSV files automatically
-- **Format Handling**: Spanish dates (DD/MM/YYYY), comma decimals, Unicode cleaning
-- **Data Quality**: Comprehensive 25-year dataset for ML training and analysis
+### SIAR Historical Data ETL
+- Source: Sistema de Información Agroclimática para el Regadío (SIAR)
+- Coverage: 25 years (2000-2025)
+- Records: 88,935 weather observations
+- Stations: J09_Linares (2000-2017), J17_Linares (2018-2025)
+- Storage: `siar_historical` bucket
+- Fields: 10 meteorological variables
+- Script: `/scripts/test_siar_simple.py`
 
 ### SIAR ETL Technical Implementation Details
 
@@ -539,192 +516,72 @@ docker compose up -d chocolate-factory
 
 ## Recent System Updates
 
-### ⚡ **Intelligent Backfill Strategy 48h (Oct 7, 2025)**
-- **Issue**: AEMET API fails for gaps <48h (needs 24-48h to consolidate daily data)
-- **Solution**: Dual strategy based on gap age
-  - **Gaps <48h**: Use OpenWeatherMap (current data only, free tier limitation)
-  - **Gaps ≥48h**: Use AEMET API (consolidated official data)
-- **Implementation**: `services/backfill_service.py:183-393`
-- **Result**: ✅ System automatically selects optimal data source based on gap age
-- **Limitation**: OpenWeatherMap Free doesn't support historical data for gaps
-- **Recommendation**: Accept 48h gap window OR implement hourly OWM preventive ingestion
-- **Documentation**: `docs/BACKFILL_48H_STRATEGY.md`
+### Intelligent Backfill Strategy (Oct 7, 2025)
+Dual strategy based on gap age: OpenWeatherMap for gaps <48h, AEMET for gaps ≥48h.
+Implementation: `services/backfill_service.py:183-393`
+Documentation: `docs/BACKFILL_48H_STRATEGY.md`
 
-### 🔧 **AEMET Integration Fix (Sept 19, 2025)**
-- **Issue**: System was only using OpenWeatherMap, AEMET integration broken
-- **Root cause**: Import errors + incorrect datosclima references + silent error handling
-- **Solution**: Fixed imports to `SiarETL` + enhanced logging + proper error handling
-- **Result**: ✅ AEMET official data restored, hybrid system fully operational
-- **Status**: Weather gaps closed (0.0 hours), project value restored with official Spanish data
+### AEMET Integration Fix (Sept 19, 2025)
+Fixed imports to `SiarETL`, enhanced logging, proper error handling.
+Result: Hybrid system operational.
 
-### 🔧 **Backfill Strategy Correction (Sept 23, 2025)**
-- **Issue**: Code had incorrect "datosclima" references despite SIAR ETL implementation
-- **Problem**: Backfill system referenced non-existent datosclima.es instead of using AEMET + SIAR
-- **Solution**:
-  - **Primary**: AEMET API for all gaps (days, weeks, months) - official Spanish weather data
-  - **Fallback**: Manual SIAR download notification only for large gaps (>30 days) where AEMET fails
-  - **Cleanup**: Removed all datosclima references from codebase
-- **Result**: ✅ Simplified, reliable backfill using official AEMET data primarily
-- **Status**: AEMET handles historical data effectively, SIAR reserved for extreme cases only
+### Static Dashboard Architecture Migration (Oct 4, 2025)
+Extracted HTML/CSS/JS to `/static/` structure.
+main.py: 5,883 → 3,734 lines
+Nginx uses `envsubst` for `${TAILSCALE_DOMAIN}`
 
-### 🏗️ **Static Dashboard Architecture Migration (Oct 4, 2025)**
-- **Issue**: 5,883 lines in main.py with embedded HTML/CSS/JS difficult to maintain
-- **Solution**: Extracted to `/static/` structure
-  - `index.html` (432 lines) - Clean HTML without embedded styles/scripts
-  - `css/dashboard.css` (826 lines) - All styles separated
-  - `js/dashboard.js` (890 lines) - Logic + API calls to `/dashboard/complete`
-- **Result**: ✅ main.py reduced to 3,734 lines (-36.5%), cleaner separation of concerns
-- **Version**: Updated to v0.41.0
-- **Tailscale fix**: Nginx now uses `envsubst` to process `${TAILSCALE_DOMAIN}` variable (requires `gettext` package)
-- **Security**: No hardcoded Tailscale domains in tracked files (uses .env)
-- **Routes**: `/` and `/dashboard` redirect to `/static/index.html`, JavaScript fetches data from API
+### BusinessLogicService Integration (Sept 26-27, 2025)
+Location: `src/fastapi-app/services/business_logic_service.py`
+Rules: `.claude/rules/business-logic-suggestions.md`
+Humanizes ML recommendations for Spanish business context.
 
-### 🎨 **Dashboard Enhancement & BusinessLogicService Integration (Sept 26-27, 2025)**
-
-#### **BusinessLogicService Implementation**
-- **Purpose**: Bridge technical ML outputs with human-friendly recommendations
-- **Location**: `src/fastapi-app/services/business_logic_service.py`
-- **Rules Source**: `.claude/rules/business-logic-suggestions.md`
-- **Key Features**:
-  - Humanizes drastic ML recommendations (e.g., "halt_production" → "minimal production")
-  - Provides context-aware Spanish business messages
-  - Integrates with Enhanced ML predictions for gradual operational guidance
-
-#### **Critical Technical Fixes Applied**
-1. **BusinessLogicService Integration**:
-   - **Docker Mount**: Added `./.claude:/app/.claude` to docker-compose.yml
-   - **Path Fix**: Corrected rules file path to `/app/.claude/rules/business-logic-suggestions.md`
-   - **Result**: ✅ Business rules now load correctly and generate human recommendations
-
-2. **REE Client Connection Issues**:
-   - **Problem**: `RuntimeError: Cannot send a request, as the client has been closed`
-   - **Fix**: Corrected context manager usage in dashboard.py line 637
-   - **Result**: ✅ REE API calls now work properly with `async with self.ree_client as ree:`
-
-3. **JavaScript Variable Conflicts**:
-   - **Problem**: `Identifier 'humanRec' has already been declared` causing dashboard failures
-   - **Solution**: Renamed variables to unique names:
-     - `renderUnifiedREEAnalysis`: `humanRecUnified`
-     - `renderEnhancedMLData`: `humanRecEnhanced` and `humanRecDetails`
-   - **Result**: ✅ JavaScript executes without syntax errors
-
-4. **Historical Data Display Issues**:
-   - **Problem**: Costo Total showing 0€ instead of 7,902€, Min/Max showing 0.0000
-   - **Cause**: JavaScript accessing wrong data properties
-   - **Fix**: Corrected property paths:
-     - `analytics.total_cost` → `analytics.factory_metrics.total_cost`
-     - `priceAnalysis.min_price` → `priceAnalysis.min_price_eur_kwh`
-   - **Result**: ✅ Displays correct values: 7,902€, 0.0331-0.3543 €/kWh
-
-5. **Visual Contrast Issues**:
-   - **Problem**: White text on white background in metrics cards
-   - **Fix**: Changed all color styles from `color: white` to `color: #333` in historical metrics
-   - **Result**: ✅ Text fully visible with proper contrast
-
-#### **Dashboard Unification Completed**
-- **4 → 1 Card**: Combined location, system status, data sources, and factory state into single "Información del Sistema" card
-- **Grid Layout**: 2x2 organized sections with color-coded categories
-- **Information Preserved**: All original data maintained in compact, organized format
-
-#### **Recommendation System Architecture**
-```
-Enhanced ML (Technical) → BusinessLogicService → Human-Friendly Output
-     ↓                           ↓                      ↓
-"halt_production"         Humanization Layer      "PRODUCCIÓN MÍNIMA"
-"critical priority"       Business Rules          Gradual guidance
-Raw ML scores            Context-aware            Spanish messages
-```
-
-#### **Quality Assurance Status**
-- ✅ **No JavaScript Errors**: Console completely clean
-- ✅ **Data Accuracy**: All metrics showing correct values
-- ✅ **Visual Clarity**: All text properly visible
-- ✅ **Dual Access**: Local + Tailscale working perfectly
-- ✅ **Recommendation Consistency**: Unified source of truth implemented
+Technical fixes applied:
+- Docker mount for `.claude` directory
+- REE client context manager usage
+- JavaScript variable naming conflicts
+- Property path corrections
+- Visual contrast improvements
 
 ---
 
-## 📚 Working with Sprints (Sprint 06-10: ML Evolution)
+## Working with Sprints
 
-### 🎯 Sprint Workflow for Claude Code
+### Sprint Workflow
 
-#### On Session Start
-1. **Read Sprint Status**: Open [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
-2. **Identify Active Sprint**: Look for 🟡 PENDING or 🟡 EN PROGRESO status
-3. **Open Sprint Document**: Read `SPRINT_XX_XXXXX.md` for current sprint details
-4. **Review Checklist**: Check `- [ ]` items to see what's pending
+**Session Start**:
+1. Read [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
+2. Identify active sprint
+3. Review checklist in `SPRINT_XX_XXXXX.md`
 
-#### During Development
-1. **Update Checkboxes**: Mark completed items as `- [x]` in sprint document
-2. **Document Issues**: Add to "Problemas Encontrados" section if exists
-3. **Track Progress**: Use TodoWrite tool for granular task tracking
-4. **Commit Incrementally**: Small commits with descriptive messages
+**During Development**:
+1. Update checkboxes in sprint document
+2. Document issues
+3. Use TodoWrite for task tracking
+4. Commit incrementally
 
-#### On Sprint Completion
-1. **Verify All Checklists**: Ensure all `- [ ]` are now `- [x]`
-2. **Update Sprint Status**: Change 🟡 → ✅ COMPLETADO in sprint document
-3. **Update README**: Mark sprint as ✅ in `.claude/sprints/ml-evolution/README.md`
-4. **Update CLAUDE.md**: Move completed sprint to "Sprint History"
-5. **Create Git Tag**: `git tag -a sprint-XX -m "Sprint XX completed"`
-6. **Move to Next Sprint**: Update "Active Sprint" section to next sprint
+**Sprint Completion**:
+1. Verify all checklist items complete
+2. Update sprint status in sprint document
+3. Update README sprint list
+4. Update CLAUDE.md sprint history
+5. Create git tag: `git tag -a sprint-XX -m "Sprint XX completed"`
 
-### 📂 Sprint Documentation Structure
+### Sprint Documentation Structure
 
 ```
 .claude/sprints/ml-evolution/
-├── README.md                           # Sprint index and roadmap
-├── SPRINT_06_PRICE_FORECASTING.md     # 🟡 ACTIVE
-├── SPRINT_07_SIAR_TIMESERIES.md       # 🔴 NOT STARTED
-├── SPRINT_08_HOURLY_OPTIMIZATION.md   # 🔴 NOT STARTED
-├── SPRINT_09_PREDICTIVE_DASHBOARD.md  # 🔴 NOT STARTED
-└── SPRINT_10_CONSOLIDATION.md         # 🔴 NOT STARTED
+├── README.md
+├── SPRINT_06_PRICE_FORECASTING.md
+├── SPRINT_07_SIAR_TIMESERIES.md
+├── SPRINT_08_HOURLY_OPTIMIZATION.md
+├── SPRINT_09_PREDICTIVE_DASHBOARD.md
+└── SPRINT_10_CONSOLIDATION.md
 ```
 
-### ⚡ Quick Commands
+### Sprint Completion Criteria
 
-```bash
-# Check current sprint status
-cat .claude/sprints/ml-evolution/README.md | grep "Sprint 0" | head -10
-
-# View active sprint details
-cat .claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md
-
-# Update sprint status after completion
-# Edit sprint file: change 🟡 → ✅ and update checkboxes
-# Edit README.md: update sprint list status
-# Edit CLAUDE.md: move sprint to completed section
-```
-
-### 🎯 Sprint Philosophy
-
-1. **No Service Interruption**: Each sprint adds functionality without breaking existing features
-2. **Incremental Delivery**: Every sprint ends with 100% functional system
-3. **Context Preservation**: `.claude/sprints/` maintains state between sessions
-4. **Progressive Cleanup**: Remove legacy code only when new code is proven stable
-
-### 📊 Sprint Completion Criteria
-
-A sprint is **COMPLETADO** when:
-- ✅ All deliverables implemented and tested
-- ✅ System runs without errors
-- ✅ Documentation updated (sprint file + CLAUDE.md)
-- ✅ Success metrics achieved
-- ✅ No critical technical debt introduced
-
----
-
-## 🔧 Sprint 06 Quick Start (Current Active)
-
-**Goal**: Implement LSTM/Prophet for REE price prediction (168h forecast)
-
-**Key Files to Create/Modify**:
-- `src/fastapi-app/services/price_forecasting_service.py` (NEW)
-- `src/fastapi-app/main.py` (add endpoints + APScheduler job)
-- Dashboard heatmap integration
-
-**Success Metrics**:
-- MAE < 0.02 €/kWh
-- Heatmap showing real predictions
-- API `/predict/prices/weekly` working
-
-**See Full Details**: [`.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md`](.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md)
+- All deliverables implemented and tested
+- System runs without errors
+- Documentation updated (sprint file + CLAUDE.md)
+- Metrics achieved
+- No critical technical debt

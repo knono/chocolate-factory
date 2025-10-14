@@ -5,23 +5,28 @@ Esta guía explica cómo desplegar y gestionar los entornos de desarrollo y prod
 ## 🏗️ Arquitectura
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    TAILSCALE NETWORK                        │
-│                   azules-elver.ts.net                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────┐ │
-│  │  NODO GIT/CI/CD  │  │  NODO DESARROLLO │  │  NODO    │ │
-│  │  git.azules...   │  │  chocolate-fa... │  │  PRODUCCIÓN│
-│  │                  │  │  -dev.azules...  │  │  chocolate│
-│  │                  │  │                  │  │  -factory │
-│  │  - Forgejo       │  │  - FastAPI Dev   │  │  - FastAPI│
-│  │  - Runners       │  │  - InfluxDB Dev  │  │    Prod   │
-│  │  - Registry      │  │  - Hot Reload    │  │  - InfluxDB│
-│  │                  │  │                  │  │    Prod   │
-│  └──────────────────┘  └──────────────────┘  └──────────┘ │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                       TAILSCALE NETWORK                             │
+│                      <your-tailnet>.ts.net                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐ │
+│  │  NODO GIT/CI/CD  │  │  NODO DESARROLLO │  │  NODO PRODUCCIÓN │ │
+│  │  git.<tailnet>   │  │  chocolate-fa... │  │  chocolate-...   │ │
+│  │                  │  │  -dev.<tailnet>  │  │  factory         │ │
+│  │  - Forgejo       │  │                  │  │                  │ │
+│  │  - Runners       │  │  - FastAPI Dev   │  │  - FastAPI Prod  │ │
+│  │  - Registry      │  │    (Hot Reload)  │  │  - InfluxDB Prod │ │
+│  │                  │  │  - Dashboard Dev │  │    (INGESTION)   │ │
+│  │                  │  │    ───────┐      │  │                  │ │
+│  │                  │  │           │      │  │                  │ │
+│  │                  │  │           └──────┼──┼─> Lee datos ──┐  │ │
+│  │                  │  │                  │  │                │  │ │
+│  └──────────────────┘  └──────────────────┘  └────────────────┼──┘ │
+│                                                                 │    │
+│  DEV: Solo desarrollo dashboard/APIs (NO ingesta)             │    │
+│  PROD: Ingesta datos + servicio dashboard producción    <─────┘    │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ## 📋 Prerequisitos
@@ -51,8 +56,8 @@ Esta guía explica cómo desplegar y gestionar los entornos de desarrollo y prod
    ```
 
 3. **Nodos Tailscale activos**:
-   - `chocolate-factory-dev.azules-elver.ts.net`
-   - `chocolate-factory.azules-elver.ts.net`
+   - `chocolate-factory-dev.<your-tailnet>.ts.net`
+   - `chocolate-factory.<your-tailnet>.ts.net`
 
 ## 🛠️ Despliegue
 
@@ -62,7 +67,7 @@ Esta guía explica cómo desplegar y gestionar los entornos de desarrollo y prod
 
 ```bash
 # 1. Descargar imagen
-docker login localhost:5000 -u admin -p chocolateregistry123
+docker login localhost:5000 -u admin -p <registry-password>
 docker pull localhost:5000/chocolate-factory:develop
 
 # 2. Desplegar servicios
@@ -77,11 +82,14 @@ curl http://localhost:8001/health
 ```
 
 **Características del entorno de desarrollo:**
-- ✅ Hot reload activado
+- ✅ Hot reload activado (cambios instantáneos en Python/HTML/CSS/JS)
 - ✅ Código fuente montado como bind mount
-- ✅ Logs nivel DEBUG
+- ✅ Logs nivel DEBUG para debugging detallado
 - ✅ Puerto 8001 (para evitar conflicto con producción local)
-- ✅ Base de datos InfluxDB independiente
+- ⚠️ **Base de datos: USA LA MISMA InfluxDB de PRODUCCIÓN**
+  - NO ingesta datos (evita duplicados y conflictos)
+  - Solo CONSUME y TRANSFORMA datos existentes
+  - Propósito: Desarrollo de dashboard, APIs y modelos ML con datos reales
 
 ### Entorno de Producción
 
@@ -89,7 +97,7 @@ curl http://localhost:8001/health
 
 ```bash
 # 1. Descargar imagen
-docker login localhost:5000 -u admin -p chocolateregistry123
+docker login localhost:5000 -u admin -p <registry-password>
 docker pull localhost:5000/chocolate-factory:production
 
 # 2. Desplegar servicios
@@ -190,13 +198,15 @@ secrets:
 Desarrollo:
 - `ENVIRONMENT=development`
 - `LOG_LEVEL=DEBUG`
-- `INFLUXDB_ORG=chocolate-factory-dev`
-- `INFLUXDB_BUCKET=energy_data_dev`
+- `INFLUXDB_URL=http://chocolate_factory_storage:8086` ⚠️ **USA DB PRODUCCIÓN**
+- `INFLUXDB_ORG=chocolate_factory` ⚠️ **Misma org que producción**
+- `INFLUXDB_BUCKET=energy_data` ⚠️ **Mismo bucket que producción**
 
 Producción:
 - `ENVIRONMENT=production`
 - `LOG_LEVEL=INFO`
-- `INFLUXDB_ORG=chocolate-factory`
+- `INFLUXDB_URL=http://influxdb:8086`
+- `INFLUXDB_ORG=chocolate_factory`
 - `INFLUXDB_BUCKET=energy_data`
 
 **Secrets (sensibles - INTENTA archivos, USA variables)**:
@@ -227,11 +237,11 @@ El código Python:
 
 ### Desarrollo
 - **Local**: http://localhost:8001
-- **Tailscale** (requiere sidecar nginx): http://chocolate-factory-dev.azules-elver.ts.net
+- **Tailscale** (requiere sidecar nginx): http://chocolate-factory-dev.<your-tailnet>.ts.net
 
 ### Producción
 - **Local**: http://localhost:8000
-- **Tailscale**: http://chocolate-factory.azules-elver.ts.net (con sidecar existente)
+- **Tailscale**: http://chocolate-factory.<your-tailnet>.ts.net (con sidecar existente)
 
 ## 📊 Monitoreo
 
@@ -299,7 +309,7 @@ docker run --rm -v chocolate-factory_influxdb_prod_data:/data -v $(pwd):/backup 
 
 ```bash
 # Verificar que la imagen existe en el registry
-curl -u admin:chocolateregistry123 http://localhost:5000/v2/chocolate-factory/tags/list
+curl -u admin:<registry-password> http://localhost:5000/v2/chocolate-factory/tags/list
 
 # Si no existe, buildear y pushear
 docker build -t localhost:5000/chocolate-factory:develop -f docker/fastapi.Dockerfile .
@@ -382,5 +392,16 @@ docker inspect chocolate_factory_dev | grep -A 10 Health
 
 ---
 
-**Última actualización**: 2025-10-13
-**Versión**: 1.0
+**Última actualización**: 2025-10-14
+**Versión**: 1.1
+
+## 📝 Notas de Versión
+
+### v1.1 (2025-10-14)
+- ⚠️ **CAMBIO IMPORTANTE**: Entorno desarrollo ahora usa la misma InfluxDB de producción
+- Propósito: Desarrollo de dashboard/APIs/ML con datos reales (NO ingesta)
+- InfluxDB-dev deprecado (ya no se usa)
+- Documentación actualizada con arquitectura revisada
+
+### v1.0 (2025-10-13)
+- Versión inicial con entornos separados
