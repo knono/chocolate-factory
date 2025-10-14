@@ -1,6 +1,6 @@
-# Chocolate Factory - Industrial Energy Optimization System
+# Chocolate Factory - Energy Optimization System
 
-**Autonomous energy monitoring and production optimization system with machine learning and historical data analysis**
+Containerized system for energy monitoring and production optimization with machine learning.
 
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)](https://docker.com)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python)](https://python.org)
@@ -13,16 +13,15 @@
 
 ## Overview
 
-Industrial-grade system for energy cost optimization and production planning. Integrates real-time Spanish electricity market data (REE), official meteorological data (AEMET), and 25+ years of historical weather records (SIAR) to provide ML-powered production recommendations.
+Energy optimization system integrating Spanish electricity market data (REE), meteorological data (AEMET), and 25 years of historical weather records (SIAR). Provides ML-powered production recommendations.
 
-### Core Capabilities
-
-- **Energy Price Forecasting**: Prophet ML model for 168-hour electricity price prediction (MAE: 0.033 €/kWh)
-- **Production Optimization**: Hourly production planning based on energy costs and weather conditions
-- **Conversational BI**: Claude Haiku chatbot with natural language queries (10-13s latency, €1.74-5.21/month)
-- **Historical Analysis**: 131,513+ records (88,935 SIAR + 42,578 REE) for robust ML training
-- **Autonomous Operation**: Self-healing data pipeline with automatic gap detection and recovery
-- **Real-time Dashboard**: Interactive weekly heatmap with production recommendations
+**Features**:
+- Prophet ML model for 168-hour electricity price prediction (MAE: 0.033 €/kWh)
+- Hourly production planning based on energy costs and weather
+- Claude Haiku chatbot for natural language queries
+- 131,513 historical records for ML training
+- Self-healing data pipeline with automatic gap detection
+- Interactive dashboard with weekly heatmap
 
 ### Dashboard Preview
 
@@ -47,15 +46,6 @@ Industrial-grade system for energy cost optimization and production planning. In
 ---
 
 ## System Architecture
-
-### Deployment Philosophy: On-Premise with Secure Remote Access
-
-The system implements a **hybrid architecture** combining complete on-premise data sovereignty with zero-trust remote access capabilities. This design ensures:
-
-- **Data Sovereignty**: All data processing, storage, and ML training occurs on local infrastructure
-- **Zero Cloud Dependencies**: No reliance on third-party cloud services for core operations
-- **Selective Exposure**: Only read-only dashboard accessible remotely; administrative APIs remain local-only
-- **Cost Efficiency**: Eliminates recurring cloud service costs while maintaining secure remote monitoring
 
 ### Infrastructure (2-Container + Optional Sidecar)
 
@@ -104,55 +94,26 @@ The system implements a **hybrid architecture** combining complete on-premise da
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Security Architecture: Defense in Depth
+### Security Architecture
 
-**Layer 1: Network Isolation**
-- Local infrastructure operates on isolated Docker network (MTU 1280 for Tailscale compatibility)
-- No direct port exposure to internet
-- Tailscale sidecar acts as sole external gateway
+**Network**:
+- Isolated Docker network (MTU 1280)
+- No direct internet port exposure
+- Tailscale sidecar as single external gateway
 
-**Layer 2: Reverse Proxy Filtering (Nginx)**
-- Whitelist-only approach: Only `/dashboard` and static resources permitted
-- All administrative endpoints explicitly blocked (`/docs`, `/predict`, `/models`, `/influxdb`, etc.)
-- API endpoints for data modification return HTTP 403
-- Custom 403 pages prevent information disclosure
+**Reverse Proxy (Nginx)**:
+- Whitelist approach: `/dashboard` and static resources only
+- Administrative endpoints blocked (`/docs`, `/predict`, `/models`, `/influxdb`)
+- HTTP 403 for data modification endpoints
 
-**Layer 3: Zero-Trust Networking (Tailscale)**
+**Tailscale**:
 - WireGuard-based encrypted tunnels
-- Identity-based access (not IP-based)
-- Automatic SSL/TLS certificate management
-- No VPN configuration or firewall rules required
+- Identity-based access
+- Automatic SSL/TLS certificates
 
-**Layer 4: Application-Level Access Control**
-- Full API access restricted to localhost (development/maintenance)
-- Dashboard provides read-only operational visibility
-- No sensitive credentials exposed through remote interface
-
-### Operational Benefits
-
-**On-Premise Data Control**
-- Complete data sovereignty: No third-party cloud access to operational or historical data
-- GDPR/Privacy compliance: Data never leaves local infrastructure
-- Offline capability: System operates independently of internet connectivity
-- Customization freedom: No cloud service limitations or API constraints
-
-**Cost Structure**
-- Zero recurring cloud costs (no AWS/Azure/GCP bills)
-- Free-tier external APIs (REE, AEMET, OpenWeatherMap) for data acquisition
-- Hardware amortization: One-time investment in local server/NUC
-- Tailscale: Free for personal use (up to 100 devices)
-
-**Security Posture**
-- Minimal attack surface: Only dashboard exposed remotely (read-only)
-- Defense in depth: 4 security layers (network, proxy, zero-trust, application)
-- No credential exposure: Admin credentials never traverse remote connections
-- Audit trail: Local logs for all administrative actions
-
-**Operational Flexibility**
-- Local development: Full API access on `localhost:8000` for testing/debugging
-- Selective remote access: Dashboard monitoring from anywhere via Tailscale
-- Easy maintenance: Direct access to InfluxDB and logs on local network
-- No vendor lock-in: Standard Docker containers, portable to any infrastructure
+**Application**:
+- Full API access restricted to localhost
+- Dashboard provides read-only remote visibility
 
 ### Technology Stack
 
@@ -199,32 +160,27 @@ The system implements a **hybrid architecture** combining complete on-premise da
 
 ## Machine Learning System
 
-### Current Status: ✅ ML Evolution Complete + Infrastructure Sprint 11
+**Completed Sprints**: ML Evolution (06-10) + Infrastructure (11)
 
-**Sprint Progress**: ML Evolution (06-10) + Infrastructure (11) Complete
+| Sprint | Description |
+|--------|-------------|
+| 06 | REE Price Forecasting (Prophet 168h) |
+| 07 | SIAR Historical Analysis (88k records) |
+| 08 | Hourly Optimization |
+| 09 | Unified Predictive Dashboard |
+| 10 | ML Consolidation & Cleanup |
+| 11 | Chatbot BI (Claude Haiku API) |
 
-| Sprint | Status | Achievement |
-|--------|--------|-------------|
-| **06** | ✅ | REE Price Forecasting (Prophet 168h) |
-| **07** | ✅ | SIAR Historical Analysis (88k records) |
-| **08** | ✅ | Hourly Optimization (228k€/year ROI) |
-| **09** | ✅ | Unified Predictive Dashboard (1.6k€/year insights) |
-| **10** | ✅ | ML Consolidation & Cleanup (-48% code, 0 synthetic) |
-| **11** | ✅ | Chatbot BI Conversacional (Claude Haiku, 10-13s latency) |
+**Documentation**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
 
-**Latest Achievement (Sprint 11)**: Conversational BI chatbot integrated with Claude Haiku 3.5 API. RAG local implementation with keyword matching (7 categories), optimized latency 10-13s (50% reduction via asyncio.gather), context optimization 600-1200 tokens/query (6x efficiency), cost €1.74-5.21/month. Widget integrated in dashboard with quick questions, rate limiting 20 requests/minute, 100% test coverage (5/5 passing).
+### Implemented Models
 
-**Full roadmap**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
-**Architecture**: [`docs/ML_ARCHITECTURE.md`](docs/ML_ARCHITECTURE.md)
-
-### ML Capabilities
-
-- **Price Forecasting**: Prophet 168h predictions (MAE: 0.033 €/kWh, R²: 0.49)
-- **Predictive Insights**: Optimal production windows, REE deviation tracking (87.5% accuracy)
-- **Historical Analysis**: SIAR correlations (R²: 0.049 temp, 0.057 humidity)
-- **Energy Optimization**: RandomForest regressor (R²: 0.89, MAE: 0.033)
+- **Price Forecasting**: Prophet 168h (MAE: 0.033 €/kWh, R²: 0.49)
+- **Energy Optimization**: RandomForest regressor (R²: 0.89)
 - **Production Recommendation**: RandomForest classifier (90% accuracy)
-- **Model Versioning**: Timestamp-based registry tracking 10 versions per model type
+- **Historical Analysis**: SIAR correlations (25 years)
+- **Predictive Insights**: Optimal windows, REE deviation tracking
+- **Model Versioning**: 10 versions per model type
 
 ---
 
@@ -233,11 +189,10 @@ The system implements a **hybrid architecture** combining complete on-premise da
 ### Prerequisites
 
 - Docker 20.10+ and Docker Compose 2.0+
-- API keys (free tier sufficient):
-  - REE: Public access (no key required)
+- API keys:
   - AEMET: https://opendata.aemet.es/centrodedescargas/obtencionAPIKey
   - OpenWeatherMap: https://openweathermap.org/api
-  - Anthropic (optional, for Chatbot BI): https://console.anthropic.com/ ($5 free credits)
+  - Anthropic (optional): https://console.anthropic.com/
 
 ### Project Structure
 
@@ -312,129 +267,65 @@ curl -X POST http://localhost:8000/models/validate
 
 ### Deployment Modes
 
-#### Mode 1: Local-Only (On-Premise)
-
-Recommended for development and when remote access is not required.
+#### Mode 1: Local-Only
 
 ```bash
-# Standard deployment (no remote access)
 docker compose up -d
 
-# Access points (local network only)
-http://localhost:8000/static/index.html  # Dashboard (static)
-http://localhost:8000/docs               # Full API documentation
-http://localhost:8086                    # InfluxDB admin UI
+# Access
+http://localhost:8000/static/index.html  # Dashboard
+http://localhost:8000/docs               # API documentation
+http://localhost:8086                    # InfluxDB UI
 ```
 
-**Characteristics**:
-- ✓ Full API access on localhost
-- ✓ Direct InfluxDB access
-- ✓ No external network exposure
-- ✓ Simplest configuration
-
-#### Mode 2: Hybrid (On-Premise + Tailscale)
-
-Recommended for production monitoring with secure remote access.
+#### Mode 2: Hybrid (Local + Tailscale)
 
 ```bash
 # 1. Generate Tailscale auth key
-# Visit: https://login.tailscale.com/admin/settings/keys
-# Create reusable key with tag 'chocolate-factory'
+# https://login.tailscale.com/admin/settings/keys
 
-# 2. Configure Tailscale credentials
+# 2. Configure credentials
 cp .env.tailscale.example .env.tailscale
 nano .env.tailscale
-# Set: TAILSCALE_AUTHKEY=<your-tailscale-authkey>
-# Set: TAILSCALE_DOMAIN=<your-hostname> (auto-registered in Tailscale)
+# Set TAILSCALE_AUTHKEY and TAILSCALE_DOMAIN
 
-# 3. Deploy with Tailscale sidecar
+# 3. Deploy
 docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
 
-# 4. Verify Tailscale registration
-docker logs chocolate-factory | grep "Tailscale started"
-
-# Access points
-# Local (full access):
-http://localhost:8000/docs           # Full API + admin
-# Remote (read-only):
-https://<your-tailscale-hostname>.ts.net/dashboard  # Dashboard only
+# Access
+# Local: http://localhost:8000/docs (full API)
+# Remote: https://<hostname>.ts.net/dashboard (read-only)
 ```
 
-**Characteristics**:
-- ✓ Local: Full API access on localhost
-- ✓ Remote: Dashboard monitoring via Tailscale
-- ✓ Automatic SSL/TLS certificates
-- ✓ Zero firewall configuration
-- ✗ Admin APIs blocked remotely (security by design)
-
-**Nginx Filtering** (Sidecar):
-```nginx
-# Allowed remotely
-✓ /                       # Redirects to /static/index.html
-✓ /dashboard              # Redirects to /static/index.html
-✓ /static/*               # Static resources (HTML/CSS/JS)
-✓ /dashboard/complete     # Dashboard data API (JSON)
-✓ /dashboard/heatmap      # Heatmap data API
-✓ /insights/*             # Predictive insights (Sprint 09)
-✓ /optimize/*             # Production optimization (Sprint 08)
-✓ /chat/ask               # Chatbot BI queries (Sprint 11)
-✓ /chat/stats             # Chatbot usage statistics
-✓ /chat/health            # Chatbot health check
-
-# Blocked remotely (403 Forbidden)
-✗ /docs                   # API documentation
-✗ /predict/*              # ML predictions
-✗ /models/*               # Model management
-✗ /influxdb/*             # Database access
-✗ /gaps/*                 # Data backfill
-✗ /scheduler/*            # Job management
-✗ /ree/*                  # REE API endpoints
-✗ /aemet/*                # AEMET API endpoints
-```
+**Remote Access (Nginx whitelist)**:
+- Allowed: `/`, `/dashboard`, `/static/*`, `/dashboard/*`, `/insights/*`, `/optimize/*`, `/chat/*`
+- Blocked: `/docs`, `/predict/*`, `/models/*`, `/influxdb/*`, `/gaps/*`, `/scheduler/*`, `/ree/*`, `/aemet/*`
 
 ### Data Persistence
 
-All data persists through Docker bind mounts:
-- **InfluxDB**: `./docker/services/influxdb/data/`
-- **ML Models**: `./models/`
-- **Logs**: `./docker/services/fastapi/logs/`
-
-Backup strategy: Snapshot these directories regularly.
-
----
-
-## Performance Metrics
-
-### System Statistics
-
-- **Total Records**: 131,513 (REE + Weather + SIAR historical)
-- **Historical Coverage**: 25+ years (2000-2025)
-- **API Response Time**: <100ms (local), <500ms (remote via Tailscale)
-- **Dashboard Refresh**: 30 seconds (auto-refresh)
-- **Uptime**: 99.5% (with auto-recovery)
+Docker bind mounts:
+- InfluxDB: `./docker/services/influxdb/data/`
+- ML Models: `./models/`
+- Logs: `./docker/services/fastapi/logs/`
 
 ---
 
 ## Documentation
 
-Comprehensive documentation available in `/docs/` and `.claude/`:
+**Technical** (`/docs/`):
+- CLAUDE.md: Project reference
+- architecture.md: System design
+- TAILSCALE_INTEGRATION.md: Remote access
+- SIAR_ETL_SOLUTION.md: Historical data
 
-### Technical Documentation
-- **CLAUDE.md**: Complete project reference for AI assistance
-- **architecture.md**: System architecture and design decisions
-- **SYSTEM_ARCHITECTURE.md**: Detailed infrastructure documentation
-- **TAILSCALE_INTEGRATION.md**: Remote access setup guide
-- **SIAR_ETL_SOLUTION.md**: Historical data ingestion process
+**Sprint Planning** (`.claude/sprints/`):
+- ml-evolution/README.md: Roadmap
+- infrastructure/README.md: Infrastructure sprints
 
-### Sprint Planning
-- **ML Evolution Roadmap**: `.claude/sprints/ml-evolution/README.md`
-- **Active Sprint**: `.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md`
-- **Future Sprints**: Sprint 07-10 documentation
-
-### Business Logic
-- **Production Rules**: `.claude/rules/production_rules.md`
-- **Business Suggestions**: `.claude/rules/business-logic-suggestions.md`
-- **Security Guidelines**: `.claude/rules/security-sensitive-data.md`
+**Business Logic** (`.claude/rules/`):
+- production_rules.md
+- business-logic-suggestions.md
+- security-sensitive-data.md
 
 
 
@@ -444,25 +335,14 @@ Comprehensive documentation available in `/docs/` and `.claude/`:
 
 ## License
 
-This project is provided as-is for educational and research purposes. Not intended for commercial production use without proper adaptation and validation.
-
----
-
-## Support
-
-- **Documentation**: Read `CLAUDE.md` and `.claude/` directory
-- **Issues**: GitHub issue tracker
-- **Architecture**: See `.claude/architecture.md`
-- **Sprint Planning**: `.claude/sprints/ml-evolution/`
+Provided as-is for educational and research purposes.
 
 ---
 
 <div align="center">
 
-**Industrial Energy Optimization System**
-
 Built with FastAPI, InfluxDB, and Machine Learning
 
-[📊 Documentation](CLAUDE.md) | [🏗️ Architecture](.claude/architecture.md) | [🚀 Sprint Roadmap](.claude/sprints/ml-evolution/README.md)
+[Documentation](CLAUDE.md) | [Architecture](.claude/architecture.md) | [Sprint Roadmap](.claude/sprints/ml-evolution/README.md)
 
 </div>
