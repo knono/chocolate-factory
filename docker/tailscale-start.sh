@@ -64,7 +64,7 @@ tailscale up \
     --authkey="$TAILSCALE_AUTHKEY" \
     --hostname="${TAILSCALE_HOSTNAME:-chocolate-factory}" \
     --accept-routes \
-    --accept-dns
+    --accept-dns=false
 
 # Verificar conexión
 sleep 5

@@ -19,6 +19,11 @@
 # - Cambios en Python/HTML/CSS/JS se aplican instantáneamente
 # - LOG_LEVEL=DEBUG para debugging detallado
 #
+# 🔐 SECRETS MANAGEMENT:
+# - Usa SOPS (Secrets OPerationS) para gestión de secrets encriptados
+# - Variables cargadas desde .env (desencriptado con ./decrypt-secrets.sh o en CI/CD)
+# - Documentación: docs/SOPS_SECRETS_MANAGEMENT.md
+#
 # Desplegado en nodo Tailscale: chocolate-factory-dev.<your-tailnet>.ts.net
 # Uso: docker compose -f docker-compose.dev.yml up -d
 # =============================================================================
@@ -28,7 +33,9 @@ services:
   # FASTAPI APP - DESARROLLO
   # ---------------------------------------------------------------------------
   fastapi-app-dev:
-    image: localhost:5000/chocolate-factory:develop
+    build:
+      context: .
+      dockerfile: docker/fastapi.Dockerfile
     container_name: chocolate_factory_dev
     ports:
       - "8001:8000"  # Puerto diferente para evitar conflictos
