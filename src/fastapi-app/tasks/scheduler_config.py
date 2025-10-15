@@ -47,7 +47,8 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
     )
     logger.info(f"   ✅ Weather ingestion: every {settings.WEATHER_INGESTION_INTERVAL} minutes")
 
-    # Prophet model auto-training (startup + daily check)
+    # Prophet model auto-training (run at startup + daily)
+    from datetime import datetime as dt
     scheduler.add_job(
         func=ensure_prophet_model_job,
         trigger="interval",
@@ -55,7 +56,7 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
         id="ensure_prophet_model",
         name="Ensure Prophet Model Exists",
         replace_existing=True,
-        next_run_time=None  # Run immediately on startup
+        next_run_time=dt.now()  # Execute immediately
     )
     logger.info("   ✅ Prophet model check: at startup + every 24 hours")
 

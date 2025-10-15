@@ -45,9 +45,14 @@ COPY src/ml/ ./ml/
 COPY static/ ./static/
 COPY .claude/ ./.claude/
 
-# Crear directorios necesarios y ajustar permisos
-RUN mkdir -p /app/data /app/logs /app/models && \
-    chown -R appuser:appuser /app
+# Crear directorios necesarios
+RUN mkdir -p /app/data /app/logs /app/models/forecasting
+
+# Copiar modelo Prophet más reciente (si existe)
+COPY models/forecasting/prophet_latest.pkl /app/models/forecasting/ 2>/dev/null || true
+
+# Ajustar permisos
+RUN chown -R appuser:appuser /app
 
 # Cambiar a usuario no-root
 USER appuser
