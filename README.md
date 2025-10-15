@@ -1,27 +1,29 @@
 # Chocolate Factory - Energy Optimization System
 
-Containerized system for energy monitoring and production optimization with machine learning.
+Containerized system for energy monitoring and production optimization with machine learning and automated CI/CD.
 
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)](https://docker.com)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
 [![InfluxDB](https://img.shields.io/badge/InfluxDB-2.7-22ADF6?style=flat&logo=influxdb)](https://influxdata.com)
-[![Tailscale](https://img.shields.io/badge/Tailscale-Zero--Trust-000000?style=flat&logo=tailscale)](https://tailscale.com)
+[![Tailscale](https://img.shields.io/badge/Tailscale-SSL-000000?style=flat&logo=tailscale)](https://tailscale.com)
+[![Forgejo](https://img.shields.io/badge/Forgejo-CI%2FCD-FB923C?style=flat&logo=forgejo)](https://forgejo.org)
 [![ML](https://img.shields.io/badge/ML-131k_Records-10b981?style=flat)](https://github.com)
 
 ---
 
 ## Overview
 
-Energy optimization system integrating Spanish electricity market data (REE), meteorological data (AEMET), and 25 years of historical weather records (SIAR). Provides ML-powered production recommendations.
+Energy optimization system with ML-powered predictions, automated CI/CD, and self-hosted infrastructure.
 
-**Features**:
-- Prophet ML model for 168-hour electricity price prediction (MAE: 0.033 €/kWh)
-- Hourly production planning based on energy costs and weather
-- Claude Haiku chatbot for natural language queries
-- 131,513 historical records for ML training
-- Self-healing data pipeline with automatic gap detection
-- Interactive dashboard with weekly heatmap
+**Core Features**:
+- Prophet ML: 168-hour electricity price forecasting (MAE: 0.033 €/kWh)
+- Clean Architecture: Refactored FastAPI application (41 modules)
+- CI/CD: Forgejo self-hosted + Gitea Actions dual environment
+- Chatbot: Claude Haiku conversational BI with RAG
+- Data: 131,513 records (REE + AEMET + SIAR 25 years)
+- Self-healing: Automatic gap detection and backfill
+- Security: Tailscale SSL + nginx reverse proxy
 
 ### Dashboard Preview
 
@@ -47,51 +49,76 @@ Energy optimization system integrating Spanish electricity market data (REE), me
 
 ## System Architecture
 
-### Infrastructure (2-Container + Optional Sidecar)
+### Production Infrastructure (3 Tailscale Nodes)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  LOCAL INFRASTRUCTURE (On-Premise)                          │
-│                                                             │
-│  ┌─────────────────────────────────────┐                   │
-│  │  FastAPI Application (Port 8000)    │ ◄─── Local Admin  │
-│  │  ├── RESTful API (full access)      │      Access       │
-│  │  ├── Integrated Dashboard           │      (localhost)  │
-│  │  ├── ML Training & Prediction       │                   │
-│  │  └── APScheduler (10+ jobs)         │                   │
-│  └─────────────────────────────────────┘                   │
-│                ↓                                            │
-│  ┌─────────────────────────────────────┐                   │
-│  │  InfluxDB 2.7 (Port 8086)           │ ◄─── Local Admin  │
-│  │  ├── Time series database           │      Access       │
-│  │  ├── REE prices (42,578 records)    │                   │
-│  │  ├── Real-time weather data         │                   │
-│  │  └── SIAR historical (88,935)       │                   │
-│  └─────────────────────────────────────┘                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                       ↑
-                       │ Docker Internal Network (192.168.100.0/24)
-                       ↓
-┌─────────────────────────────────────────────────────────────┐
-│  OPTIONAL: TAILSCALE SIDECAR (Secure Remote Access)        │
-│                                                             │
-│  ┌─────────────────────────────────────┐                   │
-│  │  Nginx Reverse Proxy (Alpine 52MB)  │                   │
-│  │  ├── SSL/TLS Termination            │                   │
-│  │  ├── Endpoint Filtering (whitelist) │                   │
-│  │  └── /dashboard ONLY (read-only)    │                   │
-│  └─────────────────────────────────────┘                   │
-│                ↑                                            │
-│                │ Tailscale Zero-Trust Network              │
-│                ↓                                            │
-│  [ Remote Access: https://<hostname>.ts.net ]              │
-│    ✓ Dashboard monitoring (read-only)                      │
-│    ✗ Admin APIs (blocked by Nginx)                         │
-│    ✗ ML training endpoints (blocked)                       │
-│    ✗ Data modification (blocked)                           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│  TAILSCALE NETWORK (Zero-Trust VPN)                             │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌────────────────────────┐  ┌────────────────────────────┐    │
+│  │  NODE 1: GIT/CI/CD     │  │  NODE 2: DEVELOPMENT       │    │
+│  │  git.*.ts.net          │  │  *-dev.ts.net              │    │
+│  │                        │  │                            │    │
+│  │  - Forgejo 1.21        │  │  - FastAPI (dev)           │    │
+│  │  - Runners (dev/prod)  │  │  - InfluxDB shared (read)  │    │
+│  │  - Docker Registry     │  │  - Hot reload enabled      │    │
+│  │  - Nginx SSL           │  │  - Port 8001               │    │
+│  └────────────────────────┘  └────────────────────────────┘    │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────┐         │
+│  │  NODE 3: PRODUCTION                                │         │
+│  │  *.ts.net                                          │         │
+│  │                                                    │         │
+│  │  - FastAPI (prod)                                 │         │
+│  │  - InfluxDB (data ingestion)                      │         │
+│  │  - ML models                                      │         │
+│  │  - APScheduler (11 jobs)                          │         │
+│  │  - Port 8000                                      │         │
+│  │  - Nginx SSL                                      │         │
+│  └────────────────────────────────────────────────────┘         │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+
+CI/CD Pipeline: develop → dev | main → prod
+SSL: Automatic Tailscale ACME certificates
+Secrets: SOPS encrypted (fallback .env)
+```
+
+### Application Architecture (Clean Architecture - Oct 2025)
+
+```
+src/fastapi-app/
+├── main.py (76 lines)           # Entry point
+├── api/                         # HTTP Interface
+│   ├── routers/                 # Endpoints (health, dashboard, ree, weather,
+│   │                            #   optimization, analysis, insights, gaps, chatbot)
+│   └── schemas/                 # Pydantic models
+├── domain/                      # Business Logic
+│   ├── energy/forecaster.py    # Price forecasting
+│   └── ml/model_trainer.py     # ML validation
+├── services/                    # Orchestration
+│   ├── ree_service.py          # REE + InfluxDB
+│   ├── weather_aggregation.py  # Multi-source weather
+│   ├── dashboard.py            # Data consolidation
+│   ├── predictive_insights.py  # Sprint 09
+│   ├── chatbot_service.py      # Claude Haiku API
+│   └── backfill_service.py     # Gap recovery
+├── infrastructure/              # External Systems
+│   ├── influxdb/               # DB client + queries
+│   └── external_apis/          # REE, AEMET, OpenWeatherMap
+├── core/                        # Utilities
+│   ├── config.py               # Settings
+│   ├── logging_config.py       # Structured logging
+│   └── exceptions.py           # Error handling
+└── tasks/                       # Background Jobs
+    ├── ree_jobs.py             # REE ingestion
+    ├── weather_jobs.py         # Weather ingestion
+    └── scheduler_config.py     # APScheduler
+
+Refactoring: 3,838 → 76 lines main.py (98% reduction)
+Architecture: Clean Architecture compliant
+Modules: 41 Python files organized by layer
 ```
 
 ### Security Architecture
@@ -121,12 +148,15 @@ Energy optimization system integrating Spanish electricity market data (REE), me
 |-----------|-----------|---------|
 | **Backend** | FastAPI (Python 3.11+) | REST API + Dashboard |
 | **Database** | InfluxDB 2.7 | Time series storage |
-| **ML Framework** | scikit-learn, Prophet | Unified ML service (131k+ records) |
-| **Chatbot** | Claude Haiku 3.5 | Conversational BI (RAG local) |
-| **Scheduling** | APScheduler | Automated data ingestion |
+| **ML Framework** | scikit-learn, Prophet | 131k+ records ML training |
+| **Chatbot** | Claude Haiku 3.5 | Conversational BI (RAG) |
+| **CI/CD** | Forgejo + Gitea Actions | Self-hosted automation |
+| **Registry** | Docker Registry 2.8 | Private image storage |
+| **Scheduling** | APScheduler | 11 automated jobs |
 | **Containerization** | Docker Compose | Orchestration |
-| **Reverse Proxy** | Nginx (Alpine) | Endpoint filtering |
-| **Remote Access** | Tailscale (WireGuard) | Zero-trust networking |
+| **Reverse Proxy** | Nginx (Alpine) | SSL + endpoint filtering |
+| **VPN** | Tailscale (WireGuard) | Zero-trust mesh network |
+| **Secrets** | SOPS + age | Encrypted secrets management |
 
 ---
 
@@ -158,20 +188,29 @@ Energy optimization system integrating Spanish electricity market data (REE), me
 
 ---
 
-## Machine Learning System
+## Implementation Status
 
-**Completed Sprints**: ML Evolution (06-10) + Infrastructure (11)
+**Completed Sprints**: ML Evolution (06-11) + Infrastructure (12 partial)
 
-| Sprint | Description |
-|--------|-------------|
-| 06 | REE Price Forecasting (Prophet 168h) |
-| 07 | SIAR Historical Analysis (88k records) |
-| 08 | Hourly Optimization |
-| 09 | Unified Predictive Dashboard |
-| 10 | ML Consolidation & Cleanup |
-| 11 | Chatbot BI (Claude Haiku API) |
+| Sprint | Status | Description |
+|--------|--------|-------------|
+| 06 | ✅ Complete | Prophet Price Forecasting (168h MAE 0.033) |
+| 07 | ✅ Complete | SIAR Historical Analysis (88k records, 25y) |
+| 08 | ✅ Complete | Hourly Production Optimization |
+| 09 | ✅ Complete | Unified Predictive Dashboard |
+| 10 | ✅ Complete | ML Consolidation + Clean Architecture |
+| 11 | ✅ Complete | Chatbot BI (Claude Haiku + RAG) |
+| 12 | 🔵 In Progress | Forgejo CI/CD (Phases 1-8 done, 9-11 pending) |
+| 13 | ⏳ Planned | Tailscale MCP Server (local integration) |
 
-**Documentation**: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
+**Phase 12 Status**:
+- Phases 1-8: Infrastructure completed (Forgejo + runners + dual environment + SSL)
+- Phases 9-11: Testing suite pending (88 tests target)
+- Phase 12: SOPS secrets optional
+
+**Documentation**:
+- ML: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
+- CI/CD: [`.claude/sprints/infrastructure/SPRINT_12_FORGEJO_CICD.md`](.claude/sprints/infrastructure/SPRINT_12_FORGEJO_CICD.md)
 
 ### Implemented Models
 
@@ -198,108 +237,195 @@ Energy optimization system integrating Spanish electricity market data (REE), me
 
 ```
 chocolate-factory/
-├── src/fastapi-app/           # Main application
-│   ├── main.py                # FastAPI entry point (3,734 lines)
-│   ├── services/              # Business logic layer
-│   │   ├── siar_analysis_service.py  # SIAR historical analysis
-│   │   ├── dashboard.py       # Dashboard data service
-│   │   ├── ree_client.py      # REE API client
-│   │   ├── siar_etl.py        # SIAR ETL (88k records)
-│   │   └── weather_service.py # Weather integration
-│   └── pyproject.toml         # Dependencies
-├── static/                    # Dashboard frontend (v0.41.0)
-│   ├── index.html             # Main dashboard (432 lines)
-│   ├── css/
-│   │   └── dashboard.css      # Styles (826 lines)
-│   └── js/
-│       └── dashboard.js       # Logic + API calls (890 lines)
-├── docker-compose.yml         # Main orchestration (2 containers)
-├── docker-compose.override.yml # Tailscale sidecar (optional)
-├── docker/                    # Container configuration
-│   ├── fastapi.Dockerfile     # FastAPI image build
-│   ├── tailscale-sidecar.Dockerfile # Tailscale sidecar image
-│   ├── sidecar-nginx.conf     # Nginx reverse proxy config
-│   ├── tailscale-start.sh     # Sidecar startup script
+├── src/fastapi-app/           # Clean Architecture (Oct 2025)
+│   ├── main.py                # Entry point (76 lines)
+│   ├── api/                   # HTTP Interface Layer
+│   │   ├── routers/           # 9 routers (health, dashboard, ree, weather, etc.)
+│   │   └── schemas/           # Pydantic models
+│   ├── domain/                # Business Logic Layer
+│   │   ├── energy/            # Forecasting logic
+│   │   └── ml/                # Model training validation
+│   ├── services/              # Application Layer
+│   │   ├── ree_service.py     # REE orchestration
+│   │   ├── dashboard.py       # Data consolidation
+│   │   ├── chatbot_service.py # Claude Haiku integration
+│   │   └── backfill_service.py # Gap recovery
+│   ├── infrastructure/        # External Systems Layer
+│   │   ├── influxdb/          # DB client + queries
+│   │   └── external_apis/     # REE, AEMET, OpenWeatherMap
+│   ├── core/                  # Utilities
+│   └── tasks/                 # APScheduler jobs
+├── docker/                    # Infrastructure
+│   ├── docker-compose.yml     # Production (2 containers)
+│   ├── docker-compose.dev.yml # Development environment
+│   ├── docker-compose.prod.yml # Production environment
+│   ├── forgejo-compose.yml    # Git/CI/CD node
+│   ├── gitea-runners-compose.yml # CI/CD runners
+│   ├── registry-compose.yml   # Docker registry
 │   └── services/              # Persistent data
-│       ├── influxdb/data/     # Time series database
-│       └── fastapi/           # Application data
-├── .claude/                   # Project documentation
-│   ├── sprints/ml-evolution/  # Sprint 06-10 roadmap
-│   ├── architecture.md        # System architecture
-│   └── rules/                 # Business logic rules
+│       ├── influxdb/{dev,prod}-data/
+│       ├── forgejo/data/      # Git repository
+│       ├── gitea-runner/{dev,prod}-data/
+│       └── registry/data/     # Image storage
+├── .gitea/workflows/          # CI/CD Pipelines
+│   ├── ci-cd-dual.yml         # Main pipeline (dual env)
+│   └── quick-test.yml         # Fast PR validation
+├── .claude/                   # Documentation
+│   ├── sprints/
+│   │   ├── ml-evolution/      # Sprints 06-11
+│   │   └── infrastructure/    # Sprints 12-13
+│   ├── architecture.md        # System design
+│   └── rules/                 # Business logic
+├── docs/                      # Technical docs
+│   ├── CI_CD_PIPELINE.md      # Pipeline documentation
+│   ├── GITFLOW_CICD_WORKFLOW.md # Git workflow
+│   └── DUAL_ENVIRONMENT_SETUP.md # Environment setup
 └── CLAUDE.md                  # Development guide
 ```
 
 ### Running Tests
 
+**⚠️ Note**: Testing suite implementation pending (Sprint 12 Phase 9-11).
+
+Planned test structure:
 ```bash
-# Unit tests
-docker compose exec chocolate_factory_brain pytest tests/
+# Unit tests (25 tests target)
+pytest src/fastapi-app/tests/unit/ -v --cov
 
-# Integration tests
-docker compose exec chocolate_factory_brain pytest tests/integration/
+# Integration tests (19 tests target)
+pytest src/fastapi-app/tests/integration/ -v
 
-# ML model backtesting
-curl -X POST http://localhost:8000/models/validate
+# ML regression tests (24 tests target)
+pytest src/fastapi-app/tests/ml/ -v
+
+# Full suite (88 tests target, coverage >85%)
+pytest src/fastapi-app/tests/ -v --cov --cov-report=term-missing
 ```
 
-### Development Workflow
+Current test files:
+- `test_foundation.py`: Architecture validation
+- `test_architecture.py`: Clean Architecture compliance
+- `test_infrastructure.py`: Infrastructure layer validation
 
-1. Read current sprint: `.claude/sprints/ml-evolution/README.md`
-2. Check active tasks in sprint document
-3. Implement changes incrementally
-4. Update sprint checklist (`- [ ]` → `- [x]`)
-5. Commit with descriptive message
-6. Deploy and verify
+### Development Workflow (Git Flow + CI/CD)
+
+1. Feature development:
+   ```bash
+   git checkout develop
+   git flow feature start my-feature
+   # ... make changes ...
+   git flow feature finish my-feature
+   git push origin develop  # → Triggers CI/CD → Deploys to dev
+   ```
+
+2. Release to production:
+   ```bash
+   git flow release start 0.63.0
+   # ... version bump, CHANGELOG update ...
+   git flow release finish 0.63.0
+   git checkout main
+   git push origin main --follow-tags  # → Triggers CI/CD → Deploys to prod
+   git checkout develop
+   git push origin develop
+   ```
+
+3. CI/CD pipeline validates:
+   - Tests pass (when implemented)
+   - Docker image builds
+   - Deployment succeeds
+   - Health check passes
+
+See: [`docs/GITFLOW_CICD_WORKFLOW.md`](docs/GITFLOW_CICD_WORKFLOW.md)
 
 ---
 
 ## Production Deployment
 
-### Hardware Requirements
+### Infrastructure Requirements
+
+**Three-Node Setup (Recommended)**:
+
+| Node | CPU | RAM | Storage | Purpose |
+|------|-----|-----|---------|---------|
+| Git/CI/CD | 2 cores | 2 GB | 10 GB | Forgejo + runners + registry |
+| Development | 2 cores | 2 GB | 10 GB | Testing environment |
+| Production | 4 cores | 4 GB | 20 GB SSD | Main application + InfluxDB |
+
+**Single-Node Setup (Development)**:
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
 | CPU | 2 cores | 4 cores |
 | RAM | 2 GB | 4 GB |
 | Storage | 10 GB | 20 GB SSD |
-| Network | Broadband | Ethernet |
 
-### Deployment Modes
+### Deployment Options
 
-#### Mode 1: Local-Only
+#### Option 1: Production (3 Nodes + CI/CD)
+
+Full production setup with automated deployments:
+
+```bash
+# Node 1: Git/CI/CD
+cd docker
+docker compose -f forgejo-compose.yml up -d
+docker compose -f gitea-runners-compose.yml up -d
+docker compose -f registry-compose.yml up -d
+
+# Node 2: Development
+docker compose -f docker-compose.dev.yml up -d
+
+# Node 3: Production
+docker compose -f docker-compose.prod.yml up -d
+
+# Tailscale sidecars (each node)
+docker compose -f docker-compose.override.yml up -d
+```
+
+Access:
+- Git: `https://git.your-tailnet.ts.net`
+- Dev: `https://dev.your-tailnet.ts.net` (port 8001)
+- Prod: `https://your-tailnet.ts.net` (port 8000)
+
+#### Option 2: Local Development
+
+Single-node development without CI/CD:
 
 ```bash
 docker compose up -d
 
 # Access
-http://localhost:8000/static/index.html  # Dashboard
-http://localhost:8000/docs               # API documentation
+http://localhost:8000/docs               # Full API
+http://localhost:8000/dashboard          # Dashboard
 http://localhost:8086                    # InfluxDB UI
 ```
 
-#### Mode 2: Hybrid (Local + Tailscale)
+#### Option 3: Local + Remote Access
+
+Single-node with Tailscale sidecar:
 
 ```bash
-# 1. Generate Tailscale auth key
-# https://login.tailscale.com/admin/settings/keys
-
-# 2. Configure credentials
-cp .env.tailscale.example .env.tailscale
-nano .env.tailscale
+# Configure Tailscale
+cp .env.example .env
 # Set TAILSCALE_AUTHKEY and TAILSCALE_DOMAIN
 
-# 3. Deploy
+# Deploy
 docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
 
 # Access
 # Local: http://localhost:8000/docs (full API)
-# Remote: https://<hostname>.ts.net/dashboard (read-only)
+# Remote: https://<hostname>.ts.net/dashboard (filtered)
 ```
 
-**Remote Access (Nginx whitelist)**:
-- Allowed: `/`, `/dashboard`, `/static/*`, `/dashboard/*`, `/insights/*`, `/optimize/*`, `/chat/*`
-- Blocked: `/docs`, `/predict/*`, `/models/*`, `/influxdb/*`, `/gaps/*`, `/scheduler/*`, `/ree/*`, `/aemet/*`
+### CI/CD Pipeline
+
+Automated deployments via Forgejo:
+
+- `git push origin develop` → Build → Test → Deploy to development
+- `git push origin main` → Build → Test → Deploy to production
+- SOPS-encrypted secrets
+- Automatic health checks
+- Rollback on failure (planned)
 
 ### Data Persistence
 
@@ -312,20 +438,28 @@ Docker bind mounts:
 
 ## Documentation
 
-**Technical** (`/docs/`):
-- CLAUDE.md: Project reference
-- architecture.md: System design
-- TAILSCALE_INTEGRATION.md: Remote access
-- SIAR_ETL_SOLUTION.md: Historical data
+**Development** (`/`):
+- `CLAUDE.md`: Complete project reference
+- `.claude/architecture.md`: System design
 
-**Sprint Planning** (`.claude/sprints/`):
-- ml-evolution/README.md: Roadmap
-- infrastructure/README.md: Infrastructure sprints
+**Sprint Documentation** (`.claude/sprints/`):
+- `ml-evolution/README.md`: Sprints 06-11 (ML features)
+- `infrastructure/SPRINT_12_FORGEJO_CICD.md`: CI/CD implementation
+- `infrastructure/README.md`: Infrastructure roadmap
 
-**Business Logic** (`.claude/rules/`):
-- production_rules.md
-- business-logic-suggestions.md
-- security-sensitive-data.md
+**Technical Guides** (`/docs/`):
+- `CI_CD_PIPELINE.md`: Pipeline architecture and troubleshooting
+- `GITFLOW_CICD_WORKFLOW.md`: Git workflow with CI/CD
+- `DUAL_ENVIRONMENT_SETUP.md`: Dev/prod environment configuration
+- `CLEAN_ARCHITECTURE_REFACTORING.md`: Architecture migration guide
+- `API_REFERENCE.md`: Complete API documentation
+- `AUTOMATIC_BACKFILL_SYSTEM.md`: Gap detection and recovery
+- `SOPS_SECRETS_MANAGEMENT.md`: Secrets encryption
+
+**Business Rules** (`.claude/rules/`):
+- `production_rules.md`: Production optimization logic
+- `business-logic-suggestions.md`: ML recommendations
+- `security-sensitive-data.md`: Data protection guidelines
 
 
 
@@ -339,10 +473,23 @@ Provided as-is for educational and research purposes.
 
 ---
 
+## Quick Links
+
+| Resource | Description |
+|----------|-------------|
+| [Development Guide](CLAUDE.md) | Complete project reference |
+| [Architecture](.claude/architecture.md) | System design and Clean Architecture |
+| [ML Sprints](.claude/sprints/ml-evolution/README.md) | Sprints 06-11 roadmap |
+| [CI/CD Sprint](.claude/sprints/infrastructure/SPRINT_12_FORGEJO_CICD.md) | Sprint 12 implementation |
+| [API Docs](docs/API_REFERENCE.md) | Complete API reference |
+| [Git Workflow](docs/GITFLOW_CICD_WORKFLOW.md) | Git Flow + CI/CD guide |
+
+---
+
 <div align="center">
 
-Built with FastAPI, InfluxDB, and Machine Learning
+Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-[Documentation](CLAUDE.md) | [Architecture](.claude/architecture.md) | [Sprint Roadmap](.claude/sprints/ml-evolution/README.md)
+**Status**: Sprint 12 in progress (CI/CD complete, testing pending) | Sprint 13 planned (Tailscale MCP)
 
 </div>

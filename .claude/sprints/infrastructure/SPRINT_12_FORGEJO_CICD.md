@@ -1,50 +1,32 @@
-# 🎯 SPRINT 12: Forgejo Self-Hosted + CI/CD con Tres Nodos Tailscale
+# SPRINT 12: Forgejo CI/CD + Testing Suite
 
-> **Estado**: ✅ COMPLETADO
-> **Prioridad**: 🟡 MEDIA
-> **Prerequisito**: Sprint 11 completado (Chatbot BI con RAG), Tailscale sidecar operacional
-> **Duración estimada**: 1.5-2 semanas (30-40 horas)
-> **Duración real**: 1 día (8 horas)
-> **Fecha inicio**: 2025-10-13
-> **Fecha fin**: 2025-10-13
+Estado: Fases 1-8 completadas, Fases 9-11 pendientes (testing)
+Duración Fases 1-8: 1 día
+Duración estimada Fases 9-11: 5-8 días
 
----
+## Objetivo
 
-## 📋 Objetivo Principal
+Deploy Forgejo self-hosted + CI/CD dual environment + testing automatizado.
 
-Desplegar Forgejo self-hosted con CI/CD local (Gitea Actions) + Docker Registry privado, integrado con **TRES nodos Tailscale** separados:
-- **Git/CI/CD**: `git.chocolate-factory.ts.net` (servidor Forgejo + runners + registry)
-- **Desarrollo**: `chocolate-factory-dev.ts.net` (rama `develop`)
-- **Producción**: `chocolate-factory.ts.net` (rama `main`)
+Arquitectura:
+- Nodo Git/CI/CD: Forgejo + runners + registry
+- Nodo Desarrollo: rama develop
+- Nodo Producción: rama main
 
-### ¿Por qué Tres Nodos?
+Por qué tres nodos:
+- Aislamiento completo
+- Control de acceso por ACLs
+- Seguridad aumentada
+- Gestión independiente
+- Escalabilidad
 
-- ✅ **Aislamiento completo**: Servidor Git separado de las aplicaciones
-- ✅ **Control de Acceso**: ACLs por nodo para diferentes niveles de acceso
-- ✅ **Seguridad aumentada**: Compromiso en un nodo no afecta a otros
-- ✅ **Gestión independiente**: Puedes actualizar Forgejo sin afectar apps
-- ✅ **Escalabilidad**: Cada nodo puede tener recursos ajustados a su función
-
-### ¿Por qué Forgejo?
-
-Forgejo es un **fork community-driven de Gitea**, enfocado en:
-- ✅ **Control total**: Datos en tu infraestructura
-- ✅ **CI/CD nativo**: Gitea Actions (compatible GitHub Actions)
-- ✅ **Lightweight**: ~100MB RAM, perfecto para self-hosting
-- ✅ **Docker registry**: Incluido sin coste adicional
-- ✅ **Open source**: Sin vendor lock-in
-
-### Comparativa con Alternativas
-
-| Feature | Forgejo | GitLab CE | Gitea | GitHub |
-|---------|---------|-----------|-------|--------|
-| RAM mínima | 100MB | 4GB | 100MB | N/A |
-| CI/CD nativo | ✅ Actions | ✅ Pipelines | ✅ Actions | ✅ |
-| Docker registry | ✅ Incluido | ✅ Incluido | ✅ Incluido | ✅ Paid |
-| Self-hosted | ✅ Fácil | ⚠️ Complejo | ✅ Fácil | ❌ |
-| Community-driven | ✅ | ❌ | ⚠️ | ❌ |
-
-**Decisión**: Forgejo (mejor balance ligereza + features + filosofía open source)
+Por qué Forgejo:
+- Fork community-driven de Gitea
+- Control total de datos
+- CI/CD nativo (Gitea Actions compatible GitHub Actions)
+- Ligero (~100MB RAM)
+- Docker registry incluido
+- Open source sin vendor lock-in
 
 ---
 
@@ -865,57 +847,70 @@ curl https://${TAILSCALE_DOMAIN}/health
 - [x] Validar push a ambos servidores simultáneamente
 - [x] Test flujo develop → dev, main → prod
 
-### Fase 8: Documentación y Pruebas (3-4 horas) ⚠️
+### Fase 8: Documentación y Pruebas Iniciales
 
 - [x] Documentar flujo CI/CD dual
 - [x] Guía de workflow Git con remotes dobles
 - [x] Actualizar CLAUDE.md con nueva arquitectura
-- [ ] Investigar y solucionar errores de Actions workflow
 - [x] Test completo de extremo a extremo
+- [x] Runners funcionando en dev y prod
 
-### Fase 9: SOPS para Gestión de Secrets (PENDIENTE - Con Gitea Actions)
+### Fase 9: Tests Básicos de API
 
-**Estado**: 🔴 NO INICIADO - Planificado para cuando se prueben Gitea Actions
+Implementar tests fundamentales de endpoints.
 
-**Objetivo**: Resolver el problema actual con Docker Secrets (permisos UID/GID) usando **Mozilla SOPS** (Secrets OPerationS).
+- [ ] Crear estructura `src/fastapi-app/tests/{unit,integration,ml,conftest.py}`
+- [ ] Tests de health endpoints (5 tests)
+- [ ] Tests de dashboard API (12 tests)
+- [ ] Tests de predicciones (8 tests)
+- [ ] Fixtures compartidos (mocks de servicios externos)
+- [ ] Actualizar pipeline CI/CD con coverage threshold 70%
 
-**Por qué SOPS**:
-- ✅ Git-friendly: Secrets encriptados commiteables
-- ✅ CI/CD nativo: Desencriptación automática en pipeline
-- ✅ Auditoría: Git history muestra quién cambió qué
-- ✅ Sin runtime overhead: Desencripta a `.env` en tiempo de despliegue
-- ✅ Rotación simple: `sops rotate` para cambiar claves
+Total: 25 tests, coverage >70%
 
-**Plan de implementación**:
-```yaml
-# .gitea/workflows/ci-cd-dual.yml
-jobs:
-  deploy-dev:
-    steps:
-      - name: Decrypt secrets with SOPS
-        run: |
-          echo "${{ secrets.SOPS_AGE_KEY }}" > /tmp/key.txt
-          sops --decrypt --age-key-file /tmp/key.txt docker/secrets.enc.yaml > .env
-          rm /tmp/key.txt
-      - name: Deploy with decrypted secrets
-        run: docker compose -f docker-compose.dev.yml up -d
-```
+### Fase 10: Tests de Servicios y ML
 
-**Ventajas vs Docker Secrets actuales**:
-- ❌ Docker Secrets: No funcionan en Compose (permisos)
-- ✅ SOPS: Funciona perfectamente en CI/CD
-- ✅ SOPS: Secrets versionados de forma segura en Git
-- ✅ SOPS: Una sola clave GPG/age en Forgejo (vs 13 secrets individuales)
+Validar lógica de negocio y modelos ML.
 
-**Tareas pendientes**:
-- [ ] Instalar SOPS en runners (`apk add sops age` o `apt install sops age`)
-- [ ] Generar clave age: `age-keygen -o /tmp/age-key.txt`
-- [ ] Encriptar secrets actuales: `sops --encrypt --age <pubkey> docker/secrets/.env > docker/secrets.enc.yaml`
-- [ ] Añadir clave age como secret de Forgejo: `SOPS_AGE_KEY`
-- [ ] Actualizar pipelines con paso de desencriptación
+- [ ] Tests unitarios de servicios REE/Weather/Backfill (15 tests)
+- [ ] Tests de regresión ML Prophet/sklearn (12 tests)
+- [ ] Tests de gap detection (8 tests)
+- [ ] Tests de chatbot RAG (6 tests)
+- [ ] Job separado en CI/CD para tests ML
+- [ ] Coverage threshold 80%
+
+Total: 41 tests adicionales, coverage >80%
+
+### Fase 11: Tests de Integración Completa
+
+Tests end-to-end del sistema completo.
+
+- [ ] Tests de pipeline completo (5 tests)
+- [ ] Tests de resiliencia y error handling (8 tests)
+- [ ] Tests de performance (4 tests)
+- [ ] Smoke tests post-deploy (5 tests)
+- [ ] Job smoke-test en CI/CD
+- [ ] Rollback automático si smoke tests fallan
+
+Total: 22 tests e2e, coverage >85%
+
+### Fase 12: SOPS para Gestión de Secrets (Opcional)
+
+Reemplazar sistema actual de secrets por SOPS (Mozilla Secrets Operations).
+
+Ventajas:
+- Secrets encriptados commiteables en Git
+- Desencriptación automática en CI/CD
+- Auditoría via Git history
+- Una sola clave en Forgejo vs 13 secrets individuales
+
+Tareas:
+- [ ] Instalar SOPS en runners
+- [ ] Generar clave age
+- [ ] Encriptar secrets actuales
+- [ ] Añadir `SOPS_AGE_KEY` a Forgejo secrets
+- [ ] Actualizar pipelines con desencriptación
 - [ ] Documentar en `docs/SOPS_SECRETS_MANAGEMENT.md`
-
-**Cuando implementar**: Al probar Gitea Actions workflows (Fase 8 pendiente)
 
 ---
 
@@ -1009,16 +1004,35 @@ jobs:
 
 ---
 
-## 📊 Valor del Sprint 12
+## Valor del Sprint 12
 
-### Beneficios Inmediatos
+### Infraestructura CI/CD (Fases 1-8)
 
-1. **Aislamiento completo**: Cada capa en su propio nodo
-2. **Control de Acceso**: ACLs específicas por función
-3. **Seguridad mejorada**: Aislamiento de compromisos
-4. **CI/CD automatizado**: Tests y despliegues automáticos
-5. **Backup dual**: Código en GitHub y Forgejo
-6. **Escalabilidad**: Cada nodo puede dimensionarse independientemente
+- Aislamiento completo: Cada capa en su propio nodo
+- Control de acceso: ACLs específicas por función
+- Seguridad mejorada: Aislamiento de compromisos
+- Deploy automatizado: develop → dev, main → prod
+- Backup dual: Código en GitHub y Forgejo
+- Escalabilidad: Nodos independientes
+
+### Testing Suite (Fases 9-11)
+
+**Problema sin tests**: Bug pasa a producción, downtime de horas, clientes afectados.
+
+**Con tests automatizados**:
+- Bugs detectados en 2 minutos (no en 2 horas de downtime)
+- Pipeline bloquea deploy si tests fallan
+- Refactoring seguro con red de protección
+- Deploy frecuente con confianza
+- Debugging rápido (fallo localizado inmediatamente)
+
+**ROI real**: Primera vez que evita 1 bug en producción ya justifica la inversión.
+
+**Métricas objetivo**:
+- Fase 9: 25 tests, coverage 70%
+- Fase 10: +41 tests, coverage 80%
+- Fase 11: +22 tests, coverage 85%
+- Total: 88 tests, <3min ejecución
 
 ### Casos de Uso Reales
 
@@ -1166,9 +1180,20 @@ deploy-prod:
 
 ---
 
-## 🔄 Changelog
+## Changelog
 
-### v2.1 (2025-10-13) - ✅ COMPLETADO
+### v2.2 (2025-10-15) - Añadidas Fases de Testing
+
+Añadidas 3 nuevas fases (9-11) enfocadas en testing automatizado:
+- Fase 9: Tests básicos de API (25 tests, coverage 70%)
+- Fase 10: Tests de servicios y ML (41 tests, coverage 80%)
+- Fase 11: Tests de integración completa (22 tests, coverage 85%)
+
+Justificación: CI/CD sin tests solo automatiza deploys. Tests previenen bugs en producción.
+
+Total sprint extendido: 88 tests, protección contra regresiones, confianza en deploys.
+
+### v2.1 (2025-10-13) - Infraestructura CI/CD Completada
 
 **Implementaciones realizadas**:
 - ✅ **Fase 4.5**: Docker Secrets para 11 credenciales (influxdb, anthropic, aemet, etc.)
