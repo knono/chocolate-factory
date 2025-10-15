@@ -118,7 +118,7 @@ services:
       - GITEA_INSTANCE_URL=http://forgejo:3000
       - GITEA_RUNNER_REGISTRATION_TOKEN=${runner_token_dev}
       - GITEA_RUNNER_NAME=chocolate-dev-runner
-      - GITEA_RUNNER_LABELS=dev,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
+      - GITEA_RUNNER_LABELS=dev,ubuntu-latest:docker://catthehacker/ubuntu:act-latest,ubuntu-22.04:docker://catthehacker/ubuntu:act-22.04
       - CONFIG_FILE=/data/config.yaml
     volumes:
       - gitea_runner_dev_data:/data
@@ -140,7 +140,7 @@ services:
       - GITEA_INSTANCE_URL=http://forgejo:3000
       - GITEA_RUNNER_REGISTRATION_TOKEN=${runner_token_prod}
       - GITEA_RUNNER_NAME=chocolate-prod-runner
-      - GITEA_RUNNER_LABELS=prod,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
+      - GITEA_RUNNER_LABELS=prod,ubuntu-latest:docker://catthehacker/ubuntu:act-latest,ubuntu-22.04:docker://catthehacker/ubuntu:act-22.04
       - CONFIG_FILE=/data/config.yaml
     volumes:
       - gitea_runner_prod_data:/data
