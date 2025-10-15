@@ -148,6 +148,10 @@ jobs:
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop
 
+      - name: Install PyYAML for env conversion
+        run: |
+          pip3 install PyYAML
+
       - name: Deploy to development environment
         run: |
           # Create a CI-specific compose file without source bind mounts
@@ -183,10 +187,20 @@ jobs:
               external: true
           EOF
 
-          # Load environment variables and deploy
-          export $(grep -v '^#' .env | xargs)
-          docker compose -f docker-compose.ci-dev.yml down || true
-          docker compose -f docker-compose.ci-dev.yml up -d
+          # Convert YAML to shell env format for docker-compose
+          python3 << 'PYTHON'
+          import yaml
+          with open('.env', 'r') as f:
+              data = yaml.safe_load(f)
+          with open('.env.shell', 'w') as f:
+              for key, value in data.items():
+                  if value is not None:
+                      f.write(f"{key}={value}\n")
+          PYTHON
+
+          # Deploy with converted env file
+          docker compose --env-file .env.shell -f docker-compose.ci-dev.yml down || true
+          docker compose --env-file .env.shell -f docker-compose.ci-dev.yml up -d
 
       - name: Wait for service to be healthy
         run: |
@@ -249,6 +263,10 @@ jobs:
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:production
 
+      - name: Install PyYAML for env conversion
+        run: |
+          pip3 install PyYAML
+
       - name: Deploy to production environment
         run: |
           # Create a CI-specific compose file for production
@@ -284,10 +302,20 @@ jobs:
               external: true
           EOF
 
-          # Load environment variables and deploy
-          export $(grep -v '^#' .env | xargs)
-          docker compose -f docker-compose.ci-prod.yml down || true
-          docker compose -f docker-compose.ci-prod.yml up -d
+          # Convert YAML to shell env format for docker-compose
+          python3 << 'PYTHON'
+          import yaml
+          with open('.env', 'r') as f:
+              data = yaml.safe_load(f)
+          with open('.env.shell', 'w') as f:
+              for key, value in data.items():
+                  if value is not None:
+                      f.write(f"{key}={value}\n")
+          PYTHON
+
+          # Deploy with converted env file
+          docker compose --env-file .env.shell -f docker-compose.ci-prod.yml down || true
+          docker compose --env-file .env.shell -f docker-compose.ci-prod.yml up -d
 
       - name: Wait for service to be healthy
         run: |
