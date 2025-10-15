@@ -33,10 +33,19 @@ Feature → Develop (CI/CD DEV) → Release → Main (CI/CD PROD)
 
 - ✅ **Feature branches**: Desarrollo aislado sin CI/CD
 - ✅ **Push a develop**: Dispara pipeline de **desarrollo** (puerto 8001)
-- ✅ **Release finish**: Integra a main + develop
+- ✅ **Release finish**: Integra a main + develop, **te devuelve a develop**
 - ✅ **Push a main**: Dispara pipeline de **producción** (puerto 8000)
 - ✅ **Push a develop después de release**: Sincroniza back-merge
 - ✅ **Hotfix**: Fix urgente que va a main + develop
+
+### ⚠️ Comportamiento Importante de Git Flow
+
+**Después de `git flow release finish` o `git flow hotfix finish`:**
+- Git Flow **te devuelve automáticamente a `develop`** (no a `main`)
+- Debes hacer `git checkout main` manualmente para pushear a producción
+- Luego vuelves a `develop` para pushear el back-merge
+
+Este es el **comportamiento por diseño** de Git Flow, ya que asume que tu flujo de trabajo continúa en `develop`.
 
 ---
 
@@ -227,23 +236,26 @@ Release 0.63.0 - Título del Release
 #   b) Crea tag v0.63.0 en main
 #   c) Merge release/0.63.0 → develop (back-merge)
 #   d) Borra rama release/0.63.0
-#   e) Te deja en main
+#   e) Te deja en develop ✅ (COMPORTAMIENTO REAL)
 
 # Paso 2: Verificar estado
 git status
-# On branch main
+# On branch develop ← Git Flow te devuelve a develop
 
-git log --oneline -3
-# Debería mostrar el merge commit
+git log --oneline -5
+# Debe mostrar el back-merge del release
 
-# Paso 3: Push a main (DISPARA CI/CD PROD)
+# Paso 3: Cambiar a main para push de producción
+git checkout main
+
+# Paso 4: Push a main (DISPARA CI/CD PROD)
 git push origin main --follow-tags
 # --follow-tags envía también el tag v0.63.0
 
-# Paso 4: Cambiar a develop
+# Paso 5: Volver a develop
 git checkout develop
 
-# Paso 5: Push a develop (sincronizar back-merge)
+# Paso 6: Push a develop (sincronizar back-merge)
 git push origin develop
 ```
 
@@ -319,17 +331,21 @@ Hotfix 0.63.1 - Fix Crítico Dashboard
 #   b) Tag v0.63.1 en main
 #   c) Merge hotfix/0.63.1 → develop (para no perder el fix)
 #   d) Borra rama hotfix/0.63.1
-#   e) Te deja en main
+#   e) Te deja en develop ✅ (COMPORTAMIENTO REAL)
 
-# Paso 5: Push a main (DISPARA CI/CD PROD INMEDIATO)
+# Paso 5: Verificar estado
+git status
+# On branch develop ← Git Flow te devuelve a develop
+
+# Paso 6: Cambiar a main para push de producción
+git checkout main
+
+# Paso 7: Push a main (DISPARA CI/CD PROD INMEDIATO)
 git push origin main --follow-tags
 
-# Paso 6: Sincronizar develop
+# Paso 8: Volver a develop y sincronizar
 git checkout develop
 git push origin develop
-
-# Paso 7: Volver a develop
-git checkout develop
 ```
 
 ---
@@ -1285,4 +1301,18 @@ Después de `git push origin main`:
 
 **Última actualización**: 2025-10-15
 **Autor**: Sprint 12 - Forgejo CI/CD Implementation
-**Versión**: 1.0
+**Versión**: 1.1
+
+---
+
+## 📝 Changelog
+
+### v1.1 (2025-10-15)
+- **🐛 Corrección importante**: Documentado el comportamiento real de `git flow release finish` y `git flow hotfix finish`
+  - Git Flow te devuelve a `develop` (no a `main`) después de finalizar release/hotfix
+  - Añadida sección explicativa sobre este comportamiento por diseño
+  - Actualizado workflow con los pasos correctos: `git checkout main` manual necesario
+  - Corregido en §4 (Finalizar Release) y §5 (Hotfix Urgente)
+
+### v1.0 (2025-10-15)
+- Versión inicial de la documentación oficial Git Flow + CI/CD
