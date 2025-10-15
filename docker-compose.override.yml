@@ -119,9 +119,11 @@ services:
       - GITEA_RUNNER_REGISTRATION_TOKEN=${runner_token_dev}
       - GITEA_RUNNER_NAME=chocolate-dev-runner
       - GITEA_RUNNER_LABELS=dev,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
+      - CONFIG_FILE=/data/config.yaml
     volumes:
       - gitea_runner_dev_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker/services/gitea-runner/config.yaml:/data/config.yaml:ro
     restart: unless-stopped
     depends_on:
       - forgejo
@@ -139,9 +141,11 @@ services:
       - GITEA_RUNNER_REGISTRATION_TOKEN=${runner_token_prod}
       - GITEA_RUNNER_NAME=chocolate-prod-runner
       - GITEA_RUNNER_LABELS=prod,ubuntu-latest:docker://node:20-bookworm,ubuntu-22.04:docker://node:20-bookworm
+      - CONFIG_FILE=/data/config.yaml
     volumes:
       - gitea_runner_prod_data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker/services/gitea-runner/config.yaml:/data/config.yaml:ro
     restart: unless-stopped
     depends_on:
       - forgejo

@@ -1,0 +1,33 @@
+# Act Runner Configuration
+# Configuración para que los contenedores de jobs usen la red backend
+# y puedan resolver el hostname 'forgejo'
+
+log:
+  level: info
+
+runner:
+  file: .runner
+  capacity: 1
+  timeout: 3h
+  insecure: false
+  fetch_timeout: 5s
+  fetch_interval: 2s
+
+container:
+  # CRÍTICO: Usar la red backend para que los contenedores puedan resolver 'forgejo'
+  network: chocolate-factory_backend
+  privileged: false
+  options: ""
+  workdir_parent: ""
+  valid_volumes: []
+  docker_host: ""
+  force_pull: false
+
+cache:
+  enabled: true
+  dir: ""
+  host: ""
+  port: 0
+
+host:
+  workdir_parent: ""
