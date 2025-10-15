@@ -37,6 +37,7 @@ services:
       context: .
       dockerfile: docker/fastapi.Dockerfile
     container_name: chocolate_factory_dev
+    user: "${USER_ID:-1000}:${GROUP_ID:-1000}"  # Run as host user for bind mounts
     ports:
       - "8001:8000"  # Puerto diferente para evitar conflictos
     environment:
