@@ -150,8 +150,43 @@ jobs:
 
       - name: Deploy to development environment
         run: |
-          docker compose -f docker-compose.dev.yml down || true
-          docker compose -f docker-compose.dev.yml up -d
+          # Create a CI-specific compose file without source bind mounts
+          cat > docker-compose.ci-dev.yml << 'EOF'
+          services:
+            fastapi-app-dev:
+              image: localhost:5000/chocolate-factory:develop
+              container_name: chocolate_factory_dev
+              ports:
+                - "8001:8000"
+              environment:
+                - ENVIRONMENT=development
+                - APP_NAME=chocolate-factory-dev
+                - LOG_LEVEL=INFO
+                - TZ=Europe/Madrid
+                - PYTHONPATH=/app
+                - REE_API_TOKEN=${ree_api_token}
+                - AEMET_API_KEY=${aemet_api_key}
+                - OPENWEATHERMAP_API_KEY=${openweathermap_api_key}
+                - ANTHROPIC_API_KEY=${anthropic_api_key}
+                - INFLUXDB_URL=http://chocolate_factory_storage:8086
+                - INFLUXDB_TOKEN=${influxdb_token}
+                - INFLUXDB_ORG=chocolate_factory
+                - INFLUXDB_BUCKET=energy_data
+              volumes:
+                - ./models:/app/models
+                - ./logs/dev:/app/logs
+              networks:
+                - chocolate-factory_backend
+              restart: unless-stopped
+          networks:
+            chocolate-factory_backend:
+              external: true
+          EOF
+
+          # Load environment variables and deploy
+          export $(grep -v '^#' .env | xargs)
+          docker compose -f docker-compose.ci-dev.yml down || true
+          docker compose -f docker-compose.ci-dev.yml up -d
 
       - name: Wait for service to be healthy
         run: |
@@ -216,8 +251,43 @@ jobs:
 
       - name: Deploy to production environment
         run: |
-          docker compose -f docker-compose.prod.yml down || true
-          docker compose -f docker-compose.prod.yml up -d
+          # Create a CI-specific compose file for production
+          cat > docker-compose.ci-prod.yml << 'EOF'
+          services:
+            fastapi-app-prod:
+              image: localhost:5000/chocolate-factory:production
+              container_name: chocolate_factory_prod
+              ports:
+                - "8000:8000"
+              environment:
+                - ENVIRONMENT=production
+                - APP_NAME=chocolate-factory-prod
+                - LOG_LEVEL=INFO
+                - TZ=Europe/Madrid
+                - PYTHONPATH=/app
+                - REE_API_TOKEN=${ree_api_token}
+                - AEMET_API_KEY=${aemet_api_key}
+                - OPENWEATHERMAP_API_KEY=${openweathermap_api_key}
+                - ANTHROPIC_API_KEY=${anthropic_api_key}
+                - INFLUXDB_URL=http://chocolate_factory_storage:8086
+                - INFLUXDB_TOKEN=${influxdb_token}
+                - INFLUXDB_ORG=chocolate_factory
+                - INFLUXDB_BUCKET=energy_data
+              volumes:
+                - ./models:/app/models
+                - ./logs/prod:/app/logs
+              networks:
+                - chocolate-factory_backend
+              restart: unless-stopped
+          networks:
+            chocolate-factory_backend:
+              external: true
+          EOF
+
+          # Load environment variables and deploy
+          export $(grep -v '^#' .env | xargs)
+          docker compose -f docker-compose.ci-prod.yml down || true
+          docker compose -f docker-compose.ci-prod.yml up -d
 
       - name: Wait for service to be healthy
         run: |
