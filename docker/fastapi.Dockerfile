@@ -43,6 +43,7 @@ COPY src/fastapi-app/ ./
 COPY src/configs/ ./configs/
 COPY src/ml/ ./ml/
 COPY static/ ./static/
+COPY .claude/ ./.claude/
 
 # Crear directorios necesarios y ajustar permisos
 RUN mkdir -p /app/data /app/logs && \
