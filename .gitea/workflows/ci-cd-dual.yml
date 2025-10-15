@@ -108,13 +108,13 @@ jobs:
     runs-on: dev
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     steps:
-      - name: Checkout code (manual git clone)
+      - name: Verify workspace
         run: |
-          rm -rf /tmp/deploy-workspace || true
-          git clone http://forgejo:3000/${{ github.repository }}.git /tmp/deploy-workspace
-          cd /tmp/deploy-workspace
-          git checkout ${{ github.sha }}
-          cp -r /tmp/deploy-workspace/* ${{ github.workspace }}/
+          echo "Current directory: $(pwd)"
+          echo "Workspace contents:"
+          ls -la
+          echo "Docker compose files:"
+          ls -la docker-compose*.yml
 
       - name: Decrypt secrets with SOPS
         run: |
@@ -169,13 +169,13 @@ jobs:
     runs-on: prod
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Checkout code (manual git clone)
+      - name: Verify workspace
         run: |
-          rm -rf /tmp/deploy-workspace || true
-          git clone http://forgejo:3000/${{ github.repository }}.git /tmp/deploy-workspace
-          cd /tmp/deploy-workspace
-          git checkout ${{ github.sha }}
-          cp -r /tmp/deploy-workspace/* ${{ github.workspace }}/
+          echo "Current directory: $(pwd)"
+          echo "Workspace contents:"
+          ls -la
+          echo "Docker compose files:"
+          ls -la docker-compose*.yml
 
       - name: Decrypt secrets with SOPS
         run: |
