@@ -42,6 +42,7 @@ RUN pip install -e .
 COPY src/fastapi-app/ ./
 COPY src/configs/ ./configs/
 COPY src/ml/ ./ml/
+COPY static/ ./static/
 
 # Crear directorios necesarios y ajustar permisos
 RUN mkdir -p /app/data /app/logs && \
