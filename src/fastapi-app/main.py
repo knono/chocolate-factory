@@ -48,6 +48,10 @@ async def lifespan(app: FastAPI):
     """Application lifecycle management."""
     logger.info("🧠 Starting Chocolate Factory API (Clean Architecture)")
 
+    # Ensure Prophet model exists
+    from startup_tasks import ensure_prophet_model
+    await ensure_prophet_model()
+
     # Initialize APScheduler
     scheduler = await init_scheduler()
     logger.info("📅 APScheduler started with background jobs")
