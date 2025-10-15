@@ -159,16 +159,6 @@ jobs:
           docker rm chocolate_factory_dev 2>/dev/null || echo "Dev container not found"
           echo "✅ Port 8001 should now be available"
 
-      - name: Prepare models directory
-        run: |
-          echo "📁 Creating models directory with proper structure..."
-          mkdir -p ./models/forecasting ./models/production ./models/energy_optimization ./models/latest ./models/enhanced
-          mkdir -p ./logs/dev
-          # Change owner to UID 999 (appuser in container) and set full permissions
-          sudo chown -R 999:999 ./models ./logs
-          chmod -R 777 ./models ./logs
-          echo "✅ Models and logs directories ready with correct ownership"
-
       - name: Deploy to development environment
         run: |
           # Create a CI-specific compose file without source bind mounts
@@ -194,11 +184,14 @@ jobs:
                 - INFLUXDB_ORG=chocolate_factory
                 - INFLUXDB_BUCKET=energy_data
               volumes:
-                - ./models:/app/models
-                - ./logs/dev:/app/logs
+                - models_dev_data:/app/models
+                - logs_dev_data:/app/logs
               networks:
                 - chocolate-factory_backend
               restart: unless-stopped
+          volumes:
+            models_dev_data:
+            logs_dev_data:
           networks:
             chocolate-factory_backend:
               external: true
@@ -310,16 +303,6 @@ jobs:
           docker rm chocolate_factory_brain 2>/dev/null || echo "Production container not found"
           echo "✅ Port 8000 should now be available"
 
-      - name: Prepare models directory
-        run: |
-          echo "📁 Creating models directory with proper structure..."
-          mkdir -p ./models/forecasting ./models/production ./models/energy_optimization ./models/latest ./models/enhanced
-          mkdir -p ./logs/prod
-          # Change owner to UID 999 (appuser in container) and set full permissions
-          sudo chown -R 999:999 ./models ./logs
-          chmod -R 777 ./models ./logs
-          echo "✅ Models and logs directories ready with correct ownership"
-
       - name: Deploy to production environment
         run: |
           # Create a CI-specific compose file for production
@@ -345,11 +328,14 @@ jobs:
                 - INFLUXDB_ORG=chocolate_factory
                 - INFLUXDB_BUCKET=energy_data
               volumes:
-                - ./models:/app/models
-                - ./logs/prod:/app/logs
+                - models_prod_data:/app/models
+                - logs_prod_data:/app/logs
               networks:
                 - chocolate-factory_backend
               restart: unless-stopped
+          volumes:
+            models_prod_data:
+            logs_prod_data:
           networks:
             chocolate-factory_backend:
               external: true
