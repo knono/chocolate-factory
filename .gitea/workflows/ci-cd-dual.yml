@@ -159,6 +159,14 @@ jobs:
           docker rm chocolate_factory_dev 2>/dev/null || echo "Dev container not found"
           echo "✅ Port 8001 should now be available"
 
+      - name: Prepare models directory
+        run: |
+          echo "📁 Creating models directory with proper structure..."
+          mkdir -p ./models/forecasting ./models/production ./models/energy_optimization ./models/latest ./models/enhanced
+          mkdir -p ./logs/dev
+          chmod -R 777 ./models ./logs
+          echo "✅ Models and logs directories ready"
+
       - name: Deploy to development environment
         run: |
           # Create a CI-specific compose file without source bind mounts
@@ -299,6 +307,14 @@ jobs:
           docker stop chocolate_factory_brain 2>/dev/null || echo "Production container not running"
           docker rm chocolate_factory_brain 2>/dev/null || echo "Production container not found"
           echo "✅ Port 8000 should now be available"
+
+      - name: Prepare models directory
+        run: |
+          echo "📁 Creating models directory with proper structure..."
+          mkdir -p ./models/forecasting ./models/production ./models/energy_optimization ./models/latest ./models/enhanced
+          mkdir -p ./logs/prod
+          chmod -R 777 ./models ./logs
+          echo "✅ Models and logs directories ready"
 
       - name: Deploy to production environment
         run: |
