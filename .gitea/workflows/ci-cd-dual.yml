@@ -152,6 +152,13 @@ jobs:
         run: |
           pip3 install PyYAML
 
+      - name: Stop existing development containers
+        run: |
+          echo "🛑 Stopping existing development containers if they exist..."
+          docker stop chocolate_factory_dev 2>/dev/null || echo "Dev container not running"
+          docker rm chocolate_factory_dev 2>/dev/null || echo "Dev container not found"
+          echo "✅ Port 8001 should now be available"
+
       - name: Deploy to development environment
         run: |
           # Create a CI-specific compose file without source bind mounts
@@ -199,7 +206,6 @@ jobs:
           PYTHON
 
           # Deploy with converted env file
-          docker compose --env-file .env.shell -f docker-compose.ci-dev.yml down || true
           docker compose --env-file .env.shell -f docker-compose.ci-dev.yml up -d
 
       - name: Wait for service to be healthy
@@ -286,6 +292,14 @@ jobs:
         run: |
           pip3 install PyYAML
 
+      - name: Stop existing production container
+        run: |
+          echo "🛑 Stopping existing production container if running..."
+          # Stop current production container to free port 8000
+          docker stop chocolate_factory_brain 2>/dev/null || echo "Production container not running"
+          docker rm chocolate_factory_brain 2>/dev/null || echo "Production container not found"
+          echo "✅ Port 8000 should now be available"
+
       - name: Deploy to production environment
         run: |
           # Create a CI-specific compose file for production
@@ -293,7 +307,7 @@ jobs:
           services:
             fastapi-app-prod:
               image: localhost:5000/chocolate-factory:production
-              container_name: chocolate_factory_prod
+              container_name: chocolate_factory_brain
               ports:
                 - "8000:8000"
               environment:
@@ -333,7 +347,6 @@ jobs:
           PYTHON
 
           # Deploy with converted env file
-          docker compose --env-file .env.shell -f docker-compose.ci-prod.yml down || true
           docker compose --env-file .env.shell -f docker-compose.ci-prod.yml up -d
 
       - name: Wait for service to be healthy
@@ -341,15 +354,15 @@ jobs:
           echo "⏳ Waiting for FastAPI to be ready..."
 
           # Check if container is running
-          docker ps -a | grep chocolate_factory_prod || echo "Container not found"
+          docker ps -a | grep chocolate_factory_brain || echo "Container not found"
 
           # Show container logs
           echo "📋 Container logs:"
-          docker logs chocolate_factory_prod --tail 50 || echo "No logs available"
+          docker logs chocolate_factory_brain --tail 50 || echo "No logs available"
 
           # Wait for service with retry (use container hostname, not localhost)
           for i in {1..30}; do
-            if curl -f http://chocolate_factory_prod:8000/health 2>/dev/null; then
+            if curl -f http://chocolate_factory_brain:8000/health 2>/dev/null; then
               echo "✅ Service is healthy!"
               exit 0
             fi
@@ -358,7 +371,7 @@ jobs:
           done
 
           echo "❌ Service failed to become healthy"
-          docker logs chocolate_factory_prod --tail 100
+          docker logs chocolate_factory_brain --tail 100
           exit 1
 
       - name: Deployment notification
