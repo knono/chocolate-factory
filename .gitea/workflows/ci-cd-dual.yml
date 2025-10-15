@@ -213,9 +213,9 @@ jobs:
           echo "📋 Container logs:"
           docker logs chocolate_factory_dev --tail 50 || echo "No logs available"
 
-          # Wait for service with retry
+          # Wait for service with retry (use container hostname, not localhost)
           for i in {1..30}; do
-            if curl -f http://localhost:8001/health 2>/dev/null; then
+            if curl -f http://chocolate_factory_dev:8000/health 2>/dev/null; then
               echo "✅ Service is healthy!"
               exit 0
             fi
@@ -347,9 +347,9 @@ jobs:
           echo "📋 Container logs:"
           docker logs chocolate_factory_prod --tail 50 || echo "No logs available"
 
-          # Wait for service with retry
+          # Wait for service with retry (use container hostname, not localhost)
           for i in {1..30}; do
-            if curl -f http://localhost:8000/health 2>/dev/null; then
+            if curl -f http://chocolate_factory_prod:8000/health 2>/dev/null; then
               echo "✅ Service is healthy!"
               exit 0
             fi
