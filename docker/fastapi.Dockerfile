@@ -46,7 +46,7 @@ COPY static/ ./static/
 COPY .claude/ ./.claude/
 
 # Crear directorios necesarios y ajustar permisos
-RUN mkdir -p /app/data /app/logs /app/models && \
+RUN mkdir -p /app/data /app/logs /app/models/forecasting && \
     chown -R appuser:appuser /app
 
 # Cambiar a usuario no-root
