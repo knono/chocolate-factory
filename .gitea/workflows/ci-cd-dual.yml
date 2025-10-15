@@ -105,16 +105,11 @@ jobs:
   # ===========================================================================
   deploy-dev:
     needs: build-image
-    runs-on: dev
+    runs-on: dev-deploy
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     steps:
-      - name: Verify workspace
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Workspace contents:"
-          ls -la
-          echo "Docker compose files:"
-          ls -la docker-compose*.yml
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Decrypt secrets with SOPS
         run: |
@@ -166,16 +161,11 @@ jobs:
   # ===========================================================================
   deploy-prod:
     needs: build-image
-    runs-on: prod
+    runs-on: prod-deploy
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-      - name: Verify workspace
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Workspace contents:"
-          ls -la
-          echo "Docker compose files:"
-          ls -la docker-compose*.yml
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Decrypt secrets with SOPS
         run: |
