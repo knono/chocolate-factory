@@ -24,6 +24,7 @@ tailscale_*.key
 
 # API tokens y secretos
 *secret*
+!secrets.enc.yaml  # SOPS encrypted file - safe to commit
 *token*
 *api-key*
 *password*

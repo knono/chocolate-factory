@@ -105,7 +105,7 @@ jobs:
   # ===========================================================================
   deploy-dev:
     needs: build-image
-    runs-on: dev
+    runs-on: dev-deploy
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     steps:
       - name: Checkout code
@@ -115,8 +115,18 @@ jobs:
         run: |
           # Install SOPS if not present
           if ! command -v sops &> /dev/null; then
-            echo "📦 Installing SOPS..."
-            sudo apt-get update && sudo apt-get install -y sops age
+            echo "📦 Installing SOPS from GitHub releases..."
+            SOPS_VERSION="3.8.1"
+            wget -q "https://github.com/mozilla/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -O /tmp/sops
+            sudo mv /tmp/sops /usr/local/bin/sops
+            sudo chmod +x /usr/local/bin/sops
+            echo "✅ SOPS installed: $(sops --version)"
+          fi
+
+          # Install age if not present
+          if ! command -v age &> /dev/null; then
+            echo "📦 Installing age..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq age
           fi
 
           # Decrypt secrets to .env file
@@ -129,25 +139,93 @@ jobs:
 
       - name: Login to registry
         run: |
-          # Extract registry password from .env
-          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | cut -d'"' -f2)
-          REGISTRY_USER=$(grep "^registry_user:" .env | cut -d'"' -f2)
-          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u $REGISTRY_USER --password-stdin
+          # Extract registry credentials from decrypted YAML
+          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | awk '{print $2}')
+          REGISTRY_USER=$(grep "^registry_user:" .env | awk '{print $2}')
+          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u "$REGISTRY_USER" --password-stdin
 
       - name: Pull latest development image
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop
 
+      - name: Install PyYAML for env conversion
+        run: |
+          pip3 install PyYAML
+
       - name: Deploy to development environment
         run: |
-          docker compose -f docker-compose.dev.yml down || true
-          docker compose -f docker-compose.dev.yml up -d
+          # Create a CI-specific compose file without source bind mounts
+          cat > docker-compose.ci-dev.yml << 'EOF'
+          services:
+            fastapi-app-dev:
+              image: localhost:5000/chocolate-factory:develop
+              container_name: chocolate_factory_dev
+              ports:
+                - "8001:8000"
+              environment:
+                - ENVIRONMENT=development
+                - APP_NAME=chocolate-factory-dev
+                - LOG_LEVEL=INFO
+                - TZ=Europe/Madrid
+                - PYTHONPATH=/app
+                - REE_API_TOKEN=${ree_api_token}
+                - AEMET_API_KEY=${aemet_api_key}
+                - OPENWEATHERMAP_API_KEY=${openweathermap_api_key}
+                - ANTHROPIC_API_KEY=${anthropic_api_key}
+                - INFLUXDB_URL=http://chocolate_factory_storage:8086
+                - INFLUXDB_TOKEN=${influxdb_token}
+                - INFLUXDB_ORG=chocolate_factory
+                - INFLUXDB_BUCKET=energy_data
+              volumes:
+                - ./models:/app/models
+                - ./logs/dev:/app/logs
+              networks:
+                - chocolate-factory_backend
+              restart: unless-stopped
+          networks:
+            chocolate-factory_backend:
+              external: true
+          EOF
+
+          # Convert YAML to shell env format for docker-compose
+          python3 << 'PYTHON'
+          import yaml
+          with open('.env', 'r') as f:
+              data = yaml.safe_load(f)
+          with open('.env.shell', 'w') as f:
+              for key, value in data.items():
+                  if value is not None:
+                      f.write(f"{key}={value}\n")
+          PYTHON
+
+          # Deploy with converted env file
+          docker compose --env-file .env.shell -f docker-compose.ci-dev.yml down || true
+          docker compose --env-file .env.shell -f docker-compose.ci-dev.yml up -d
 
       - name: Wait for service to be healthy
         run: |
           echo "⏳ Waiting for FastAPI to be ready..."
-          sleep 10
-          curl -f http://localhost:8001/health || exit 1
+
+          # Check if container is running
+          docker ps -a | grep chocolate_factory_dev || echo "Container not found"
+
+          # Show container logs
+          echo "📋 Container logs:"
+          docker logs chocolate_factory_dev --tail 50 || echo "No logs available"
+
+          # Wait for service with retry (use container hostname, not localhost)
+          for i in {1..30}; do
+            if curl -f http://chocolate_factory_dev:8000/health 2>/dev/null; then
+              echo "✅ Service is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Service not ready yet..."
+            sleep 2
+          done
+
+          echo "❌ Service failed to become healthy"
+          docker logs chocolate_factory_dev --tail 100
+          exit 1
 
       - name: Deployment notification
         run: |
@@ -161,7 +239,7 @@ jobs:
   # ===========================================================================
   deploy-prod:
     needs: build-image
-    runs-on: prod
+    runs-on: prod-deploy
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Checkout code
@@ -171,8 +249,18 @@ jobs:
         run: |
           # Install SOPS if not present
           if ! command -v sops &> /dev/null; then
-            echo "📦 Installing SOPS..."
-            sudo apt-get update && sudo apt-get install -y sops age
+            echo "📦 Installing SOPS from GitHub releases..."
+            SOPS_VERSION="3.8.1"
+            wget -q "https://github.com/mozilla/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -O /tmp/sops
+            sudo mv /tmp/sops /usr/local/bin/sops
+            sudo chmod +x /usr/local/bin/sops
+            echo "✅ SOPS installed: $(sops --version)"
+          fi
+
+          # Install age if not present
+          if ! command -v age &> /dev/null; then
+            echo "📦 Installing age..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq age
           fi
 
           # Decrypt secrets to .env file
@@ -185,25 +273,93 @@ jobs:
 
       - name: Login to registry
         run: |
-          # Extract registry password from .env
-          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | cut -d'"' -f2)
-          REGISTRY_USER=$(grep "^registry_user:" .env | cut -d'"' -f2)
-          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u $REGISTRY_USER --password-stdin
+          # Extract registry credentials from decrypted YAML
+          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | awk '{print $2}')
+          REGISTRY_USER=$(grep "^registry_user:" .env | awk '{print $2}')
+          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u "$REGISTRY_USER" --password-stdin
 
       - name: Pull latest production image
         run: |
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:production
 
+      - name: Install PyYAML for env conversion
+        run: |
+          pip3 install PyYAML
+
       - name: Deploy to production environment
         run: |
-          docker compose -f docker-compose.prod.yml down || true
-          docker compose -f docker-compose.prod.yml up -d
+          # Create a CI-specific compose file for production
+          cat > docker-compose.ci-prod.yml << 'EOF'
+          services:
+            fastapi-app-prod:
+              image: localhost:5000/chocolate-factory:production
+              container_name: chocolate_factory_prod
+              ports:
+                - "8000:8000"
+              environment:
+                - ENVIRONMENT=production
+                - APP_NAME=chocolate-factory-prod
+                - LOG_LEVEL=INFO
+                - TZ=Europe/Madrid
+                - PYTHONPATH=/app
+                - REE_API_TOKEN=${ree_api_token}
+                - AEMET_API_KEY=${aemet_api_key}
+                - OPENWEATHERMAP_API_KEY=${openweathermap_api_key}
+                - ANTHROPIC_API_KEY=${anthropic_api_key}
+                - INFLUXDB_URL=http://chocolate_factory_storage:8086
+                - INFLUXDB_TOKEN=${influxdb_token}
+                - INFLUXDB_ORG=chocolate_factory
+                - INFLUXDB_BUCKET=energy_data
+              volumes:
+                - ./models:/app/models
+                - ./logs/prod:/app/logs
+              networks:
+                - chocolate-factory_backend
+              restart: unless-stopped
+          networks:
+            chocolate-factory_backend:
+              external: true
+          EOF
+
+          # Convert YAML to shell env format for docker-compose
+          python3 << 'PYTHON'
+          import yaml
+          with open('.env', 'r') as f:
+              data = yaml.safe_load(f)
+          with open('.env.shell', 'w') as f:
+              for key, value in data.items():
+                  if value is not None:
+                      f.write(f"{key}={value}\n")
+          PYTHON
+
+          # Deploy with converted env file
+          docker compose --env-file .env.shell -f docker-compose.ci-prod.yml down || true
+          docker compose --env-file .env.shell -f docker-compose.ci-prod.yml up -d
 
       - name: Wait for service to be healthy
         run: |
           echo "⏳ Waiting for FastAPI to be ready..."
-          sleep 10
-          curl -f http://localhost:8000/health || exit 1
+
+          # Check if container is running
+          docker ps -a | grep chocolate_factory_prod || echo "Container not found"
+
+          # Show container logs
+          echo "📋 Container logs:"
+          docker logs chocolate_factory_prod --tail 50 || echo "No logs available"
+
+          # Wait for service with retry (use container hostname, not localhost)
+          for i in {1..30}; do
+            if curl -f http://chocolate_factory_prod:8000/health 2>/dev/null; then
+              echo "✅ Service is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Service not ready yet..."
+            sleep 2
+          done
+
+          echo "❌ Service failed to become healthy"
+          docker logs chocolate_factory_prod --tail 100
+          exit 1
 
       - name: Deployment notification
         run: |
