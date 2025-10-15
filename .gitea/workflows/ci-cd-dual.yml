@@ -164,8 +164,10 @@ jobs:
           echo "📁 Creating models directory with proper structure..."
           mkdir -p ./models/forecasting ./models/production ./models/energy_optimization ./models/latest ./models/enhanced
           mkdir -p ./logs/dev
+          # Change owner to UID 999 (appuser in container) and set full permissions
+          sudo chown -R 999:999 ./models ./logs
           chmod -R 777 ./models ./logs
-          echo "✅ Models and logs directories ready"
+          echo "✅ Models and logs directories ready with correct ownership"
 
       - name: Deploy to development environment
         run: |
@@ -313,8 +315,10 @@ jobs:
           echo "📁 Creating models directory with proper structure..."
           mkdir -p ./models/forecasting ./models/production ./models/energy_optimization ./models/latest ./models/enhanced
           mkdir -p ./logs/prod
+          # Change owner to UID 999 (appuser in container) and set full permissions
+          sudo chown -R 999:999 ./models ./logs
           chmod -R 777 ./models ./logs
-          echo "✅ Models and logs directories ready"
+          echo "✅ Models and logs directories ready with correct ownership"
 
       - name: Deploy to production environment
         run: |
