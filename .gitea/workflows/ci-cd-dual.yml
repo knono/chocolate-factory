@@ -115,8 +115,18 @@ jobs:
         run: |
           # Install SOPS if not present
           if ! command -v sops &> /dev/null; then
-            echo "📦 Installing SOPS..."
-            sudo apt-get update && sudo apt-get install -y sops age
+            echo "📦 Installing SOPS from GitHub releases..."
+            SOPS_VERSION="3.8.1"
+            wget -q "https://github.com/mozilla/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -O /tmp/sops
+            sudo mv /tmp/sops /usr/local/bin/sops
+            sudo chmod +x /usr/local/bin/sops
+            echo "✅ SOPS installed: $(sops --version)"
+          fi
+
+          # Install age if not present
+          if ! command -v age &> /dev/null; then
+            echo "📦 Installing age..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq age
           fi
 
           # Decrypt secrets to .env file
@@ -171,8 +181,18 @@ jobs:
         run: |
           # Install SOPS if not present
           if ! command -v sops &> /dev/null; then
-            echo "📦 Installing SOPS..."
-            sudo apt-get update && sudo apt-get install -y sops age
+            echo "📦 Installing SOPS from GitHub releases..."
+            SOPS_VERSION="3.8.1"
+            wget -q "https://github.com/mozilla/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -O /tmp/sops
+            sudo mv /tmp/sops /usr/local/bin/sops
+            sudo chmod +x /usr/local/bin/sops
+            echo "✅ SOPS installed: $(sops --version)"
+          fi
+
+          # Install age if not present
+          if ! command -v age &> /dev/null; then
+            echo "📦 Installing age..."
+            sudo apt-get update -qq && sudo apt-get install -y -qq age
           fi
 
           # Decrypt secrets to .env file
