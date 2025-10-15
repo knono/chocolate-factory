@@ -205,8 +205,27 @@ jobs:
       - name: Wait for service to be healthy
         run: |
           echo "⏳ Waiting for FastAPI to be ready..."
-          sleep 10
-          curl -f http://localhost:8001/health || exit 1
+
+          # Check if container is running
+          docker ps -a | grep chocolate_factory_dev || echo "Container not found"
+
+          # Show container logs
+          echo "📋 Container logs:"
+          docker logs chocolate_factory_dev --tail 50 || echo "No logs available"
+
+          # Wait for service with retry
+          for i in {1..30}; do
+            if curl -f http://localhost:8001/health 2>/dev/null; then
+              echo "✅ Service is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Service not ready yet..."
+            sleep 2
+          done
+
+          echo "❌ Service failed to become healthy"
+          docker logs chocolate_factory_dev --tail 100
+          exit 1
 
       - name: Deployment notification
         run: |
@@ -320,8 +339,27 @@ jobs:
       - name: Wait for service to be healthy
         run: |
           echo "⏳ Waiting for FastAPI to be ready..."
-          sleep 10
-          curl -f http://localhost:8000/health || exit 1
+
+          # Check if container is running
+          docker ps -a | grep chocolate_factory_prod || echo "Container not found"
+
+          # Show container logs
+          echo "📋 Container logs:"
+          docker logs chocolate_factory_prod --tail 50 || echo "No logs available"
+
+          # Wait for service with retry
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/health 2>/dev/null; then
+              echo "✅ Service is healthy!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Service not ready yet..."
+            sleep 2
+          done
+
+          echo "❌ Service failed to become healthy"
+          docker logs chocolate_factory_prod --tail 100
+          exit 1
 
       - name: Deployment notification
         run: |
