@@ -139,10 +139,10 @@ jobs:
 
       - name: Login to registry
         run: |
-          # Extract registry password from .env
-          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | cut -d'"' -f2)
-          REGISTRY_USER=$(grep "^registry_user:" .env | cut -d'"' -f2)
-          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u $REGISTRY_USER --password-stdin
+          # Extract registry credentials from decrypted YAML
+          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | awk '{print $2}')
+          REGISTRY_USER=$(grep "^registry_user:" .env | awk '{print $2}')
+          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u "$REGISTRY_USER" --password-stdin
 
       - name: Pull latest development image
         run: |
@@ -205,10 +205,10 @@ jobs:
 
       - name: Login to registry
         run: |
-          # Extract registry password from .env
-          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | cut -d'"' -f2)
-          REGISTRY_USER=$(grep "^registry_user:" .env | cut -d'"' -f2)
-          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u $REGISTRY_USER --password-stdin
+          # Extract registry credentials from decrypted YAML
+          REGISTRY_PASSWORD=$(grep "^registry_password:" .env | awk '{print $2}')
+          REGISTRY_USER=$(grep "^registry_user:" .env | awk '{print $2}')
+          echo "$REGISTRY_PASSWORD" | docker login ${{ env.REGISTRY }} -u "$REGISTRY_USER" --password-stdin
 
       - name: Pull latest production image
         run: |
