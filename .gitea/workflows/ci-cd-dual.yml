@@ -71,6 +71,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
+        continue-on-error: true  # Don't fail pipeline if artifact upload fails
         uses: actions/upload-artifact@v3
         with:
           name: coverage-report
