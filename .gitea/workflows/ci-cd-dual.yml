@@ -46,6 +46,7 @@ jobs:
           echo "INFLUXDB_URL=http://test:8086" >> $GITHUB_ENV
           echo "INFLUXDB_ORG=test-org" >> $GITHUB_ENV
           echo "INFLUXDB_BUCKET=test-bucket" >> $GITHUB_ENV
+          echo "PYTHONPATH=${{ github.workspace }}/src:${{ github.workspace }}/src/fastapi-app" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: |
