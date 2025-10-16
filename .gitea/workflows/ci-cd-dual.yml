@@ -37,6 +37,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      - name: Set test environment variables
+        run: |
+          echo "INFLUXDB_TOKEN=test-token" >> $GITHUB_ENV
+          echo "AEMET_API_KEY=test-aemet-key" >> $GITHUB_ENV
+          echo "OPENWEATHERMAP_API_KEY=test-openweather-key" >> $GITHUB_ENV
+          echo "ANTHROPIC_API_KEY=test-anthropic-key" >> $GITHUB_ENV
+          echo "INFLUXDB_URL=http://test:8086" >> $GITHUB_ENV
+          echo "INFLUXDB_ORG=test-org" >> $GITHUB_ENV
+          echo "INFLUXDB_BUCKET=test-bucket" >> $GITHUB_ENV
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -116,7 +126,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build \
+          docker build --no-cache \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.set_tag.outputs.tag }} \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -f docker/fastapi.Dockerfile \
