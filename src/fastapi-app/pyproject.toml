@@ -59,3 +59,13 @@ dependencies = [
     "coverage>=7.3.0",
     "httpx>=0.25.0",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["api", "core", "domain", "services", "infrastructure", "tasks"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.md"]
