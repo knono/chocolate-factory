@@ -67,5 +67,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["api", "core", "domain", "services", "infrastructure", "tasks"]
 
+[tool.setuptools.package-dir]
+configs = "../configs"
+
 [tool.setuptools.package-data]
 "*" = ["*.txt", "*.md"]

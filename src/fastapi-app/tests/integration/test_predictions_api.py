@@ -98,7 +98,7 @@ class TestProductionRecommendation:
 class TestProphetPriceForecasting:
     """Test suite for Prophet price forecasting endpoints."""
 
-    @patch('services.price_forecasting_service.PriceForecastingService')
+    @patch('api.routers.optimization.PriceForecastingService')
     def test_weekly_forecast_success(self, mock_service, client):
         """Test GET /predict/prices/weekly returns 168 hours."""
         mock_instance = Mock()
@@ -119,7 +119,7 @@ class TestProphetPriceForecasting:
         assert "predictions" in data
         assert "model_info" in data
 
-    @patch('services.price_forecasting_service.PriceForecastingService')
+    @patch('api.routers.optimization.PriceForecastingService')
     def test_hourly_forecast_custom_hours(self, mock_service, client):
         """Test GET /predict/prices/hourly with custom hours parameter."""
         mock_instance = Mock()
@@ -138,7 +138,7 @@ class TestProphetPriceForecasting:
         data = response.json()
         assert "predictions" in data
 
-    @patch('services.price_forecasting_service.PriceForecastingService')
+    @patch('api.routers.optimization.PriceForecastingService')
     def test_forecast_includes_confidence_intervals(self, mock_service, client):
         """Test forecast includes upper/lower bounds."""
         mock_instance = Mock()
@@ -168,7 +168,7 @@ class TestProphetPriceForecasting:
 class TestModelStatus:
     """Test suite for model status endpoints."""
 
-    @patch('services.price_forecasting_service.PriceForecastingService')
+    @patch('api.routers.optimization.PriceForecastingService')
     def test_model_status_returns_metrics(self, mock_service, client):
         """Test GET /models/price-forecast/status returns model metrics."""
         mock_instance = Mock()
