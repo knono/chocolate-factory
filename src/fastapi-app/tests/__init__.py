@@ -8,3 +8,4 @@ Structure:
 - ml/: ML model regression tests
 - conftest.py: Shared fixtures and test configuration
 """
+# Test trigger jue 16 oct 2025 09:57:34 CEST
