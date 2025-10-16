@@ -48,9 +48,9 @@ async def lifespan(app: FastAPI):
     """Application lifecycle management."""
     logger.info("🧠 Starting Chocolate Factory API (Clean Architecture)")
 
-    # Ensure Prophet model exists
-    from startup_tasks import ensure_prophet_model
-    await ensure_prophet_model()
+    # Prophet model is pre-trained and included in Docker image
+    # See docker/fastapi.Dockerfile: COPY models/forecasting/prophet_latest.pkl
+    # If model is missing, it will be trained automatically on first prediction request
 
     # Initialize APScheduler
     scheduler = await init_scheduler()

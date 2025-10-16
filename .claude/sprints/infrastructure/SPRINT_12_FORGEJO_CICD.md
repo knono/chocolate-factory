@@ -855,18 +855,21 @@ curl https://${TAILSCALE_DOMAIN}/health
 - [x] Test completo de extremo a extremo
 - [x] Runners funcionando en dev y prod
 
-### Fase 9: Tests Básicos de API
+### Fase 9: Tests Básicos de API ✅
 
 Implementar tests fundamentales de endpoints.
 
-- [ ] Crear estructura `src/fastapi-app/tests/{unit,integration,ml,conftest.py}`
-- [ ] Tests de health endpoints (5 tests)
-- [ ] Tests de dashboard API (12 tests)
-- [ ] Tests de predicciones (8 tests)
-- [ ] Fixtures compartidos (mocks de servicios externos)
-- [ ] Actualizar pipeline CI/CD con coverage threshold 70%
+- [x] Crear estructura `src/fastapi-app/tests/{unit,integration,ml,conftest.py}`
+- [x] Tests de health endpoints (7 tests)
+- [x] Tests de dashboard API (12 tests)
+- [x] Tests de predicciones (11 tests)
+- [x] Fixtures compartidos (mocks de servicios externos)
+- [x] Actualizar pipeline CI/CD con coverage threshold 70%
+- [x] Documentación testing suite (README.md)
+- [x] Script helper `scripts/run-tests.sh`
+- [x] Configuración pytest.ini
 
-Total: 25 tests, coverage >70%
+Total: **30 tests implementados**, coverage >70% ✅
 
 ### Fase 10: Tests de Servicios y ML
 

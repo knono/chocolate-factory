@@ -61,6 +61,7 @@ services:
     volumes:
       # Código fuente para hot reload (mapeo directo)
       - ./src/fastapi-app/main.py:/app/main.py
+      - ./src/fastapi-app/startup_tasks.py:/app/startup_tasks.py
       - ./src/fastapi-app/core:/app/core
       - ./src/fastapi-app/api:/app/api
       - ./src/fastapi-app/services:/app/services
