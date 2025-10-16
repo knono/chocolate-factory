@@ -42,6 +42,7 @@ services:
       - ./src/configs:/app/configs
       - ./src/fastapi-app/services:/app/services  # Bind mount completo del directorio services
       - ./src/fastapi-app/main.py:/app/main.py
+      - ./src/fastapi-app/startup_tasks.py:/app/startup_tasks.py
       - ./docker/services/fastapi/logs:/app/logs
       - ./models:/app/models
       - ./scripts:/app/scripts
