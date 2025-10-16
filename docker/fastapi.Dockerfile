@@ -31,17 +31,14 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos de dependencias primero (mejor cache de Docker)
-COPY src/fastapi-app/pyproject.toml ./
+# Copiar código fuente primero (necesario para pip install -e)
+COPY src/fastapi-app/ ./
+COPY src/configs/ ./configs/
+COPY src/ml/ ./ml/
 
 # Instalar dependencias
 RUN pip install --upgrade pip
 RUN pip install -e .
-
-# Copiar código fuente
-COPY src/fastapi-app/ ./
-COPY src/configs/ ./configs/
-COPY src/ml/ ./ml/
 COPY static/ ./static/
 COPY .claude/ ./.claude/
 
