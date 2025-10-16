@@ -65,7 +65,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["api", "core", "domain", "services", "infrastructure", "tasks"]
+packages = ["api", "core", "domain", "services", "infrastructure", "tasks", "configs"]
 
 [tool.setuptools.package-dir]
 configs = "../configs"
