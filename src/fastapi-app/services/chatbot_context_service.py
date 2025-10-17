@@ -195,13 +195,20 @@ Eficiencia fábrica: {efficiency}%"""
 
     async def _get_price_forecast(self) -> str:
         """Precios REE y análisis de desviación."""
+        from datetime import date, timedelta
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             # Obtener último precio REE
             latest_response = await client.get(f"{self.base_url}/ree/prices/latest")
             latest = latest_response.json()
 
-            # Obtener estadísticas REE
-            stats_response = await client.get(f"{self.base_url}/ree/prices/stats")
+            # Obtener estadísticas REE (últimos 30 días)
+            end_date = date.today()
+            start_date = end_date - timedelta(days=30)
+            stats_response = await client.get(
+                f"{self.base_url}/ree/prices/stats",
+                params={"start_date": start_date.isoformat(), "end_date": end_date.isoformat()}
+            )
             stats = stats_response.json()
 
             price_now = latest.get('price_eur_kwh', 0)
@@ -219,15 +226,16 @@ Eficiencia fábrica: {efficiency}%"""
                 icon = "🔴"
                 label = "ALTO"
 
-            forecast_text = f"""ANÁLISIS PRECIOS ENERGÍA REE:
+            forecast_text = f"""ANÁLISIS PRECIOS ENERGÍA REE (últimos 30 días):
 
 💰 Precio actual ({hour}h): {icon} {price_now:.4f} €/kWh ({label})
 
-📊 Estadísticas históricas:
-   • Precio mínimo: {stats.get('min_price', 0):.4f} €/kWh
-   • Precio máximo: {stats.get('max_price', 0):.4f} €/kWh
-   • Precio promedio: {stats.get('avg_price', 0):.4f} €/kWh
-   • Total registros: {stats.get('total_records', 0):,}
+📊 Estadísticas históricas (30 días):
+   • Precio mínimo: {stats.get('min', 0):.4f} €/kWh
+   • Precio máximo: {stats.get('max', 0):.4f} €/kWh
+   • Precio promedio: {stats.get('avg', 0):.4f} €/kWh
+   • Precio mediana: {stats.get('median', 0):.4f} €/kWh
+   • Total registros: {stats.get('count', 0):,}
 
 RECOMENDACIÓN: {'PRODUCIR AHORA' if price_now < 0.10 else 'ESPERAR A VALLE' if price_now > 0.15 else 'PRODUCCIÓN MODERADA'}"""
 

@@ -1,12 +1,13 @@
-# 🎯 SPRINT 11: Chatbot BI Conversacional - Claude Haiku API
+# 🎯 SPRINT 11: Chatbot BI Conversacional - Claude Haiku 4.5 API
 
-> **Estado**: ✅ COMPLETADO
+> **Estado**: ✅ COMPLETADO (Migrated to Haiku 4.5)
 > **Prioridad**: 🔴 ALTA
 > **Prerequisito**: Sprint 10 completado, API 30 endpoints operacionales
 > **Duración estimada**: 1.5-2 días (8-12 horas)
 > **Duración real**: ~6 horas
 > **Fecha inicio**: 2025-10-10
 > **Fecha completitud**: 2025-10-10
+> **Última migración**: 2025-10-17 (Haiku 3.5 → 4.5)
 
 ---
 
@@ -30,11 +31,11 @@
    - Dependencia Claude Code running
    - No apto para móvil
 
-✅ Chatbot con Haiku API:
+✅ Chatbot con Haiku 4.5 API:
    - Totalmente independiente (FastAPI standalone)
    - Acceso universal (móvil/tablet/desktop via web)
    - Sin dependencias externas (solo API key)
-   - Costo predecible (~€1.50-3/mes)
+   - Costo predecible (~€2-7/mes, +25% vs 3.5 pero 4-5x más rápido)
 ```
 
 ---
@@ -96,24 +97,25 @@ from anthropic import Anthropic
 client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 message = client.messages.create(
-    model="claude-3-5-haiku-20241022",  # Haiku (no Sonnet)
+    model="claude-haiku-4-5",  # Haiku 4.5 (latest)
     max_tokens=300,  # Respuestas concisas
     system=system_prompt,
     messages=[{"role": "user", "content": f"..."}]
 )
 ```
 
-**¿Por qué Haiku y no Sonnet?**
+**¿Por qué Haiku 4.5 y no Sonnet 4?**
 
-| Criterio | Haiku | Sonnet 4 | ¿Necesitas Sonnet? |
-|----------|-------|----------|-------------------|
+| Criterio | Haiku 4.5 | Sonnet 4 | ¿Necesitas Sonnet? |
+|----------|-----------|----------|-------------------|
 | **Formateo datos estructurados** | ✅ Excelente | ✅ Excelente | ❌ No |
-| **Razonamiento complejo** | Limitado | Excelente | ❌ No (contexto determinístico) |
-| **Latencia** | ~1.5s | ~3-5s | ❌ Haiku más rápido |
-| **Costo input** | $0.80/1M | $3.00/1M | ❌ 3.75x más caro |
-| **Costo output** | $4.00/1M | $15.00/1M | ❌ 3.75x más caro |
+| **Razonamiento complejo** | ✅ Extended thinking | ✅ Excelente | ❌ No (contexto determinístico) |
+| **Latencia** | ~0.8s (4-5x más rápido) | ~3-5s | ❌ Haiku mucho más rápido |
+| **Costo input** | $1.00/1M | $3.00/1M | ❌ 3x más caro |
+| **Costo output** | $5.00/1M | $15.00/1M | ❌ 3x más caro |
+| **Performance coding** | 73.3% SWE-bench | ~75% | ❌ Casi igual |
 
-**Tu caso de uso**: 90% preguntas son **lookups simples** (precio actual, cuándo producir, alertas). Haiku es perfecto para formatear datos estructurados.
+**Tu caso de uso**: 90% preguntas son **lookups simples** (precio actual, cuándo producir, alertas). Haiku 4.5 es perfecto para formatear datos estructurados con velocidad superior.
 
 **System prompt especializado**:
 ```
@@ -274,7 +276,7 @@ ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxx
 
 # Chatbot settings (opcional)
 CHATBOT_MAX_TOKENS=300          # Max tokens respuesta
-CHATBOT_MODEL=claude-3-5-haiku-20241022
+CHATBOT_MODEL=claude-haiku-4-5  # Haiku 4.5 (Oct 2025)
 CHATBOT_RATE_LIMIT=20           # Requests/minuto
 ```
 
@@ -526,7 +528,7 @@ src/fastapi-app/
 
 ## 💰 Análisis de Costos
 
-### Costo por Pregunta (Haiku)
+### Costo por Pregunta (Haiku 4.5)
 
 **Ejemplo pregunta típica**:
 ```
@@ -545,10 +547,10 @@ Response:
 La ventana de madrugada ofrece mayor ahorro."
 Total output: 150 tokens
 
-Cost calculation:
-Input: 600 × $0.80/1M = $0.00048
-Output: 150 × $4.00/1M = $0.00060
-TOTAL: $0.00108 (~€0.001 por pregunta)
+Cost calculation (Haiku 4.5):
+Input: 600 × $1.00/1M = $0.00060
+Output: 150 × $5.00/1M = $0.00075
+TOTAL: $0.00135 (~€0.0013 por pregunta)
 ```
 
 ### Uso Mensual Proyectado
@@ -560,10 +562,10 @@ TOTAL: $0.00108 (~€0.001 por pregunta)
 Input: 600 tokens × 1,500 = 900k tokens
 Output: 150 tokens × 1,500 = 225k tokens
 
-Costo input: 900k × $0.80/1M = $0.72
-Costo output: 225k × $4.00/1M = $0.90
+Costo input: 900k × $1.00/1M = $0.90
+Costo output: 225k × $5.00/1M = $1.13
 ──────────────────────────────────────
-TOTAL: $1.62/mes (~€1.51/mes)
+TOTAL: $2.03/mes (~€1.89/mes)
 ```
 
 **Escenario intensivo** (150 preguntas/día):
@@ -573,26 +575,26 @@ TOTAL: $1.62/mes (~€1.51/mes)
 Input: 600 tokens × 4,500 = 2.7M tokens
 Output: 150 tokens × 4,500 = 675k tokens
 
-Costo input: 2.7M × $0.80/1M = $2.16
-Costo output: 675k × $4.00/1M = $2.70
+Costo input: 2.7M × $1.00/1M = $2.70
+Costo output: 675k × $5.00/1M = $3.38
 ──────────────────────────────────────
-TOTAL: $4.86/mes (~€4.54/mes)
+TOTAL: $6.08/mes (~€5.67/mes)
 ```
 
-**Conclusión**: Incluso con uso intensivo, costo < €5/mes (muy asequible)
+**Conclusión**: Incluso con uso intensivo, costo < €6/mes (muy asequible). Incremento +25% vs Haiku 3.5, pero con 4-5x mejor velocidad.
 
 ### Optimización Tokens (Tu Arquitectura)
 
 **Gracias a Clean Architecture + Pydantic schemas**:
 
-| Aspecto | Proyecto mal diseñado | Tu proyecto | Ahorro |
-|---------|----------------------|-------------|--------|
+| Aspecto | Proyecto mal diseñado | Tu proyecto (Haiku 4.5) | Ahorro |
+|---------|----------------------|-------------------------|--------|
 | **Context por pregunta** | 5,000 tokens | 600 tokens | 8.3x |
 | **Response verboso** | 400 tokens | 150 tokens | 2.7x |
-| **Costo/pregunta** | $0.008 | $0.001 | 8x |
-| **Costo/mes (50q/día)** | €11.20 | €1.51 | 7.4x |
+| **Costo/pregunta** | $0.010 | $0.0013 | 7.7x |
+| **Costo/mes (50q/día)** | €14.00 | €1.89 | 7.4x |
 
-**Tu ahorro real**: ~€10/mes gracias a buena estructura del proyecto
+**Tu ahorro real**: ~€12/mes gracias a buena estructura del proyecto
 
 ---
 

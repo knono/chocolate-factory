@@ -42,7 +42,8 @@ Sistema de chatbot conversacional que permite consultas en lenguaje natural sobr
 
 ### Características Clave
 
-- ✅ **Claude Haiku 3.5**: Respuestas rápidas y económicas (~10s latencia)
+- ✅ **Claude Haiku 4.5**: Respuestas ultra-rápidas y económicas (~8s latencia, 4-5x más rápido)
+- ✅ **Extended Thinking**: Capacidad de razonamiento mejorado (nueva en 4.5)
 - ✅ **RAG Local**: Keyword matching inteligente (sin vector DB)
 - ✅ **Llamadas Paralelas**: asyncio.gather() para reducir latencia 80%
 - ✅ **Context Optimizado**: ~600-1200 tokens/pregunta (vs 5000 mal diseñado)
@@ -146,12 +147,12 @@ sequenceDiagram
 **Archivo**: `.env`
 
 ```bash
-# Sprint 11 - Chatbot BI (Claude Haiku API)
+# Sprint 11 - Chatbot BI (Claude Haiku 4.5 API)
 ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxx
 
 # Opcionales (usar defaults si no se especifican)
 CHATBOT_MAX_TOKENS=300                    # Max tokens respuesta
-CHATBOT_MODEL=claude-3-5-haiku-20241022  # Modelo Haiku
+CHATBOT_MODEL=claude-haiku-4-5           # Modelo Haiku 4.5
 ```
 
 ### 3. Instalar Dependencias
@@ -170,7 +171,7 @@ curl http://localhost:8000/chat/health
 # Respuesta esperada:
 # {
 #   "status": "healthy",
-#   "model": "claude-3-5-haiku-20241022",
+#   "model": "claude-haiku-4-5",
 #   "max_tokens": 300,
 #   "total_questions": 0
 # }
@@ -438,18 +439,24 @@ keywords_map = {
 
 ## Costos y Métricas
 
-### Pricing Claude Haiku (Octubre 2024)
+### Pricing Claude Haiku 4.5 (Octubre 2025)
 
-- **Input**: $0.80 per 1M tokens
-- **Output**: $4.00 per 1M tokens
+- **Input**: $1.00 per 1M tokens (+25% vs Haiku 3.5)
+- **Output**: $5.00 per 1M tokens (+25% vs Haiku 3.5)
+
+**Beneficios adicionales**:
+- 4-5x más rápido que Sonnet 4
+- Extended thinking capabilities
+- 64K output tokens (vs limitado en 3.5)
+- Computer use y context awareness
 
 ### Costo por Pregunta (Promedio)
 
 ```
-Input tokens:  800 × $0.80/1M = $0.00064
-Output tokens: 150 × $4.00/1M = $0.00060
+Input tokens:  800 × $1.00/1M = $0.00080
+Output tokens: 150 × $5.00/1M = $0.00075
 ───────────────────────────────────────────
-TOTAL: $0.00124 (~€0.0012 por pregunta)
+TOTAL: $0.00155 (~€0.0015 por pregunta)
 ```
 
 ### Proyección Mensual
@@ -458,33 +465,35 @@ TOTAL: $0.00124 (~€0.0012 por pregunta)
 ```
 50 preguntas/día × 30 días = 1,500 preguntas/mes
 
-Input:  800 × 1,500 = 1.2M tokens → $0.96
-Output: 150 × 1,500 = 225k tokens → $0.90
+Input:  800 × 1,500 = 1.2M tokens → $1.20
+Output: 150 × 1,500 = 225k tokens → $1.13
 ────────────────────────────────────────────
-TOTAL: $1.86/mes (~€1.74/mes)
+TOTAL: $2.33/mes (~€2.17/mes)
 ```
 
 **Escenario Intensivo** (150 preguntas/día):
 ```
 150 preguntas/día × 30 días = 4,500 preguntas/mes
 
-Input:  800 × 4,500 = 3.6M tokens → $2.88
-Output: 150 × 4,500 = 675k tokens → $2.70
+Input:  800 × 4,500 = 3.6M tokens → $3.60
+Output: 150 × 4,500 = 675k tokens → $3.38
 ────────────────────────────────────────────
-TOTAL: $5.58/mes (~€5.21/mes)
+TOTAL: $6.98/mes (~€6.52/mes)
 ```
+
+**Incremento vs Haiku 3.5**: +25% costo, pero con mejoras sustanciales en velocidad y capacidades
 
 ### Ahorro vs Proyecto Mal Diseñado
 
 Gracias a **Clean Architecture + Context Optimizado**:
 
-| Métrica | Proyecto Mal Diseñado | Este Proyecto | Ahorro |
-|---------|----------------------|---------------|--------|
+| Métrica | Proyecto Mal Diseñado | Este Proyecto (Haiku 4.5) | Ahorro |
+|---------|----------------------|---------------------------|--------|
 | Context tokens | 5,000 | 800 | 6.2x |
-| Costo/pregunta | $0.008 | $0.001 | 8x |
-| Costo/mes (50q/día) | €11.20 | €1.74 | 6.4x |
+| Costo/pregunta | $0.010 | $0.0015 | 6.7x |
+| Costo/mes (50q/día) | €14.00 | €2.17 | 6.5x |
 
-**Ahorro real**: ~€10/mes
+**Ahorro real**: ~€12/mes gracias a arquitectura optimizada
 
 ---
 
@@ -624,7 +633,7 @@ curl -X POST http://localhost:8000/chat/ask \
 
 ---
 
-**Versión**: 1.0
-**Fecha**: 2025-10-10
+**Versión**: 1.1 (Migrated to Haiku 4.5)
+**Fecha actualización**: 2025-10-17
 **Autor**: Sprint 11 - Chatbot BI Team
-**Estado**: ✅ Producción
+**Estado**: ✅ Producción (Haiku 4.5)

@@ -164,14 +164,14 @@ Responde de forma concisa y accionable basándote SOLO en el contexto anterior."
 
     def _calculate_cost(self, input_tokens: int, output_tokens: int) -> float:
         """
-        Calcula costo en USD según pricing de Haiku.
+        Calcula costo en USD según pricing de Haiku 4.5.
 
-        Haiku pricing (Oct 2024):
-        - Input: $0.80 per 1M tokens
-        - Output: $4.00 per 1M tokens
+        Haiku 4.5 pricing (Oct 2025):
+        - Input: $1.00 per 1M tokens
+        - Output: $5.00 per 1M tokens
         """
-        input_cost = (input_tokens / 1_000_000) * 0.80
-        output_cost = (output_tokens / 1_000_000) * 4.00
+        input_cost = (input_tokens / 1_000_000) * 1.00
+        output_cost = (output_tokens / 1_000_000) * 5.00
         return input_cost + output_cost
 
     def _error_response(self, message: str, latency_ms: int) -> Dict:
