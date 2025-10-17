@@ -29,7 +29,12 @@ class ChatbotContextService:
     def __init__(self):
         self.base_url = "http://localhost:8000"
         self.keywords_map = {
-            "optimal_windows": ["cuándo", "cuando", "producir", "ventana", "ventanas", "mejor momento", "momento óptimo"],
+            "optimal_windows": [
+                "cuándo", "cuando", "producir", "ventana", "ventanas",
+                "mejor momento", "momento óptimo", "mejores horas", "mejor hora",
+                "días", "dia", "próximos", "proximos", "mañana", "manana",
+                "lanzar producción", "lanzar", "próximas horas", "horario"
+            ],
             "price_forecast": ["precio", "precios", "energía", "energia", "costo", "coste", "tarifa", "kwh"],
             "alerts": ["alerta", "alertas", "problema", "problemas", "warning", "crítico", "critico"],
             "savings": ["ahorro", "ahorros", "saving", "comparar", "comparativa", "roi", "beneficio"],
