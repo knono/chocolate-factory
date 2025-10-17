@@ -987,9 +987,112 @@ Tareas:
 
 ---
 
-## 🚧 Problemas Potenciales
+## 🚧 Problemas Encontrados y Soluciones
 
-### Problema 1: Comunicación entre nodos
+### ⚠️ PROBLEMA CRÍTICO: Docker Build Falla con "package directory does not exist"
+
+**Contexto**: Este fue el problema principal que bloqueó el CI/CD durante ~10 horas (Fase 9).
+
+**Síntoma**:
+```
+error: package directory '../configs' does not exist
+error: package directory 'configs' does not exist
+```
+
+**Causa Raíz**:
+El `pyproject.toml` configuraba `configs` como paquete Python, pero:
+- **En CI/CD tests**: `configs` está en `src/configs/` (un nivel arriba de `src/fastapi-app/`)
+- **En Docker build**: `configs` se copia a `/app/configs/` (mismo nivel que código)
+- **Conflicto**: setuptools buscaba `../configs` en CI pero en Docker estaba en `./configs/`
+
+**Solución Final**:
+```toml
+# pyproject.toml - ANTES (❌ CAUSABA ERROR)
+[tool.setuptools]
+packages = ["api", "core", "domain", "services", "infrastructure", "tasks", "configs"]
+
+[tool.setuptools.package-dir]
+configs = "../configs"  # ❌ Esto falla en Docker
+
+# pyproject.toml - DESPUÉS (✅ FUNCIONA)
+[tool.setuptools]
+packages = ["api", "core", "domain", "services", "infrastructure", "tasks"]
+# configs removido de packages
+
+# .gitea/workflows/ci-cd-dual.yml
+- name: Set test environment variables
+  run: |
+    # ✅ Añadir /src al PYTHONPATH para que Python encuentre configs
+    echo "PYTHONPATH=${{ github.workspace }}/src:${{ github.workspace }}/src/fastapi-app" >> $GITHUB_ENV
+```
+
+**Archivos creados**:
+```bash
+# src/configs/__init__.py - Hacer configs importable como módulo Python
+"""
+Configs package - InfluxDB schemas and configuration files.
+"""
+```
+
+**Validación**:
+```bash
+# En CI/CD
+PYTHONPATH=/workspace/src:/workspace/src/fastapi-app python -c "from configs.influxdb_schemas import REESchema"
+# ✅ Funciona
+
+# En Docker
+PYTHONPATH=/app python -c "from configs.influxdb_schemas import REESchema"
+# ✅ Funciona (configs copiado a /app/configs/)
+```
+
+---
+
+### Problema 1: Docker Build Cache Antiguo
+
+**Síntomas**: Build falla aunque el Dockerfile es correcto
+
+**Causa**: Docker usa cache de layers antiguos con código desactualizado
+
+**Solución**:
+```yaml
+# .gitea/workflows/ci-cd-dual.yml
+- name: Build Docker image
+  run: |
+    docker build --no-cache \  # ✅ Forzar rebuild completo
+      -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.set_tag.outputs.tag }} \
+      -f docker/fastapi.Dockerfile \
+      .
+```
+
+---
+
+### Problema 2: Variables de Entorno Faltantes en Tests
+
+**Síntomas**:
+```
+⚠️  WARNING: INFLUXDB_TOKEN not found in secrets or environment
+⚠️  WARNING: AEMET_API_KEY not found in secrets or environment
+```
+
+**Causa**: Job `test-all` no tiene acceso a secrets (solo jobs `deploy-dev/prod` los desencriptan)
+
+**Solución**:
+```yaml
+# .gitea/workflows/ci-cd-dual.yml
+- name: Set test environment variables
+  run: |
+    echo "INFLUXDB_TOKEN=test-token" >> $GITHUB_ENV
+    echo "AEMET_API_KEY=test-aemet-key" >> $GITHUB_ENV
+    echo "OPENWEATHERMAP_API_KEY=test-openweather-key" >> $GITHUB_ENV
+    echo "ANTHROPIC_API_KEY=test-anthropic-key" >> $GITHUB_ENV
+    echo "INFLUXDB_URL=http://test:8086" >> $GITHUB_ENV
+    echo "INFLUXDB_ORG=test-org" >> $GITHUB_ENV
+    echo "INFLUXDB_BUCKET=test-bucket" >> $GITHUB_ENV
+```
+
+---
+
+### Problema 3: Comunicación entre nodos
 
 **Síntomas**: Pipeline no puede desplegar en nodos remotos
 
@@ -1000,7 +1103,7 @@ Tareas:
 # Asegurar que ACLs permiten comunicación entre nodos
 ```
 
-### Problema 2: Acceso al registry desde nodos remotos
+### Problema 4: Acceso al registry desde nodos remotos
 
 **Síntomas**: Nodos de desarrollo/producción no pueden pull de registry
 
@@ -1011,7 +1114,7 @@ Tareas:
 # Asegurar que ACLs permiten acceso al registry
 ```
 
-### Problema 3: DNS interno no resuelve
+### Problema 5: DNS interno no resuelve
 
 **Síntomas**: Nodos no pueden comunicarse por nombres
 
@@ -1021,6 +1124,47 @@ Tareas:
 # O configurar DNS interno
 # O usar /etc/hosts en cada nodo
 ```
+
+---
+
+### Problema 6: `/docs` no disponible en producción (404)
+
+**Síntomas**:
+```bash
+curl http://localhost:8000/docs
+# 404 Not Found
+```
+
+**Causa**: **Comportamiento esperado por seguridad**. Los docs interactivos están deshabilitados en `ENVIRONMENT=production`.
+
+**Código responsable** (`main.py`):
+```python
+app = FastAPI(
+    docs_url="/docs" if settings.ENVIRONMENT == "development" else None
+)
+```
+
+**Por qué es correcto**:
+- ✅ No expone API interactiva en producción (reduce superficie de ataque)
+- ✅ Evita descubrimiento automático de endpoints
+- ✅ Best practice de seguridad FastAPI
+
+**Soluciones alternativas**:
+```bash
+# Opción 1: Usar development para explorar API
+curl http://localhost:8001/docs  # ✅ Disponible en dev
+
+# Opción 2: Ver schema OpenAPI (siempre disponible)
+curl http://localhost:8000/openapi.json | jq '.paths | keys'
+
+# Opción 3: Endpoints de health siguen funcionando
+curl http://localhost:8000/health
+curl http://localhost:8000/dashboard/summary
+```
+
+**Entornos y puertos**:
+- **Development** (puerto 8001): `ENVIRONMENT=development` → `/docs` ✅
+- **Production** (puerto 8000): `ENVIRONMENT=production` → `/docs` ❌
 
 ---
 

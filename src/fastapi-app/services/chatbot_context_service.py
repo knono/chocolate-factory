@@ -29,13 +29,28 @@ class ChatbotContextService:
     def __init__(self):
         self.base_url = "http://localhost:8000"
         self.keywords_map = {
-            "optimal_windows": ["cuándo", "cuando", "producir", "ventana", "ventanas", "mejor momento", "momento óptimo"],
+            "optimal_windows": [
+                "cuándo", "cuando", "producir", "ventana", "ventanas",
+                "mejor momento", "momento óptimo", "mejores horas", "mejor hora",
+                "días", "dia", "próximos", "proximos", "mañana", "manana",
+                "lanzar producción", "lanzar", "próximas horas", "horario",
+                "semana", "semanas", "siguiente", "próxima semana", "esta semana",
+                "forecast", "predicción", "prediccion", "previsión", "prevision"
+            ],
             "price_forecast": ["precio", "precios", "energía", "energia", "costo", "coste", "tarifa", "kwh"],
             "alerts": ["alerta", "alertas", "problema", "problemas", "warning", "crítico", "critico"],
             "savings": ["ahorro", "ahorros", "saving", "comparar", "comparativa", "roi", "beneficio"],
             "production_plan": ["plan", "planificar", "optimizar", "optimización", "batches", "proceso"],
-            "analysis": ["análisis", "analisis", "histórico", "historico", "siar", "temperatura", "clima"],
+            "analysis": [
+                "análisis", "analisis", "histórico", "historico", "siar",
+                "temperatura", "clima", "meses", "mes", "estación", "estacion",
+                "estacional", "año", "anual", "patrón", "patron", "tendencia"
+            ],
             "current_status": ["actual", "ahora", "estado", "status", "qué está pasando", "que esta pasando"],
+            "recommendations": [
+                "recomendación", "recomendacion", "recomienda", "aconsejar", "aconseja",
+                "qué hacer", "que hacer", "qué hago", "que hago", "sugerencia", "consejo"
+            ],
         }
 
     async def build_context(self, question: str) -> str:
@@ -68,10 +83,17 @@ class ChatbotContextService:
         tasks.append(self._get_current_status())
         task_names.append("current_status")
 
+        # Contexto de producción SIEMPRE (para que entienda el negocio)
+        tasks.append(self._get_production_context())
+        task_names.append("production_context")
+
         # Añadir contextos específicos según categorías detectadas
         if "optimal_windows" in relevant_categories:
             tasks.append(self._get_optimal_windows())
             task_names.append("optimal_windows")
+            # Añadir también el forecast semanal Prophet
+            tasks.append(self._get_weekly_forecast())
+            task_names.append("weekly_forecast")
 
         if "price_forecast" in relevant_categories:
             tasks.append(self._get_price_forecast())
@@ -92,6 +114,13 @@ class ChatbotContextService:
         if "analysis" in relevant_categories:
             tasks.append(self._get_analysis())
             task_names.append("analysis")
+            # Añadir también analytics históricos
+            tasks.append(self._get_historical_analytics())
+            task_names.append("historical_analytics")
+
+        if "recommendations" in relevant_categories:
+            tasks.append(self._get_human_recommendation())
+            task_names.append("human_recommendation")
 
         # Si no hay match específico, usar dashboard completo
         if len(relevant_categories) == 0:
@@ -193,15 +222,54 @@ Eficiencia fábrica: {efficiency}%"""
 
             return windows_text
 
+    async def _get_weekly_forecast(self) -> str:
+        """Forecast Prophet 7 días (calendar_days del dashboard)."""
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{self.base_url}/dashboard/complete")
+            data = response.json()
+
+            weekly = data.get('weekly_forecast', {})
+            days = weekly.get('calendar_days', [])
+            summary = weekly.get('summary', {})
+
+            forecast_text = f"""FORECAST PROPHET ML - PRÓXIMOS 7 DÍAS ({summary.get('period', {}).get('start_date', 'N/A')} a {summary.get('period', {}).get('end_date', 'N/A')}):
+
+📊 RESUMEN SEMANAL:
+   • Precio mínimo: {summary.get('price_summary', {}).get('min_price', 0):.4f} €/kWh
+   • Precio máximo: {summary.get('price_summary', {}).get('max_price', 0):.4f} €/kWh
+   • Precio promedio: {summary.get('price_summary', {}).get('avg_price', 0):.4f} €/kWh
+   • Días óptimos: {summary.get('optimal_days', 0)}/{summary.get('period', {}).get('total_days', 7)}
+
+📅 PRECIOS DIARIOS PREVISTOS:
+"""
+            # Mostrar solo los próximos 5 días (no todos los 7)
+            for day in days[1:6]:  # Saltar hoy, mostrar 5 días siguientes
+                date = day.get('date', '')
+                day_name = day.get('day_name', '')
+                price = day.get('avg_price_eur_kwh', 0)
+                temp = day.get('avg_temperature', 0)
+                icon = day.get('recommendation_icon', '⚪')
+
+                forecast_text += f"   {icon} {date} ({day_name}): {price:.4f} €/kWh, {temp:.1f}°C\n"
+
+            return forecast_text
+
     async def _get_price_forecast(self) -> str:
         """Precios REE y análisis de desviación."""
+        from datetime import date, timedelta
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             # Obtener último precio REE
             latest_response = await client.get(f"{self.base_url}/ree/prices/latest")
             latest = latest_response.json()
 
-            # Obtener estadísticas REE
-            stats_response = await client.get(f"{self.base_url}/ree/prices/stats")
+            # Obtener estadísticas REE (últimos 30 días)
+            end_date = date.today()
+            start_date = end_date - timedelta(days=30)
+            stats_response = await client.get(
+                f"{self.base_url}/ree/prices/stats",
+                params={"start_date": start_date.isoformat(), "end_date": end_date.isoformat()}
+            )
             stats = stats_response.json()
 
             price_now = latest.get('price_eur_kwh', 0)
@@ -219,15 +287,16 @@ Eficiencia fábrica: {efficiency}%"""
                 icon = "🔴"
                 label = "ALTO"
 
-            forecast_text = f"""ANÁLISIS PRECIOS ENERGÍA REE:
+            forecast_text = f"""ANÁLISIS PRECIOS ENERGÍA REE (últimos 30 días):
 
 💰 Precio actual ({hour}h): {icon} {price_now:.4f} €/kWh ({label})
 
-📊 Estadísticas históricas:
-   • Precio mínimo: {stats.get('min_price', 0):.4f} €/kWh
-   • Precio máximo: {stats.get('max_price', 0):.4f} €/kWh
-   • Precio promedio: {stats.get('avg_price', 0):.4f} €/kWh
-   • Total registros: {stats.get('total_records', 0):,}
+📊 Estadísticas históricas (30 días):
+   • Precio mínimo: {stats.get('min', 0):.4f} €/kWh
+   • Precio máximo: {stats.get('max', 0):.4f} €/kWh
+   • Precio promedio: {stats.get('avg', 0):.4f} €/kWh
+   • Precio mediana: {stats.get('median', 0):.4f} €/kWh
+   • Total registros: {stats.get('count', 0):,}
 
 RECOMENDACIÓN: {'PRODUCIR AHORA' if price_now < 0.10 else 'ESPERAR A VALLE' if price_now > 0.15 else 'PRODUCCIÓN MODERADA'}"""
 
@@ -292,29 +361,150 @@ RECOMENDACIÓN: {'PRODUCIR AHORA' if price_now < 0.10 else 'ESPERAR A VALLE' if 
     async def _get_analysis(self) -> str:
         """Análisis histórico SIAR (Sprint 07)."""
         async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{self.base_url}/analysis/siar-summary")
+            response = await client.get(f"{self.base_url}/dashboard/complete")
             data = response.json()
 
-            analysis_text = f"""ANÁLISIS HISTÓRICO (25 años SIAR):
-Mejor mes: {data.get('best_month', 'N/A')} ({data.get('best_month_efficiency', 0):.1f}% eficiencia)
-Peor mes: {data.get('worst_month', 'N/A')} ({data.get('worst_month_efficiency', 0):.1f}% eficiencia)
-Temperatura crítica P90: {data.get('temp_p90', 'N/A')}°C
-Temperatura crítica P95: {data.get('temp_p95', 'N/A')}°C"""
+            siar = data.get('siar_analysis', {}).get('seasonal_patterns', {})
+            thresholds = data.get('siar_analysis', {}).get('thresholds', {})
+
+            best_month = siar.get('best_month', {})
+            worst_month = siar.get('worst_month', {})
+            temp_thresh = thresholds.get('temperature', {})
+
+            analysis_text = f"""ANÁLISIS HISTÓRICO (25 años SIAR - 88,935 registros):
+
+📅 MEJOR MES: {best_month.get('name', 'N/A')}
+   • Eficiencia: {best_month.get('efficiency_score', 0):.1f}%
+   • Temperatura promedio: {best_month.get('avg_temp', 0):.1f}°C
+   • Días óptimos: {best_month.get('optimal_days', 0)}
+
+📅 PEOR MES: {worst_month.get('name', 'N/A')}
+   • Eficiencia: {worst_month.get('efficiency_score', 0):.1f}%
+   • Temperatura promedio: {worst_month.get('avg_temp', 0):.1f}°C
+
+🌡️ UMBRALES CRÍTICOS:
+   • P90: {temp_thresh.get('p90', 'N/A')}°C
+   • P95: {temp_thresh.get('p95', 'N/A')}°C
+   • P99: {temp_thresh.get('p99', 'N/A')}°C"""
 
             return analysis_text
 
-    async def _get_full_dashboard(self) -> str:
-        """Dashboard completo (fallback)."""
+    async def _get_historical_analytics(self) -> str:
+        """Analytics históricos con ahorro anual proyectado."""
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{self.base_url}/dashboard/complete")
             data = response.json()
 
-            # Extraer info más relevante del dashboard
-            dashboard_text = f"""DASHBOARD COMPLETO:
-Estado sistema: {data.get('system', {}).get('status', 'N/A')}
-Precio actual: {data.get('energy', {}).get('current_price', 'N/A')} €/kWh
-Temperatura: {data.get('weather', {}).get('temperature', 'N/A')}°C
-Próximas 24h: Ver forecast de precios
-Recomendación ML: {data.get('ml_recommendation', {}).get('action', 'N/A')}"""
+            analytics = data.get('historical_analytics', {})
+            factory = analytics.get('factory_metrics', {})
+            price = analytics.get('price_analysis', {})
+            optimization = analytics.get('optimization_potential', {})
+
+            analytics_text = f"""ANALYTICS HISTÓRICOS (Últimos {analytics.get('analysis_period', 'N/A')}):
+
+💰 POTENCIAL DE AHORRO:
+   • Ahorro anual proyectado: {optimization.get('annual_savings_projection', 0):.2f} €
+   • Ahorro total detectado: {optimization.get('total_savings_eur', 0):.2f} €
+   • Mejora eficiencia: {optimization.get('efficiency_improvement_pct', 0):.1f}%
+   • Horas óptimas detectadas: {optimization.get('optimal_production_hours', 0)}
+
+📊 MÉTRICAS FÁBRICA:
+   • Consumo total: {factory.get('total_kwh', 0):,.0f} kWh
+   • Costo promedio diario: {factory.get('avg_daily_cost', 0):.2f} €
+   • Días analizados: {factory.get('days_analyzed', 0)}
+
+⚡ ANÁLISIS PRECIOS:
+   • Volatilidad: {price.get('volatility_coefficient', 0):.1%}
+   • Rango precios: {price.get('price_range_eur_kwh', 0):.4f} €/kWh"""
+
+            return analytics_text
+
+    async def _get_human_recommendation(self) -> str:
+        """Recomendación del sistema con lógica de negocio."""
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{self.base_url}/dashboard/complete")
+            data = response.json()
+
+            human_rec = data.get('recommendations', {}).get('human_recommendation', {})
+            main_msg = human_rec.get('main_message', {})
+            next_window = human_rec.get('next_window', {})
+            economic = human_rec.get('economic_impact', {})
+
+            rec_text = f"""RECOMENDACIÓN DEL SISTEMA:
+
+🎯 {main_msg.get('title', 'N/A')}
+   Situación: {main_msg.get('situation', 'N/A')}
+
+💰 IMPACTO ECONÓMICO:
+   • Costo actual por kg: {economic.get('current_cost_per_kg', 0):.2f} €
+   • Eficiencia producción: {economic.get('production_efficiency', 'N/A')}
+   • Categoría costo: {economic.get('cost_category', 'N/A')}
+
+⏰ PRÓXIMA VENTANA ÓPTIMA:
+   • Inicio: {next_window.get('next_optimal_start', 'N/A')[:16] if next_window.get('next_optimal_start') else 'N/A'}
+   • Beneficio estimado: {next_window.get('estimated_benefit', 'N/A')}
+   • Horas hasta óptima: {next_window.get('hours_until_optimal', 0):.1f}h"""
+
+            # Añadir acciones prioritarias si existen
+            actions = main_msg.get('priority_actions', [])
+            if actions:
+                rec_text += f"\n\n🔧 ACCIONES PRIORITARIAS:\n"
+                for action in actions[:3]:  # Máximo 3 acciones
+                    rec_text += f"   • {action}\n"
+
+            return rec_text
+
+    async def _get_production_context(self) -> str:
+        """Contexto de procesos de producción de chocolate."""
+        return """PROCESOS DE PRODUCCIÓN - Chocolate Factory:
+
+🏭 PROCESOS PRINCIPALES (4 etapas):
+   1. 🌰 Molienda de cacao: Trituración granos, 2-3h, 150 kWh
+   2. 🔥 Conchado Premium: Refinado pasta, 6-8h, 350 kWh (MÁS INTENSIVO)
+   3. 🌡️ Temperado fino: Control cristalización, 1-2h, 80 kWh
+   4. 📦 Moldeado de barras: Formado final, 1h, 50 kWh
+
+💡 OPTIMIZACIÓN CLAVE:
+   • Conchado Premium = 60% del consumo energético total
+   • Programar conchado en horas valle (P3 madrugada) = ahorro 40-50%
+   • Temperatura óptima chocolate: 18-22°C
+   • Batch típico: 200 kg, ~630 kWh total
+
+⚡ CONSUMO POR PERIODO:
+   • P1 (Punta 10-13h, 18-21h): EVITAR conchado
+   • P2 (Llano): Operación moderada
+   • P3 (Valle 00-07h): PRIORIZAR conchado intensivo"""
+
+    async def _get_full_dashboard(self) -> str:
+        """Dashboard completo (fallback) - TODOS los datos disponibles."""
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{self.base_url}/dashboard/complete")
+            data = response.json()
+
+            # Extraer SIAR analysis
+            siar = data.get('siar_analysis', {}).get('seasonal_patterns', {})
+            best_month = siar.get('best_month', {}).get('name', 'N/A')
+            worst_month = siar.get('worst_month', {}).get('name', 'N/A')
+
+            # Current info
+            current = data.get('current_info', {})
+
+            dashboard_text = f"""RESUMEN COMPLETO SISTEMA:
+
+📊 ESTADO ACTUAL:
+• Precio: {current.get('energy', {}).get('price_eur_kwh', 'N/A')} €/kWh
+• Temperatura: {current.get('weather', {}).get('temperature', 'N/A')}°C
+• Eficiencia: {current.get('factory_efficiency', 'N/A')}%
+
+📅 ANÁLISIS HISTÓRICO (25 años SIAR):
+• Mejor mes producción: {best_month}
+• Peor mes producción: {worst_month}
+• Total registros: 88,935
+
+💡 PRÓXIMAS ACCIONES:
+Consulta endpoints específicos para:
+- Ventanas óptimas: /insights/optimal-windows
+- Forecast Prophet: /predict/prices/*
+- Plan producción: /optimize/production/daily"""
 
             return dashboard_text
