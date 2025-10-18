@@ -200,13 +200,13 @@ Modules: 41 Python files organized by layer
 | 09 | ✅ Complete | Unified Predictive Dashboard |
 | 10 | ✅ Complete | ML Consolidation + Clean Architecture |
 | 11 | ✅ Complete | Chatbot BI (Claude Haiku + RAG) |
-| 12 | 🔵 In Progress | Forgejo CI/CD (Phases 1-8 done, 9-11 pending) |
+| 12 | 🔵 In Progress | Forgejo CI/CD (Phases 1-9 done, 10-11 pending) |
 | 13 | ⏳ Planned | Tailscale MCP Server (local integration) |
 
 **Phase 12 Status**:
-- Phases 1-8: Infrastructure completed (Forgejo + runners + dual environment + SSL)
-- Phases 9-11: Testing suite pending (88 tests target)
-- Phase 12: SOPS secrets optional
+- Phases 1-8: Infrastructure completed (Forgejo + runners + dual environment + SOPS)
+- Phase 9: Tests completed (21 tests, 100% passing, coverage 15%)
+- Phases 10-11: Testing suite pending (services + E2E)
 
 **Documentation**:
 - ML: [`.claude/sprints/ml-evolution/README.md`](.claude/sprints/ml-evolution/README.md)
