@@ -6,8 +6,6 @@ Tests for system health monitoring endpoints:
 - GET /health
 - GET /ready
 - GET /version
-- GET /scheduler/status
-- GET /models/status-direct
 """
 import pytest
 from unittest.mock import patch, Mock
@@ -60,14 +58,6 @@ class TestHealthEndpoints:
         assert isinstance(version, str)
         assert len(version.split(".")) >= 2  # At least X.Y format
 
-    @pytest.mark.skip(reason="Endpoint /scheduler/status no implementado")
-    def test_scheduler_status(self, client):
-        """Test GET /scheduler/status returns scheduler info."""
-        response = client.get("/scheduler/status")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert "status" in data
 
 
 @pytest.mark.integration
@@ -93,6 +83,6 @@ class TestHealthEndpointErrors:
 # =============================================================================
 # SUMMARY
 # =============================================================================
-# Total tests: 7 (5 required + 2 error handling)
-# Coverage: /health, /ready, /version, /scheduler/status
+# Total tests: 6 (4 health checks + 2 error handling)
+# Coverage: /health, /ready, /version
 # =============================================================================

@@ -139,10 +139,14 @@ Implemented:
   - RAG local, keyword matching
   - 3 endpoints `/chat/*`
   - Latencia 10-13s, rate limiting 20/min
+- Sprint 12: Forgejo CI/CD Fase 1-9 (Oct 13-18, 2025)
+  - Forgejo + Runners + Registry + SOPS
+  - CI/CD dual environment (dev/prod)
+  - 21 tests, 100% passing, coverage 15%
 
 ### Pending
 - Sprint 10: ML Consolidation & Cleanup
-- Sprint 12: Forgejo CI/CD
+- Sprint 12 Fase 10-11: Tests servicios y E2E
 
 ### Core Infrastructure (2-Container Architecture)
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
