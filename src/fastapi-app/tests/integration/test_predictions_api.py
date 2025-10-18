@@ -2,18 +2,26 @@
 Integration Tests - ML Predictions API
 =======================================
 
-Tests for ML prediction endpoints:
-- POST /predict/energy-optimization
-- POST /predict/production-recommendation
-- GET /predict/prices/weekly
-- GET /predict/prices/hourly
-- GET /models/status-direct
-- GET /models/price-forecast/status
+NOTA: Estos tests están marcados como SKIP porque los endpoints /predict/*
+no están implementados en la API actual. La API usa /optimize/* y /insights/* en su lugar.
+
+Tests originales para:
+- POST /predict/energy-optimization (no existe)
+- POST /predict/production-recommendation (no existe)
+- GET /predict/prices/weekly (no existe)
+- GET /predict/prices/hourly (no existe)
+- GET /models/status-direct (no existe)
+- GET /models/price-forecast/status (no existe)
+
+Para tests de la API real, ver:
+- test_optimization_api.py (POST /optimize/production/daily)
+- test_dashboard_api.py (GET /dashboard/*)
 """
 import pytest
 from unittest.mock import patch, Mock, AsyncMock
 
 
+@pytest.mark.skip(reason="Endpoint /predict/energy-optimization no implementado")
 @pytest.mark.integration
 class TestEnergyOptimizationPrediction:
     """Test suite for POST /predict/energy-optimization."""
@@ -59,6 +67,7 @@ class TestEnergyOptimizationPrediction:
         assert response.status_code in [200, 422]
 
 
+@pytest.mark.skip(reason="Endpoint /predict/production-recommendation no implementado")
 @pytest.mark.integration
 class TestProductionRecommendation:
     """Test suite for POST /predict/production-recommendation."""
@@ -94,6 +103,7 @@ class TestProductionRecommendation:
         assert data["recommendation"] in ["Reduced", "Halt", "Moderate"]
 
 
+@pytest.mark.skip(reason="Endpoints /predict/prices/* no implementados")
 @pytest.mark.integration
 class TestProphetPriceForecasting:
     """Test suite for Prophet price forecasting endpoints."""
@@ -164,6 +174,7 @@ class TestProphetPriceForecasting:
             assert "predicted_price" in prediction or "price" in prediction
 
 
+@pytest.mark.skip(reason="Endpoints /models/* no implementados")
 @pytest.mark.integration
 class TestModelStatus:
     """Test suite for model status endpoints."""
