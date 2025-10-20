@@ -316,6 +316,11 @@ jobs:
           echo "⏳ Waiting for service to stabilize..."
           sleep 10
 
+      - name: Login to registry for stable tagging
+        run: |
+          # Login para poder hacer push de imagen stable si tests pasan
+          echo "chocolateregistry123" | docker login localhost:5000 -u admin --password-stdin
+
       - name: Run smoke tests
         id: smoke_tests
         run: |
@@ -554,6 +559,11 @@ jobs:
         run: |
           echo "⏳ Waiting for production service to stabilize..."
           sleep 15  # Production needs more stabilization time
+
+      - name: Login to registry for stable tagging
+        run: |
+          # Login para poder hacer push de imagen stable si tests pasan
+          echo "chocolateregistry123" | docker login localhost:5000 -u admin --password-stdin
 
       - name: Run production smoke tests
         id: smoke_tests_prod
