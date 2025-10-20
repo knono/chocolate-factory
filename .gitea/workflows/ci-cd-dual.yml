@@ -292,6 +292,92 @@ jobs:
           echo "👤 Author: ${{ github.actor }}"
 
   # ===========================================================================
+  # JOB 3.5: SMOKE TESTS DEVELOPMENT - Post-deploy validation
+  # ===========================================================================
+  smoke-test-dev:
+    needs: deploy-dev
+    runs-on: dev-deploy
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python for tests
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest httpx pytest-asyncio
+
+      - name: Wait for service to stabilize
+        run: |
+          echo "⏳ Waiting for service to stabilize..."
+          sleep 10
+
+      - name: Run smoke tests
+        id: smoke_tests
+        run: |
+          cd src/fastapi-app
+          echo "🔥 Running smoke tests against development..."
+
+          # Run smoke tests with custom markers
+          pytest tests/e2e/test_smoke_post_deploy.py -v -m smoke \
+            --tb=short \
+            --maxfail=3 || echo "SMOKE_FAILED=true" >> $GITHUB_ENV
+
+      - name: Rollback on smoke test failure
+        if: env.SMOKE_FAILED == 'true'
+        run: |
+          echo "❌ Smoke tests failed - Initiating rollback..."
+
+          # Tag current broken image
+          docker tag localhost:5000/chocolate-factory:develop \
+                     localhost:5000/chocolate-factory:develop-broken-${{ github.sha }}
+
+          # Attempt to pull last known good image
+          if docker pull localhost:5000/chocolate-factory:develop-stable 2>/dev/null; then
+            echo "📦 Found stable version, rolling back..."
+            docker stop chocolate_factory_dev || true
+            docker rm chocolate_factory_dev || true
+
+            # Re-tag stable as develop
+            docker tag localhost:5000/chocolate-factory:develop-stable \
+                       localhost:5000/chocolate-factory:develop
+
+            # Redeploy stable version
+            docker compose -f docker-compose.ci-dev.yml up -d
+
+            echo "✅ Rolled back to last stable version"
+            exit 1
+          else
+            echo "⚠️  No stable version found, keeping current deployment"
+            echo "⚠️  Manual intervention required"
+            exit 1
+          fi
+
+      - name: Tag successful deployment as stable
+        if: env.SMOKE_FAILED != 'true'
+        run: |
+          echo "✅ Smoke tests passed - Tagging as stable"
+          docker tag localhost:5000/chocolate-factory:develop \
+                     localhost:5000/chocolate-factory:develop-stable
+          docker push localhost:5000/chocolate-factory:develop-stable
+          echo "📦 Stable version saved for future rollbacks"
+
+      - name: Smoke test report
+        if: always()
+        run: |
+          if [ "$SMOKE_FAILED" == "true" ]; then
+            echo "❌ SMOKE TESTS FAILED"
+            echo "🔄 Rollback initiated"
+          else
+            echo "✅ SMOKE TESTS PASSED"
+            echo "📦 Deployment marked as stable"
+          fi
+
+  # ===========================================================================
   # JOB 4: DEPLOY PRODUCTION - Solo si es rama main
   # ===========================================================================
   deploy-prod:
@@ -440,3 +526,103 @@ jobs:
           echo "📋 Post-deployment checks:"
           echo "  - FastAPI health: $(curl -s http://localhost:8000/health | jq -r '.status' || echo 'N/A')"
           echo "  - InfluxDB: $(docker inspect influxdb_prod --format='{{.State.Status}}' || echo 'N/A')"
+
+  # ===========================================================================
+  # JOB 4.5: SMOKE TESTS PRODUCTION - Critical post-deploy validation
+  # ===========================================================================
+  smoke-test-prod:
+    needs: deploy-prod
+    runs-on: prod-deploy
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python for tests
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          pip install pytest httpx pytest-asyncio
+
+      - name: Wait for production service to stabilize
+        run: |
+          echo "⏳ Waiting for production service to stabilize..."
+          sleep 15  # Production needs more stabilization time
+
+      - name: Run production smoke tests
+        id: smoke_tests_prod
+        run: |
+          cd src/fastapi-app
+          echo "🔥 Running CRITICAL smoke tests against PRODUCTION..."
+
+          # Run smoke tests against production
+          pytest tests/e2e/test_smoke_post_deploy.py -v -m smoke \
+            --tb=short \
+            --maxfail=2 || echo "SMOKE_FAILED=true" >> $GITHUB_ENV
+
+      - name: CRITICAL - Rollback production on failure
+        if: env.SMOKE_FAILED == 'true'
+        run: |
+          echo "❌❌❌ PRODUCTION SMOKE TESTS FAILED ❌❌❌"
+          echo "🚨 Initiating PRODUCTION ROLLBACK..."
+
+          # Tag broken production image
+          docker tag localhost:5000/chocolate-factory:production \
+                     localhost:5000/chocolate-factory:production-broken-${{ github.sha }}
+          docker push localhost:5000/chocolate-factory:production-broken-${{ github.sha }}
+
+          # Attempt to rollback to last stable production
+          if docker pull localhost:5000/chocolate-factory:production-stable 2>/dev/null; then
+            echo "📦 Found stable production version, rolling back..."
+            docker stop chocolate_factory_brain || true
+            docker rm chocolate_factory_brain || true
+
+            # Re-tag stable as production
+            docker tag localhost:5000/chocolate-factory:production-stable \
+                       localhost:5000/chocolate-factory:production
+
+            # Redeploy stable production version
+            docker compose -f docker-compose.ci-prod.yml up -d
+
+            # Wait and verify rollback
+            sleep 10
+            if curl -f http://chocolate_factory_brain:8000/health 2>/dev/null; then
+              echo "✅ Production rolled back successfully"
+              echo "🚨 ALERT: Manual review required for failed deployment"
+            else
+              echo "❌ CRITICAL: Rollback verification failed"
+              echo "🚨 URGENT: Manual intervention required immediately"
+            fi
+
+            exit 1
+          else
+            echo "⚠️⚠️⚠️  CRITICAL: No stable production version found"
+            echo "🚨 URGENT: Keeping current deployment, manual intervention required"
+            exit 1
+          fi
+
+      - name: Tag successful production as stable
+        if: env.SMOKE_FAILED != 'true'
+        run: |
+          echo "✅ Production smoke tests PASSED"
+          echo "📦 Tagging as stable production version"
+          docker tag localhost:5000/chocolate-factory:production \
+                     localhost:5000/chocolate-factory:production-stable
+          docker push localhost:5000/chocolate-factory:production-stable
+          echo "✅ Stable production version saved"
+
+      - name: Production smoke test final report
+        if: always()
+        run: |
+          if [ "$SMOKE_FAILED" == "true" ]; then
+            echo "❌❌❌ PRODUCTION SMOKE TESTS FAILED ❌❌❌"
+            echo "🔄 Production rollback initiated"
+            echo "📧 Alert sent to ops team (simulated)"
+          else
+            echo "✅✅✅ PRODUCTION SMOKE TESTS PASSED ✅✅✅"
+            echo "📦 Production deployment marked as stable"
+            echo "🎉 Safe to proceed"
+          fi
