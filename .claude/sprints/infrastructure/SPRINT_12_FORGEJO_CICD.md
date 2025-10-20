@@ -886,18 +886,228 @@ Tests fundamentales de endpoints implementados y limpiados.
 - ✅ Docker build con `--no-cache`
 - ✅ `src/configs/__init__.py` creado
 
-### Fase 10: Tests de Servicios y ML
+### Fase 10: Tests de Servicios y ML ⏸️ EN PROGRESO (66% completado)
+
+**Status**: 27/41 tests completados (20 Oct 2025)
 
 Validar lógica de negocio y modelos ML.
 
-- [ ] Tests unitarios de servicios REE/Weather/Backfill (15 tests)
-- [ ] Tests de regresión ML Prophet/sklearn (12 tests)
-- [ ] Tests de gap detection (8 tests)
+**✅ Completado (27 tests, 100% pasando):**
+- [x] Tests unitarios de servicios REE/Weather/Backfill (18 tests)
+  - `tests/unit/test_ree_service.py` (5 tests) ✅
+  - `tests/unit/test_weather_service.py` (6 tests) ✅
+  - `tests/unit/test_backfill_service.py` (7 tests) ✅
+- [x] Tests de gap detection (9 tests)
+  - `tests/unit/test_gap_detection.py` (9 tests) ✅
+
+**🔄 En progreso (3/6 tests pasando):**
+- [ ] Tests de regresión ML Prophet (6 tests)
+  - `tests/ml/test_prophet_model.py` (3/6 pasando)
+  - Problemas: timezone issues, método `predict_hours` vs `predict_prices`
+
+**⏸️ Pendiente (14 tests):**
+- [ ] Tests sklearn models (6 tests)
 - [ ] Tests de chatbot RAG (6 tests)
 - [ ] Job separado en CI/CD para tests ML
 - [ ] Coverage threshold 80%
 
-Total: 41 tests adicionales, coverage >80%
+**Métricas actuales:**
+- Total tests: 48 (21 Fase 9 + 27 nuevos)
+- Success rate: 100% en tests funcionales
+- Progreso: 66% (27/41 tests funcionales)
+- Líneas código tests: ~1,610
+
+**Próximos pasos al retomar:**
+1. Arreglar 3 tests Prophet pendientes (timezone + estructura respuesta)
+2. Crear `test_sklearn_models.py` (6 tests básicos)
+3. Crear `test_chatbot_rag.py` (6 tests básicos)
+4. Actualizar CI/CD threshold a 80%
+
+---
+
+#### 📋 Detalle Completo Fase 10 (Para Continuación)
+
+##### ✅ Tests Completados (27 tests - 100% pasando)
+
+**Día 1: Tests Unitarios de Servicios (18 tests)**
+
+1. **`tests/unit/test_ree_service.py`** (5 tests, 325 líneas)
+   - Servicio testeado: `services/ree_service.py`
+   - Tests:
+     - ✅ `test_fetch_current_prices_success` - Ingesta exitosa precios REE
+     - ✅ `test_fetch_historical_prices` - Consulta histórica con `get_prices()`
+     - ✅ `test_handle_ree_api_errors` - Manejo de errores API → REEDataError
+     - ✅ `test_transform_ree_data_to_influx` - Transformación a InfluxDB Points
+     - ✅ `test_get_latest_price` - Obtención último precio (query last 7d)
+   - Cobertura: `ingest_prices()`, `get_prices()`, `get_latest_price()`, `_transform_to_points()`
+   - Mocks: REEAPIClient, InfluxDB write_points/query
+
+2. **`tests/unit/test_weather_service.py`** (6 tests, 290 líneas)
+   - Servicios testeados: `services/aemet_service.py`, `services/weather_aggregation_service.py`
+   - Tests:
+     - ✅ `test_fetch_aemet_data_success` - Ingesta AEMET con transformación
+     - ✅ `test_handle_aemet_api_errors` - Errores AEMET → AEMETDataError
+     - ✅ `test_fetch_openweather_data` - Obtención datos OpenWeatherMap
+     - ✅ `test_hybrid_weather_fallback_aemet_to_owm` - Fallback AEMET→OWM
+     - ✅ `test_handle_weather_api_timeout` - Timeout graceful (retorna error state)
+     - ✅ `test_transform_aemet_to_influx` - Transformación weather a Points
+   - Cobertura: Estrategia 24/7 (AEMET 00-07h + OpenWeatherMap 08-23h)
+
+3. **`tests/unit/test_backfill_service.py`** (7 tests, 305 líneas)
+   - Servicio testeado: `services/backfill_service.py`
+   - Tests:
+     - ✅ `test_backfill_ree_data` - Backfill REE con DataIngestionService
+     - ✅ `test_backfill_weather_data` - Backfill weather con estrategia híbrida
+     - ✅ `test_48h_strategy_openweather` - Gaps <48h usan OpenWeatherMap
+     - ✅ `test_48h_strategy_aemet` - Gaps ≥48h usan AEMET API oficial
+     - ✅ `test_backfill_range_validation` - Sin gaps retorna "No gaps found"
+     - ✅ `test_backfill_result_creation` - Modelo BackfillResult (100% success)
+     - ✅ `test_backfill_result_with_errors` - BackfillResult parcial (75% success)
+   - Cobertura: `execute_intelligent_backfill()`, estrategia 48h, DataGap validation
+   - Fixture clave: `DataGap(gap_duration_hours=X, severity="minor/moderate/critical")`
+
+**Día 2: Tests Gap Detection (9 tests)**
+
+4. **`tests/unit/test_gap_detection.py`** (9 tests, 390 líneas)
+   - Servicio testeado: `services/gap_detector.py`
+   - Tests:
+     - ✅ `test_detect_ree_gaps` - Detectar gaps en energy_prices (6h gap)
+     - ✅ `test_detect_weather_gaps` - Detectar gaps en weather_data (múltiples)
+     - ✅ `test_gap_summary_calculation` - Suma durations, count, severity
+     - ✅ `test_auto_backfill_threshold` - Threshold 2h (small <2h, large ≥2h)
+     - ✅ `test_gap_between_dates` - Gaps dentro de rango específico
+     - ✅ `test_empty_data_detection` - Sin datos = 1 gap grande (24h)
+     - ✅ `test_partial_day_gaps` - Gaps aislados de 1h (pueden filtrarse)
+     - ✅ `test_continuous_data_no_gaps` - Datos completos = [] gaps
+     - ✅ `test_gap_analysis_creation` - Modelo GapAnalysis con Pydantic
+   - Cobertura: `detect_all_gaps()`, `_detect_ree_gaps()`, `_detect_weather_gaps()`, `_find_time_gaps()`
+   - Lógica clave: Tolerancia adaptativa basada en tamaño gap (<6h, 6-24h, >24h)
+
+##### 🔄 Tests En Progreso (3/6 pasando)
+
+**Día 3: Tests ML Prophet (3/6 tests)**
+
+5. **`tests/ml/test_prophet_model.py`** (3/6 tests, 300 líneas)
+   - Servicio testeado: `services/price_forecasting_service.py`
+   - Tests pasando:
+     - ✅ `test_prophet_model_training` - Entrenamiento con synthetic data (30 días)
+     - ✅ `test_prophet_mae_threshold` - MAE < 0.10 €/kWh (threshold relajado testing)
+     - ✅ `test_prophet_handles_missing_data` - Training con 10% datos faltantes
+   - Tests fallando:
+     - ❌ `test_prophet_7day_prediction` - Error: estructura respuesta de `predict_hours()`
+     - ❌ `test_prophet_confidence_intervals` - Error: keys `yhat_lower`/`yhat_upper`
+     - ❌ `test_prophet_serialization` - Error: comparación predicciones pickle
+   - **Problemas conocidos**:
+     - Prophet requiere timestamps **sin timezone** (datetime naive) ✅ RESUELTO
+     - Método correcto: `predict_hours(hours=N)` NO `predict_prices()` ✅ RESUELTO
+     - **PENDIENTE**: Verificar estructura real del dict retornado por `predict_hours()`
+   - **Solución**: `grep -A 30 "async def predict_hours" services/price_forecasting_service.py`
+
+##### ⏸️ Tests Pendientes (14 tests)
+
+**Día 4: Tests sklearn Models (6 tests) - PENDIENTE**
+
+```python
+# Archivo a crear: tests/ml/test_sklearn_models.py
+# Servicios: domain/ml/model_trainer.py, services con sklearn
+
+Tests propuestos:
+1. test_energy_optimization_classifier - RandomForestClassifier
+2. test_production_recommendation_model - Clasificador producción
+3. test_feature_engineering - 13 features derivados
+4. test_model_accuracy_threshold - Accuracy > 85%
+5. test_model_persistence - Pickle save/load
+6. test_handle_unseen_features - Features no vistos en training
+
+Fixtures necesarios:
+- sample_features: dict con price_eur_kwh, temperature, humidity
+- sample_labels: ["Optimal", "Moderate", "Reduced", "Halt"]
+- trained_classifier: Modelo dummy pre-entrenado
+
+Complejidad: MEDIA | Estimación: 2-3 horas
+```
+
+**Día 5: Tests Chatbot RAG (6 tests) - PENDIENTE**
+
+```python
+# Archivo a crear: tests/unit/test_chatbot_rag.py (o tests/ml/)
+# Servicios: services/chatbot_service.py, services/chatbot_context_service.py
+
+Tests propuestos:
+1. test_keyword_matching_production - Keywords "producción", "fabricar"
+2. test_keyword_matching_energy - Keywords "precio", "energía"
+3. test_context_building - RAG context 600-1200 tokens
+4. test_claude_api_integration - Mock Anthropic Messages API
+5. test_rate_limiting - 20 requests/min (Sprint 11)
+6. test_cost_tracking - Tokens input/output + cost USD
+
+Fixtures necesarios:
+- mock_anthropic_client: Mock de claude API (messages.create)
+- sample_questions: ["¿Cuándo debo producir?", "¿Precio actual?"]
+- sample_rag_context: Contexto keyword matching
+
+Complejidad: BAJA-MEDIA | Estimación: 1-2 horas
+```
+
+**Día 6: CI/CD Configuration - PENDIENTE**
+
+Tareas:
+1. Crear `.gitea/workflows/test-ml.yml` - Job separado tests ML
+2. Actualizar `.gitea/workflows/ci-cd-dual.yml` - Coverage threshold 15→80%
+3. Instalar dependencias ML en runner: `prophet`, `scikit-learn`
+
+Complejidad: BAJA | Estimación: 30 minutos
+
+##### 📂 Estructura Archivos Creados
+
+```
+src/fastapi-app/tests/
+├── unit/
+│   ├── test_ree_service.py          ✅ 325 líneas, 5 tests
+│   ├── test_weather_service.py      ✅ 290 líneas, 6 tests
+│   ├── test_backfill_service.py     ✅ 305 líneas, 7 tests
+│   └── test_gap_detection.py        ✅ 390 líneas, 9 tests
+└── ml/
+    ├── test_prophet_model.py        🔄 300 líneas, 3/6 tests
+    ├── test_sklearn_models.py       ⏸️ PENDIENTE (6 tests)
+    └── test_chatbot_rag.py          ⏸️ PENDIENTE (6 tests)
+
+Total: ~1,610 líneas, 27 tests funcionales + 3 parciales
+```
+
+##### 🎯 Comandos Útiles Para Retomar
+
+```bash
+# Ejecutar tests completados
+pytest tests/unit/ -v                    # 27 tests pasando
+pytest tests/ml/test_prophet_model.py -v # 3/6 pasando
+
+# Investigar Prophet
+grep -A 30 "async def predict_hours" services/price_forecasting_service.py
+
+# Ver estructura DataGap
+grep -A 10 "class DataGap" services/gap_detector.py
+
+# Coverage actual
+pytest tests/ --cov=services --cov=domain --cov-report=term-missing
+
+# Contar tests
+pytest tests/ --collect-only -q | tail -5
+```
+
+##### 📊 Métricas Finales Fase 10 (Parcial)
+
+| Métrica | Valor |
+|---------|-------|
+| Tests total | 48 (21 Fase 9 + 27 nuevos) |
+| Success rate | 100% (tests funcionales) |
+| Progreso Fase 10 | 66% (27/41 tests) |
+| Coverage estimado | ~30-33% (de 15.26% baseline) |
+| Líneas código tests | ~1,610 |
+| Tiempo invertido | ~5.5 horas |
+| Tiempo restante | ~4.5-6 horas |
+
+---
 
 ### Fase 11: Tests de Integración Completa
 
