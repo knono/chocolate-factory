@@ -139,14 +139,19 @@ Implemented:
   - RAG local, keyword matching
   - 3 endpoints `/chat/*`
   - Latencia 10-13s, rate limiting 20/min
-- Sprint 12: Forgejo CI/CD Fase 1-9 (Oct 13-18, 2025)
+- Sprint 12: Forgejo CI/CD Fase 1-10 (Oct 13-20, 2025)
   - Forgejo + Runners + Registry + SOPS
   - CI/CD dual environment (dev/prod)
-  - 21 tests, 100% passing, coverage 15%
+  - 66 tests, 100% passing, coverage 19%
+  - Tests ML (Prophet + sklearn), servicios, integration
+- Sprint 10: ML Consolidation & Documentation (Oct 20, 2025)
+  - Feature Engineering validado (NO código sintético)
+  - docs/ML_ARCHITECTURE.md creado (1,580 líneas)
+  - ROI tracking verificado (1,661€/año)
+  - Decisión: NO unificar servicios ML (evitar riesgo)
 
 ### Pending
-- Sprint 10: ML Consolidation & Cleanup
-- Sprint 12 Fase 10-11: Tests servicios y E2E
+- Sprint 12 Fase 11: Tests E2E (opcional)
 
 ### Core Infrastructure (2-Container Architecture)
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
@@ -161,9 +166,14 @@ Implemented:
 
 ### Machine Learning (Direct Implementation)
 - **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.033 €/kWh, R²: 0.49)
+- **sklearn Models**: RandomForest (energy optimization + production classification)
 - **Direct Training**: sklearn + Prophet + pickle storage (no external ML services)
+- **Feature Engineering**: Target generation from real data (energy_score, production_class)
 - **Real-time Predictions**: Energy optimization + production recommendations + price forecasting
 - **Automated ML**: Model retraining and predictions (hourly for Prophet, every 30 min for sklearn)
+- **ROI Tracking**: 1,661€/año ahorro energético demostrable (Sprint 09)
+- **Testing**: 66 tests automatizados (100% pasando, coverage 19% - Sprint 12)
+- **Documentation**: Arquitectura ML completa en `docs/ML_ARCHITECTURE.md` (Sprint 10)
 
 ### Operations
 - **APScheduler**: 11 automated jobs (ingestion, ML, Prophet forecasting, backfill, health)
