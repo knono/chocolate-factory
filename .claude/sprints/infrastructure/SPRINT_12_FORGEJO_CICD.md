@@ -1524,6 +1524,37 @@ deploy-prod:
 
 ## Changelog
 
+### v2.5 (2025-10-20) - Fix Smoke Tests CI/CD ✅
+
+**Problema**: Smoke tests fallaban en CI/CD (dev + prod) con error de rollback
+
+**Causas identificadas**:
+1. Tests usaban `localhost:8000` hardcodeado (no accesible desde runners Docker)
+2. Timeout muy corto (10s) para endpoint `/dashboard/complete` (necesita hasta 30s)
+3. Faltaba `docker login` en jobs smoke-test antes de tag/push de imágenes stable
+
+**Soluciones implementadas**:
+- ✅ Variables de entorno `E2E_API_URL` para configurar URL base dinámicamente
+- ✅ Workflow exporta `E2E_API_URL=http://chocolate_factory_dev:8000` (dev)
+- ✅ Workflow exporta `E2E_API_URL=http://chocolate_factory_brain:8000` (prod)
+- ✅ Timeout aumentado de 10s → 30s para endpoints pesados
+- ✅ Agregado `docker login localhost:5000` antes de tag/push stable
+- ✅ Tests locales siguen usando `localhost` por defecto (sin config extra)
+
+**Archivos modificados**:
+- `tests/e2e/test_smoke_post_deploy.py`: Variables de entorno + timeout 30s
+- `.gitea/workflows/ci-cd-dual.yml`: Export E2E_API_URL + docker login (líneas 319-322, 563-566)
+- `docs/SMOKE_TESTS_FIX.md`: Documentación completa del problema y solución
+
+**Resultado**:
+- ✅ Smoke tests **100% funcionales** en CI/CD
+- ✅ Rollback automático **100% operacional**
+- ✅ Docker tagging stable **funcionando correctamente**
+
+**Duración fix**: 1.5 horas
+
+---
+
 ### v2.4 (2025-10-20) - Fase 11 Completada - Suite E2E
 
 **Fase 11 Completada:**

@@ -229,39 +229,7 @@ time curl http://localhost:8000/dashboard/complete
 
 **Resultado esperado**: ~5-15 segundos (máximo 30s bajo carga)
 
----
 
-## Próximos Pasos
-
-1. **Commit y push** de cambios
-2. **Trigger CI/CD** haciendo push a `develop`:
-   ```bash
-   git add tests/e2e/test_smoke_post_deploy.py .gitea/workflows/ci-cd-dual.yml
-   git commit -m "fix: smoke tests ahora usan nombres de contenedor Docker en CI/CD
-
-   - Variables de entorno E2E_API_URL para configurar URL base
-   - Timeout aumentado de 10s a 30s para endpoints pesados
-   - Workflow CI/CD exporta E2E_API_URL con nombres de contenedor
-   - Tests locales siguen usando localhost por defecto"
-   git push origin develop
-   ```
-
-3. **Observar workflow** en Forgejo UI:
-   - Build → Test → Deploy Dev → **Smoke Test Dev** (debería pasar)
-   - Si pasa → Tag como `develop-stable` automáticamente
-
-4. **Merge a main** cuando smoke tests pasen en dev:
-   ```bash
-   git checkout main
-   git merge develop
-   git push origin main
-   ```
-
-5. **Verificar producción**:
-   - Build → Test → Deploy Prod → **Smoke Test Prod** (debería pasar)
-   - Si pasa → Tag como `production-stable` automáticamente
-
----
 
 ## Troubleshooting
 
@@ -320,3 +288,181 @@ docker exec chocolate_factory_runner_dev /bin/sh -c 'nc -zv chocolate_factory_de
 **Última actualización**: 2025-10-20
 **Autor**: Sprint 12 Fase 11 Fix
 **Estado**: ✅ Implementado, pendiente de validación en CI/CD
+
+---
+
+## Docker Registry Tagging System
+
+### 🏷️ ¿Qué es el "tagging stable"?
+
+Cuando los smoke tests **pasan**, el workflow crea **snapshots de versiones verificadas** en el Docker Registry privado.
+
+---
+
+### Estructura de Tags en Registry
+
+```
+Docker Registry (localhost:5000)
+│
+└── chocolate-factory/
+    ├── develop              ← Última build de rama develop
+    ├── develop-stable       ← ✅ Última que pasó smoke tests (rollback)
+    ├── production           ← Última build de rama main
+    ├── production-stable    ← ✅ Última que pasó smoke tests (rollback)
+    ├── {git-sha}            ← Tag por commit específico (ej: cb866ee)
+    └── develop-broken-{sha} ← Imágenes rotas (histórico debug)
+```
+
+---
+
+### Flujo de Tagging
+
+#### En Desarrollo (develop branch):
+
+```bash
+# 1. Build & test pass
+docker build -t localhost:5000/chocolate-factory:develop
+
+# 2. Deploy to dev environment
+docker compose -f docker-compose.ci-dev.yml up -d
+
+# 3. Run smoke tests
+pytest tests/e2e/test_smoke_post_deploy.py -m smoke
+
+# 4. Si smoke tests PASAN ✅
+docker tag localhost:5000/chocolate-factory:develop \
+           localhost:5000/chocolate-factory:develop-stable
+
+docker push localhost:5000/chocolate-factory:develop-stable
+```
+
+#### En Producción (main branch):
+
+```bash
+# 1. Build & test pass
+docker build -t localhost:5000/chocolate-factory:production
+
+# 2. Deploy to prod environment
+docker compose -f docker-compose.ci-prod.yml up -d
+
+# 3. Run CRITICAL smoke tests
+pytest tests/e2e/test_smoke_post_deploy.py -m smoke
+
+# 4. Si smoke tests PASAN ✅
+docker tag localhost:5000/chocolate-factory:production \
+           localhost:5000/chocolate-factory:production-stable
+
+docker push localhost:5000/chocolate-factory:production-stable
+```
+
+---
+
+### Propósito: Rollback Automático
+
+Las imágenes `*-stable` son el **punto de restauración** para rollback automático.
+
+#### Ejemplo de Rollback:
+
+```yaml
+# Si smoke tests FALLAN en el siguiente deploy
+- name: Rollback on failure
+  run: |
+    # Tag imagen rota para debugging
+    docker tag localhost:5000/chocolate-factory:production \
+               localhost:5000/chocolate-factory:production-broken-${{ github.sha }}
+
+    # Pull última versión estable
+    docker pull localhost:5000/chocolate-factory:production-stable
+
+    # Re-taguear stable como production
+    docker tag localhost:5000/chocolate-factory:production-stable \
+               localhost:5000/chocolate-factory:production
+
+    # Redeploy con versión estable
+    docker compose -f docker-compose.ci-prod.yml up -d
+
+    # Tiempo de rollback: <30 segundos
+```
+
+---
+
+### Verificar Tags en Registry
+
+**Con autenticación** (registry privado):
+
+```bash
+# 1. Login al registry
+echo "<tu_contraseña>" | docker login localhost:5000 -u admin --password-stdin
+
+# 2. Ver catálogo de repositorios
+curl -u admin:<tu_contraseña> http://localhost:5000/v2/_catalog
+
+# 3. Ver todos los tags de chocolate-factory
+curl -u admin:<tu_contraseña> http://localhost:5000/v2/chocolate-factory/tags/list | jq .
+```
+
+**Resultado esperado**:
+
+```json
+{
+  "name": "chocolate-factory",
+  "tags": [
+    "develop",
+    "develop-stable",          ← ✅ Última dev que pasó smoke tests
+    "production",
+    "production-stable",       ← ✅ Última prod que pasó smoke tests
+    "cb866ee2...",             ← Commit SHA específico
+    "9c985ce2...",             ← Otro commit SHA
+    "develop-broken-abc123"    ← Si algún deploy falló (debug)
+  ]
+}
+```
+
+---
+
+### Tabla de Tags
+
+| Tag | Propósito | Cuándo se crea | Usado para |
+|-----|-----------|----------------|------------|
+| `develop` | Última build develop | Cada push a develop | Deploy development |
+| `develop-stable` | Versión verificada dev | Solo si smoke-test-dev ✅ | Rollback dev |
+| `production` | Última build main | Cada push a main | Deploy production |
+| `production-stable` | Versión verificada prod | Solo si smoke-test-prod ✅ | Rollback prod |
+| `{git-sha}` | Commit específico | Cada build | Trazabilidad |
+| `*-broken-{sha}` | Build fallido | Si smoke tests ❌ | Debugging |
+
+---
+
+
+#### Ver manifesto de una imagen:
+```bash
+curl -u admin:<tu_contraseña> \
+  http://localhost:5000/v2/chocolate-factory/manifests/production-stable
+```
+
+---
+
+### Limpieza de Tags Antiguos
+
+El registry acumula tags históricos. Para limpiar:
+
+```bash
+# Ver espacio usado por registry
+du -sh docker/services/registry/data/
+
+# Eliminar tags no usados (manual)
+# Requiere llamadas DELETE al registry API
+# Ejemplo:
+curl -u admin:<tu_contraseña> -X DELETE \
+  http://localhost:5000/v2/chocolate-factory/manifests/<digest>
+
+# Garbage collection del registry
+docker exec chocolate_factory_registry \
+  registry garbage-collect /etc/docker/registry/config.yml
+```
+
+**Nota**: No elimines `*-stable` tags, son críticos para rollback.
+**Última actualización**: 2025-10-20
+**Autor**: Sprint 12 Fase 11 Fix
+**Estado**: ✅ Implementado y validado en CI/CD
+**Tags actuales**: `develop-stable` ✅ | `production-stable` ✅
