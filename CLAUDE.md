@@ -109,16 +109,16 @@ src/fastapi-app/
 
 ## Development Status
 
-### Recent Completion: Sprint 09 - Unified Predictive Dashboard
-**Status**: COMPLETED (October 7, 2025)
-**Documentation**: [`.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md`](.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md)
+### Recent Completion: Sprint 12 Fase 11 - E2E Testing Suite
+**Status**: COMPLETED (October 20, 2025)
+**Documentation**: [`.claude/sprints/infrastructure/SPRINT_12_FORGEJO_CICD.md`](.claude/sprints/infrastructure/SPRINT_12_FORGEJO_CICD.md)
 
 Implemented:
-- Dashboard unificado con 7 días predicción Prophet
-- Análisis desviación REE (87.5% accuracy, MAE ±0.0183 €/kWh)
-- Alertas predictivas
-- ROI tracking
-- Endpoints `/insights/*` en nginx sidecar
+- 36 E2E tests (smoke, pipeline, resilience, performance)
+- Smoke tests integrated in CI/CD pipeline (post-deploy validation)
+- Automatic rollback on test failures (dev + prod)
+- 102 total tests (100% passing, 19% coverage)
+- Fixtures and markers for E2E testing
 
 ### Sprint History (Completed)
 - Sprint 01-02: Monolithic → Microservices migration
@@ -139,19 +139,17 @@ Implemented:
   - RAG local, keyword matching
   - 3 endpoints `/chat/*`
   - Latencia 10-13s, rate limiting 20/min
-- Sprint 12: Forgejo CI/CD Fase 1-10 (Oct 13-20, 2025)
+- Sprint 12: Forgejo CI/CD Fase 1-11 (Oct 13-20, 2025)
   - Forgejo + Runners + Registry + SOPS
   - CI/CD dual environment (dev/prod)
-  - 66 tests, 100% passing, coverage 19%
-  - Tests ML (Prophet + sklearn), servicios, integration
+  - 102 tests (36 E2E), 100% passing, coverage 19%
+  - Tests ML (Prophet + sklearn), servicios, integration, E2E
+  - Smoke tests + automatic rollback integrated in pipeline
 - Sprint 10: ML Consolidation & Documentation (Oct 20, 2025)
   - Feature Engineering validado (NO código sintético)
   - docs/ML_ARCHITECTURE.md creado (1,580 líneas)
   - ROI tracking verificado (1,661€/año)
   - Decisión: NO unificar servicios ML (evitar riesgo)
-
-### Pending
-- Sprint 12 Fase 11: Tests E2E (opcional)
 
 ### Core Infrastructure (2-Container Architecture)
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML

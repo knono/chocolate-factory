@@ -18,19 +18,22 @@ Chatbot conversacional integrado en dashboard para consultas en lenguaje natural
 
 ---
 
-## Sprint 12: Forgejo Self-Hosted + CI/CD con Tres Nodos Tailscale
+## Sprint 12: Forgejo Self-Hosted + CI/CD + Testing Suite
 
-**Estado**: NO INICIADO
+**Estado**: COMPLETADO (2025-10-20, Fases 1-11)
 **Archivo**: [`SPRINT_12_FORGEJO_CICD.md`](./SPRINT_12_FORGEJO_CICD.md)
 
-Despliegue de Forgejo self-hosted con CI/CD local y Docker Registry privado. Arquitectura de tres nodos Tailscale separados para git, desarrollo y producción.
+Despliegue de Forgejo self-hosted con CI/CD local, Docker Registry privado y suite completa de tests automatizados. Arquitectura de tres nodos Tailscale separados para git, desarrollo y producción.
 
-**Componentes**:
+**Implementación Completa**:
 - Forgejo instance en nodo Git/CI/CD dedicado
 - Gitea Actions runners diferenciados (dev/prod)
 - Pipelines CI/CD dual environment (develop/main)
 - Docker registry privado
-- ACLs Tailscale por nodo
+- SOPS secrets management
+- Testing suite: 102 tests (66 unit/integration/ML + 36 E2E)
+- Smoke tests integrados en pipeline (post-deploy validation)
+- Automatic rollback on test failures
 - Entornos separados (docker-compose.dev.yml / docker-compose.prod.yml)
 - Git remotes duales (GitHub + Forgejo)
 
@@ -63,14 +66,16 @@ Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Observabilit
 
 ## Estado Actual del Proyecto
 
-- Sprints ML Evolution: 01-09 completados
+- Sprints ML Evolution: 01-10 completados
 - Sprint 11 (Infrastructure): Completado
+- Sprint 12 (CI/CD + Testing): Completado (Fases 1-11)
 - Clean Architecture: Refactorizado (Oct 6, 2025)
 - API Endpoints: 33 disponibles (incluye `/chat/*`)
-- Tailscale: Sidecar activo
-- Docker Compose: 3 servicios running
+- Tailscale: 3 nodos activos (git, dev, prod)
+- CI/CD: Pipeline automatizado con rollback
+- Tests: 102 tests (100% passing)
 
-**Próximo**: Sprint 12 - Forgejo CI/CD
+**Próximo**: Sprint 13 - Tailscale Observability (opcional)
 
 ---
 
@@ -88,4 +93,4 @@ Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Observabilit
 
 ---
 
-**Última actualización**: 2025-10-10
+**Última actualización**: 2025-10-20

@@ -245,3 +245,68 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "integration: Integration tests")
     config.addinivalue_line("markers", "ml: ML model tests")
     config.addinivalue_line("markers", "slow: Slow tests")
+    config.addinivalue_line("markers", "e2e: End-to-end tests (Sprint 12 Fase 11)")
+    config.addinivalue_line("markers", "smoke: Smoke tests post-deploy")
+    config.addinivalue_line("markers", "pipeline: Full pipeline tests")
+    config.addinivalue_line("markers", "resilience: System resilience tests")
+    config.addinivalue_line("markers", "performance: Performance and load tests")
+
+
+# =============================================================================
+# E2E TEST FIXTURES (Sprint 12 Fase 11)
+# =============================================================================
+
+@pytest.fixture(scope="module")
+def e2e_api_url():
+    """
+    Base URL for E2E tests.
+
+    Can be overridden via env var:
+        E2E_API_URL=http://production:8000 pytest tests/e2e/
+    """
+    return os.getenv("E2E_API_URL", "http://localhost:8000")
+
+
+@pytest.fixture(scope="module")
+def e2e_client(e2e_api_url):
+    """
+    HTTP client for E2E tests against real API.
+
+    Unlike unit/integration tests, E2E tests hit real endpoints.
+    """
+    import httpx
+    with httpx.Client(base_url=e2e_api_url, timeout=30.0) as client:
+        yield client
+
+
+@pytest.fixture(scope="module")
+def e2e_async_client(e2e_api_url):
+    """Async HTTP client for concurrent E2E tests."""
+    import httpx
+    return httpx.AsyncClient(base_url=e2e_api_url, timeout=30.0)
+
+
+@pytest.fixture
+def wait_for_service(e2e_client):
+    """
+    Helper fixture to wait for service to be ready.
+
+    Usage:
+        wait_for_service(max_wait=60)
+    """
+    import time
+
+    def _wait(max_wait: int = 30) -> bool:
+        """Wait for service to respond to /health"""
+        start = time.time()
+        while time.time() - start < max_wait:
+            try:
+                response = e2e_client.get("/health")
+                if response.status_code == 200:
+                    return True
+            except Exception:
+                pass
+            time.sleep(2)
+        return False
+
+    return _wait

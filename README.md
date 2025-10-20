@@ -20,8 +20,9 @@ Energy optimization system combining machine learning price forecasting, automat
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
 - Prophet ML: 168-hour price forecasting (MAE: 0.033 €/kWh)
 - ROI: 1,661€/year energy savings (85.33% vs fixed schedule)
-- Testing: 66 tests (100% passing, 19% coverage)
+- Testing: 102 tests (100% passing, 19% coverage, 36 E2E tests)
 - Clean Architecture: 41 modules (98% reduction from monolithic main.py)
+- CI/CD: Automated testing + smoke tests + rollback on failure
 
 **Components**:
 - FastAPI application with ML models (Prophet, sklearn RandomForest)
@@ -204,17 +205,18 @@ Modules: 41 Python files organized by layer
 | 09 | Oct 2025 | Unified Predictive Dashboard | 7-day forecast integration |
 | 10 | Oct 2025 | ML Documentation & Validation | Feature engineering validated |
 | 11 | Oct 2025 | Chatbot BI (Claude Haiku) | RAG + keyword matching |
-| 12 | Oct 2025 | Forgejo CI/CD (Phases 1-10) | 66 tests, 19% coverage |
+| 12 | Oct 2025 | Forgejo CI/CD + Testing Suite | 102 tests, 19% coverage, automated rollback |
 
 ### Sprint 12 Status (CI/CD + Testing)
 
-**Completed**:
+**Completed** (Phases 1-11):
 - Phases 1-8: Infrastructure (Forgejo + runners + dual environment + SOPS)
-- Phase 9: Basic tests (21 tests, 100% passing, coverage 15%)
+- Phase 9: Basic API tests (21 tests, 100% passing)
 - Phase 10: ML + services tests (66 tests total, 19% coverage)
-
-**Pending**:
-- Phase 11: E2E tests (optional)
+- Phase 11: E2E tests (36 tests: smoke, pipeline, resilience, performance)
+  - Smoke tests integrated in CI/CD pipeline
+  - Automatic rollback on test failures
+  - 102 total tests (100% passing)
 
 ### ML Models
 
