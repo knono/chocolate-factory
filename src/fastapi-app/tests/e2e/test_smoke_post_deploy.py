@@ -19,15 +19,19 @@ Fecha: 2025-10-20
 import pytest
 import httpx
 import time
+import os
 from typing import List, Dict, Any
 
 
 # Configuración para tests E2E
-BASE_URL = "http://localhost:8000"  # Producción
-BASE_URL_DEV = "http://localhost:8001"  # Desarrollo
+# En CI/CD, usar nombres de contenedor Docker; localmente, usar localhost
+# Se configura via variable de entorno E2E_API_URL
+BASE_URL = os.getenv("E2E_API_URL", "http://localhost:8000")  # Producción
+BASE_URL_DEV = os.getenv("E2E_API_URL_DEV", "http://localhost:8001")  # Desarrollo
 
 # Timeout para requests (E2E puede ser más lento)
-TIMEOUT = 10.0
+# Dashboard complete puede tardar hasta 30s en generar todos los datos
+TIMEOUT = 30.0
 
 
 @pytest.fixture(scope="module")

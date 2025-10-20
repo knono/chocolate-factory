@@ -322,6 +322,9 @@ jobs:
           cd src/fastapi-app
           echo "🔥 Running smoke tests against development..."
 
+          # Export container URL for E2E tests (using Docker container name)
+          export E2E_API_URL="http://chocolate_factory_dev:8000"
+
           # Run smoke tests with custom markers
           pytest tests/e2e/test_smoke_post_deploy.py -v -m smoke \
             --tb=short \
@@ -557,6 +560,9 @@ jobs:
         run: |
           cd src/fastapi-app
           echo "🔥 Running CRITICAL smoke tests against PRODUCTION..."
+
+          # Export container URL for E2E tests (using Docker container name)
+          export E2E_API_URL="http://chocolate_factory_brain:8000"
 
           # Run smoke tests against production
           pytest tests/e2e/test_smoke_post_deploy.py -v -m smoke \
