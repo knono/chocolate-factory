@@ -39,30 +39,34 @@ Despliegue de Forgejo self-hosted con CI/CD local, Docker Registry privado y sui
 
 ---
 
-## Sprint 13: Tailscale Observability (HTTP Proxy)
+## Sprint 13: Health Monitoring (Pivoted from Analytics)
 
-**Estado**: COMPLETADO (2025-10-21)
+**Estado**: COMPLETADO (2025-10-21, Pivotado 18:00)
 **Archivo**: [`SPRINT_13_TAILSCALE_OBSERVABILITY.md`](./SPRINT_13_TAILSCALE_OBSERVABILITY.md)
 
-Sistema de observabilidad Tailscale usando HTTP proxy para monitoring autónomo 24/7 y seguridad mejorada. Decisión técnica: HTTP proxy en sidecar (descartados MCP/Skills por falta de autonomía, subprocess CLI por seguridad).
+Sistema de health monitoring para nodos Tailscale con métricas útiles y accionables. **Pivote Crítico**: Analytics inicial NO aportaba valor → Reenfocado a health monitoring basado en feedback usuario.
 
-**Implementación Completada**:
-- TailscaleAnalyticsService con `httpx` (HTTP client, 455 líneas)
-- HTTP proxy server en sidecar (`socat` en puerto 8765, 48 líneas)
-- 4 endpoints `/analytics/*` (devices, quota-status, access-logs, dashboard-usage)
-- Dashboard VPN completo (`/vpn` → `static/vpn.html`, 176+215+241 líneas)
-- 2 APScheduler jobs (analytics cada 15 min, status log cada hora)
-- Clasificación dispositivos (own/shared/external) + tracking quota (0/3 usuarios)
+**Implementación Completada (Post-Pivote)**:
+- TailscaleHealthService con health checks (316 líneas, enfocado)
+- HTTP proxy server en sidecar (`socat` puerto 8765) - mantenido de implementación inicial
+- 5 endpoints `/health-monitoring/*` (summary, critical, alerts, nodes, uptime)
+- 3 APScheduler jobs (métricas cada 5 min, critical check cada 2 min, status log hourly)
+- Uptime tracking en InfluxDB + alertas proactivas nodos críticos
+- Clasificación nodos: production/development/git (3 críticos, 100% healthy)
 
-**Arquitectura Final (Opción A - HTTP Proxy)**:
-- Seguridad: Zero Docker socket exposure (vs subprocess que requería socket mount)
-- Latencia: <100ms HTTP proxy (vs +1.5s MCP overhead)
-- Autonomía: 100% APScheduler 24/7 (vs MCP/Skills requieren sesión activa)
-- Patrón: HTTP estándar contenedor-a-contenedor (consistente con arquitectura)
+**Archivos Eliminados (sin valor)**:
+- VPN dashboard (`/vpn`, 632 líneas HTML/CSS/JS)
+- parse_nginx_logs() y endpoints analytics sin contexto
+
+**Arquitectura Final (Health Monitoring)**:
+- Seguridad: Zero Docker socket exposure (mantenido)
+- Valor: Métricas accionables (uptime %, health %, alertas proactivas)
+- Autonomía: 100% APScheduler 24/7
+- Patrón: HTTP proxy + InfluxDB historical tracking
 
 ## Orden de Ejecución
 
-Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Tailscale Observability)
+Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Health Monitoring)
 
 ---
 
@@ -71,9 +75,9 @@ Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Tailscale Ob
 - Sprints ML Evolution: 01-10 completados
 - Sprint 11 (Infrastructure): Completado
 - Sprint 12 (CI/CD + Testing): Completado (Fases 1-11)
-- Sprint 13 (Observability): Completado (HTTP Proxy)
+- Sprint 13 (Observability): Completado (Health Monitoring - Pivoted)
 - Clean Architecture: Refactorizado (Oct 6, 2025)
-- API Endpoints: 37 disponibles (incluye `/chat/*` + `/analytics/*`)
+- API Endpoints: 38 disponibles (incluye `/chat/*` + `/health-monitoring/*`)
 - Tailscale: 3 nodos activos (git, dev, prod) + observability
 - CI/CD: Pipeline automatizado con rollback
 - Tests: 102 tests (100% passing)
