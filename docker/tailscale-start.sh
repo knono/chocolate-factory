@@ -112,6 +112,14 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Iniciar Tailscale HTTP Proxy Server (Sprint 13)
+log "🔌 Starting Tailscale HTTP Proxy on port 8765..."
+/usr/local/bin/tailscale-http-server.sh &
+HTTP_SERVER_PID=$!
+
+# Esperar a que el HTTP server esté listo
+sleep 2
+
 # Iniciar nginx
 log "🌐 Starting nginx..."
 nginx -g 'daemon off;' &
@@ -128,6 +136,7 @@ log "✅ All services started successfully!"
 log "🌐 Dashboard available at: https://${TAILSCALE_DOMAIN:-${TAILSCALE_HOSTNAME:-chocolate-factory}.ts.net}/dashboard"
 log "📊 Proxying to: ${NGINX_UPSTREAM:-chocolate_factory_brain:8000}"
 log "🔒 Only /dashboard endpoint is exposed"
+log "🔌 Tailscale HTTP Proxy running on localhost:8765 (internal only)"
 
 # Mantener el contenedor corriendo y monitorear servicios
 while true; do

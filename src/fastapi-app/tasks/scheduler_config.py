@@ -12,6 +12,7 @@ from core.config import settings
 from .ree_jobs import ree_ingestion_job
 from .weather_jobs import weather_ingestion_job
 from .ml_jobs import ensure_prophet_model_job
+from .analytics_jobs import collect_analytics, log_tailscale_status  # Sprint 13
 
 logger = logging.getLogger(__name__)
 
@@ -59,5 +60,27 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
         next_run_time=dt.now()  # Execute immediately
     )
     logger.info("   ✅ Prophet model check: at startup + every 24 hours")
+
+    # Tailscale analytics collection (every 15 minutes) - Sprint 13
+    scheduler.add_job(
+        func=collect_analytics,
+        trigger="interval",
+        minutes=15,
+        id="tailscale_analytics_collection",
+        name="Tailscale Analytics Collection",
+        replace_existing=True
+    )
+    logger.info("   ✅ Tailscale analytics: every 15 minutes")
+
+    # Tailscale status logging (every hour) - Sprint 13
+    scheduler.add_job(
+        func=log_tailscale_status,
+        trigger="interval",
+        hours=1,
+        id="tailscale_status_log",
+        name="Tailscale Status Logging",
+        replace_existing=True
+    )
+    logger.info("   ✅ Tailscale status log: every hour")
 
     logger.info(f"✅ Registered {len(scheduler.get_jobs())} jobs")

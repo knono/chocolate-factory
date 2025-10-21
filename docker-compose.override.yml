@@ -34,8 +34,8 @@ services:
     volumes:
       # Persistir estado de Tailscale para reconexiones
       - tailscale_state:/var/lib/tailscale
-      # Logs para debugging
-      - ./logs/sidecar:/var/log
+      # Logs para debugging y analytics (Sprint 13)
+      - ./logs/sidecar:/var/log/nginx
       # Bind mount nginx config template for dynamic updates
       - ./docker/sidecar-nginx.conf:/etc/nginx/nginx.conf.template:ro
     depends_on:

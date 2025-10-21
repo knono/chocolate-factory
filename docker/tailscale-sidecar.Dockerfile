@@ -19,7 +19,8 @@ RUN apk add --no-cache \
     iptables \
     bash \
     procps \
-    gettext
+    gettext \
+    socat
 
 # Instalar Tailscale versión 1.86.2 (latest with security fixes)
 # Using official Tailscale packages from pkgs.tailscale.com
@@ -39,9 +40,10 @@ RUN adduser -D -s /sbin/nologin -G www-data nginx 2>/dev/null || true
 # Copiar configuración nginx específica para sidecar
 COPY docker/sidecar-nginx.conf /etc/nginx/nginx.conf
 
-# Copiar script de inicio
+# Copiar scripts
 COPY docker/tailscale-start.sh /usr/local/bin/tailscale-start.sh
-RUN chmod +x /usr/local/bin/tailscale-start.sh
+COPY docker/tailscale-http-server.sh /usr/local/bin/tailscale-http-server.sh
+RUN chmod +x /usr/local/bin/tailscale-start.sh /usr/local/bin/tailscale-http-server.sh
 
 # Variables de entorno
 ENV TAILSCALE_HOSTNAME=factory-chocolate

@@ -23,7 +23,16 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    wget \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Sprint 13: Instalar Tailscale CLI para analytics
+RUN wget -O /tmp/tailscale.tgz https://pkgs.tailscale.com/stable/tailscale_1.86.2_amd64.tgz && \
+    tar -xzf /tmp/tailscale.tgz -C /tmp && \
+    cp /tmp/tailscale_1.86.2_amd64/tailscale /usr/local/bin/ && \
+    chmod +x /usr/local/bin/tailscale && \
+    rm -rf /tmp/tailscale.tgz /tmp/tailscale_1.86.2_amd64
 
 # Crear usuario no-root para seguridad
 RUN groupadd -r appuser && useradd -r -g appuser appuser
