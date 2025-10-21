@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tailscale VPN Analytics - Chocolate Factory</title>
+    <link rel="stylesheet" href="/static/css/vpn-dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 Tailscale VPN Analytics</h1>
+            <p class="subtitle">Monitorización en tiempo real de accesos y dispositivos Tailnet</p>
+            <div class="header-actions">
+                <button onclick="refreshDashboard()" class="btn-refresh">🔄 Actualizar</button>
+                <a href="/static/index.html" class="btn-link">← Dashboard Principal</a>
+            </div>
+        </header>
+
+        <!-- Quota Status Card -->
+        <section class="card quota-card" id="quota-card">
+            <h2>📊 Estado de Cuota (Free Tier)</h2>
+            <div class="quota-content">
+                <div class="quota-gauge">
+                    <div class="gauge-circle" id="quota-gauge">
+                        <div class="gauge-text">
+                            <span class="quota-number" id="quota-number">0/3</span>
+                            <span class="quota-label">usuarios</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="quota-details">
+                    <div class="quota-stat">
+                        <span class="stat-label">Disponible:</span>
+                        <span class="stat-value" id="quota-available">3</span>
+                    </div>
+                    <div class="quota-stat">
+                        <span class="stat-label">Porcentaje:</span>
+                        <span class="stat-value" id="quota-percentage">0%</span>
+                    </div>
+                    <div class="quota-alert" id="quota-alert" style="display:none;">
+                        <strong>⚠️ Alerta:</strong> <span id="quota-alert-text"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="external-users" id="external-users-list"></div>
+        </section>
+
+        <!-- Devices Grid -->
+        <section class="devices-grid">
+            <!-- Own Nodes Card -->
+            <div class="card devices-card">
+                <h2>💻 Mis Dispositivos</h2>
+                <div class="device-count" id="own-count">0 dispositivos</div>
+                <div class="devices-list" id="own-devices"></div>
+            </div>
+
+            <!-- Shared Nodes Card -->
+            <div class="card devices-card">
+                <h2>🤝 Nodos Compartidos</h2>
+                <div class="device-count" id="shared-count">0 dispositivos</div>
+                <div class="devices-list" id="shared-devices"></div>
+            </div>
+
+            <!-- External Users Card -->
+            <div class="card devices-card">
+                <h2>👥 Usuarios Externos</h2>
+                <div class="device-count" id="external-count">0 dispositivos</div>
+                <div class="devices-list" id="external-devices"></div>
+            </div>
+        </section>
+
+        <!-- Access Logs Card -->
+        <section class="card logs-card">
+            <h2>📝 Accesos Recientes (Últimas 24h)</h2>
+            <div class="logs-controls">
+                <select id="hours-select" onchange="changeTimeRange()">
+                    <option value="24">Últimas 24 horas</option>
+                    <option value="48">Últimas 48 horas</option>
+                    <option value="168">Última semana</option>
+                </select>
+            </div>
+            <div class="logs-summary" id="logs-summary">
+                <div class="summary-stat">
+                    <span class="stat-number" id="total-requests">0</span>
+                    <span class="stat-label">Accesos totales</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="stat-number" id="unique-users">0</span>
+                    <span class="stat-label">Usuarios únicos</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="stat-number" id="unique-devices">0</span>
+                    <span class="stat-label">Dispositivos únicos</span>
+                </div>
+            </div>
+            <div class="logs-table-container">
+                <table class="logs-table" id="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Usuario</th>
+                            <th>Dispositivo</th>
+                            <th>Endpoint</th>
+                            <th>Método</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer>
+            <p>Última actualización: <span id="last-update">--</span></p>
+            <p class="footer-note">CLI nativo Tailscale | Auto-refresh cada 30s</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/vpn-dashboard.js"></script>
+</body>
+</html>

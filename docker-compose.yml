@@ -47,6 +47,7 @@ services:
       - ./models:/app/models
       - ./scripts:/app/scripts
       - ./.claude:/app/.claude  # Business logic rules and settings
+      - tailscale_state:/var/lib/tailscale:ro  # Sprint 13: Read-only access to Tailscale state for CLI
       # Sprint 03: Service Layer architecture (legacy - will be migrated to Phase 1 structure)
       # - ./src/api:/app/api
       # - ./src/services:/app/src_services
