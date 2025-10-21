@@ -396,8 +396,209 @@ GET /vpn                       → 302 Redirect to /static/vpn.html
 
 ---
 
+## ⚠️ PIVOTE CRÍTICO - SPRINT 13 REENFOCADO (Oct 21, 18:00)
+
+**Razón del Pivote**: Implementación inicial (analytics) NO aportaba valor real
+
+### Problema Detectado por Usuario
+- Dashboard VPN solo mostraba snapshot de dispositivos activos
+- Access logs vacíos (nginx logs no configurados correctamente)
+- Métricas sin contexto histórico ni valor accionable
+- Feedback usuario: "No veo cambios al conectarme con iPhone, no aporta información de valor"
+
+### Decisión: Pivote Camino Medio (Opción 2+3)
+- ✅ **Mantener**: HTTP proxy server (infraestructura útil)
+- ❌ **Eliminar**: VPN dashboard, parse_nginx_logs, analytics sin valor
+- ✅ **Pivotar a**: Health Monitoring con métricas útiles y accionables
+
+### Resultado del Pivote
+
+**Archivos Eliminados** (sin valor):
+- `static/vpn.html` (176 líneas)
+- `static/css/vpn-dashboard.css` (215 líneas)
+- `static/js/vpn-dashboard.js` (241 líneas)
+- Endpoint `/vpn` en main.py
+- Total eliminado: 632 líneas sin valor
+
+**Archivos Pivotados**:
+1. `tailscale_analytics_service.py` → `tailscale_health_service.py`
+   - Eliminado: `parse_nginx_logs()`, quota tracking sin uso
+   - Agregado: `get_health_summary()`, `check_node_reachability()`, `calculate_uptime()`
+   - Reducido: 455 → 316 líneas (enfoque en salud)
+
+2. `api/routers/analytics.py` → `health_monitoring.py`
+   - Eliminado: 4 endpoints analytics sin valor
+   - Agregado: 5 endpoints health útiles
+   - 224 → 209 líneas
+
+3. `tasks/analytics_jobs.py` → `health_monitoring_jobs.py`
+   - Eliminado: `collect_analytics()` (logs parsing)
+   - Agregado: `collect_health_metrics()`, `check_critical_nodes()`
+   - Cambio: Cada 15 min → Cada 5 min (métricas), + job cada 2 min (critical)
+
+**Nuevos Endpoints con Valor Real**:
+```
+GET /health-monitoring/summary      → Overall health + critical nodes %
+GET /health-monitoring/critical     → Status nodos críticos (prod/dev/git)
+GET /health-monitoring/alerts       → Alertas activas (nodos caídos)
+GET /health-monitoring/nodes        → Detalle todos los nodos
+GET /health-monitoring/uptime/{hostname}  → Uptime % últimas 24h
+```
+
+**APScheduler Jobs (3 automáticos)**:
+- `collect_health_metrics` - Cada 5 min → InfluxDB analytics bucket
+- `log_health_status` - Cada hora → Log resumen salud
+- `check_critical_nodes` - Cada 2 min → Alertas proactivas
+
+**Valor Entregado Post-Pivote**:
+1. ✅ Health percentage nodos críticos (prod/dev/git): 100%
+2. ✅ Alertas cuando nodo crítico cae >2 minutos
+3. ✅ Uptime histórico por nodo (InfluxDB)
+4. ✅ Status lights: healthy/degraded/critical
+5. ✅ Métricas accionables para operaciones
+
+---
+
 **Fecha creación**: 2025-10-21
-**Fecha completado**: 2025-10-21
-**Versión**: 4.0 (HTTP Proxy - Opción A)
+**Fecha pivote**: 2025-10-21 (18:00)
+**Fecha completado**: 2025-10-21 (19:30)
+**Versión**: 6.0 (Health Monitoring + Event Logs - FINAL)
 **Sprint anterior**: Sprint 12 - Forgejo CI/CD
-**Decisión clave**: HTTP Proxy para seguridad (Docker socket descartado)
+**Decisión clave**: Pivotar de analytics a health monitoring + agregar event logs paginados
+
+---
+
+## 📋 DOCUMENTACIÓN FINAL - SPRINT 13 COMPLETADO
+
+### Implementación Completada
+
+**Fecha finalización**: 2025-10-21 19:30
+**Estado**: ✅ COMPLETADO Y DOCUMENTADO
+
+#### Entregables Finales
+
+1. **Dashboard VPN Health Monitoring** (`/vpn`)
+   - Health summary card con gauge visual (100% health)
+   - Grid de nodos críticos (Production, Development, Git)
+   - Sección de alertas activas
+   - Tabla detallada de nodos (filtrada a proyecto)
+   - **Event Logs paginados con filtros**
+
+2. **Event Logs System** (NUEVO - Post-Pivote)
+   - Servicio de logs sintéticos basados en estado actual
+   - Endpoint `/health-monitoring/logs` con paginación
+   - Filtros por severity (ok/warning/critical) y event_type
+   - Summary compacto (1 línea)
+   - 20 eventos por página con navegación
+
+3. **Filtrado de Nodos del Proyecto**
+   - Por defecto: solo 3 nodos críticos (production/development/git)
+   - Parámetro opcional `?project_only=false` para ver todos
+
+#### Archivos Creados/Modificados
+
+**Backend**:
+1. `services/health_logs_service.py` (221 líneas) - Generador de event logs
+2. `api/routers/health_monitoring.py` - 6 endpoints total
+   - `/summary` - Resumen general de salud
+   - `/critical` - Solo nodos críticos
+   - `/alerts` - Alertas activas
+   - `/nodes` - Detalle de nodos (con filtro project_only)
+   - `/uptime/{hostname}` - Uptime de nodo específico
+   - `/logs` - Event logs paginados (NUEVO)
+
+**Frontend**:
+3. `static/vpn.html` (182 líneas) - Dashboard con logs
+4. `static/css/vpn-dashboard.css` (659 líneas) - Estilos completos
+5. `static/js/vpn-dashboard.js` (435 líneas) - Lógica + paginación
+
+**Configuración**:
+6. `src/fastapi-app/main.py` - Endpoint `/vpn` para redirección
+
+#### Endpoints Disponibles
+
+```bash
+# Health Monitoring
+GET /health-monitoring/summary              # Overall health (100%)
+GET /health-monitoring/critical             # Solo nodos críticos (3)
+GET /health-monitoring/alerts               # Alertas activas (0)
+GET /health-monitoring/nodes                # Nodos del proyecto (default)
+GET /health-monitoring/nodes?project_only=false  # Todos los nodos (12)
+GET /health-monitoring/uptime/{hostname}    # Uptime de nodo
+
+# Event Logs (NUEVO)
+GET /health-monitoring/logs                 # Página 1 (20 eventos)
+GET /health-monitoring/logs?page=2          # Paginación
+GET /health-monitoring/logs?severity=critical  # Filtro por severidad
+GET /health-monitoring/logs?event_type=node_offline  # Filtro por tipo
+```
+
+#### Tipos de Eventos de Log
+
+- `health_check` - Verificaciones periódicas del sistema
+- `node_online` - Nodo conectado y saludable
+- `node_offline` - Nodo caído (genera alerta)
+- `alert` - Alertas del sistema
+
+#### Métricas Actuales
+
+- **Nodos críticos**: 3/3 online (100% healthy)
+- **Total red**: 6/12 nodes online
+- **Alertas activas**: 0
+- **Event logs**: 13+ eventos disponibles
+- **Auto-refresh**: Cada 30 segundos
+
+#### Acceso al Dashboard
+
+- **URL principal**: `https://<your-tailnet>.ts.net/vpn`
+- **URL local dev**: `http://localhost:8000/vpn`
+- **URL directa**: `http://localhost:8000/static/vpn.html`
+
+#### Seguridad
+
+✅ **Información Sensible Protegida**:
+- Código fuente usa `${TAILSCALE_DOMAIN}` (variable de entorno)
+- Sin hardcodeo de dominios Tailscale reales
+- Nombres de nodos genéricos en ejemplos
+- Documentación usa placeholders: `<your-tailnet>.ts.net`
+- Zero exposición de Docker socket (HTTP proxy con socat)
+
+#### Testing Realizado
+
+```bash
+# Endpoints verificados
+✅ GET /health-monitoring/summary          → 200 OK (3/3 críticos online)
+✅ GET /health-monitoring/critical         → 200 OK (100% healthy)
+✅ GET /health-monitoring/alerts           → 200 OK (0 alertas)
+✅ GET /health-monitoring/nodes            → 200 OK (3 nodos filtrados)
+✅ GET /health-monitoring/logs?page=1      → 200 OK (13 eventos)
+✅ GET /vpn                                → 307 Redirect to /static/vpn.html
+✅ GET /static/vpn.html                    → 200 OK (dashboard renderiza)
+```
+
+#### Valor Entregado
+
+1. ✅ Visibilidad completa del estado de nodos críticos
+2. ✅ Event logs en tiempo real con historial simulado
+3. ✅ Paginación y filtros funcionales
+4. ✅ Summary compacto (1 línea en lugar de 4 cajas)
+5. ✅ Dashboard responsive y profesional
+6. ✅ Zero exposición de información sensible
+7. ✅ Monitoreo autónomo 24/7 (APScheduler)
+
+---
+
+**Próximos Pasos**:
+- Hacer commit de cambios a feature branch
+- Push a develop para rebuild de imagen dev
+- Deploy a producción
+- Verificar funcionamiento en Tailnet
+
+---
+
+**Fecha creación**: 2025-10-21
+**Fecha pivote**: 2025-10-21 (18:00)
+**Fecha completado**: 2025-10-21 (19:30)
+**Versión**: 6.0 (Health Monitoring + Event Logs - FINAL)
+**Sprint anterior**: Sprint 12 - Forgejo CI/CD
+**Decisión clave**: Pivotar de analytics a health monitoring + agregar event logs útiles

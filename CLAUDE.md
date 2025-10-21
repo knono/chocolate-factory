@@ -109,18 +109,22 @@ src/fastapi-app/
 
 ## Development Status
 
-### Recent Completion: Sprint 13 - Tailscale Observability
-**Status**: COMPLETED (October 21, 2025)
+### Recent Completion: Sprint 13 - Health Monitoring + Event Logs (Pivoted from Analytics)
+**Status**: COMPLETED (October 21, 2025 - Pivoted 18:00, Finished 19:30)
 **Documentation**: [`.claude/sprints/infrastructure/SPRINT_13_TAILSCALE_OBSERVABILITY.md`](.claude/sprints/infrastructure/SPRINT_13_TAILSCALE_OBSERVABILITY.md)
+
+**Pivote Crítico**: Analytics inicial NO aportaba valor → Reenfocado a Health Monitoring + Event Logs
 
 Implemented:
 - HTTP proxy server in Tailscale sidecar (socat, port 8765)
-- TailscaleAnalyticsService with httpx HTTP client (455 lines)
-- 4 endpoints `/analytics/*` (devices, quota-status, access-logs, dashboard-usage)
-- VPN dashboard (`/vpn` → `static/vpn.html`, 632 total lines)
-- 2 APScheduler jobs (analytics collection every 15 min, status log hourly)
-- Device classification (own/shared/external) + quota tracking (0/3 users)
-- Zero Docker socket exposure (security improvement)
+- TailscaleHealthService + HealthLogsService (537 lines total)
+- 6 endpoints `/health-monitoring/*` (summary, critical, alerts, nodes, uptime, **logs**)
+- Event logs paginados con filtros (severity + event_type, 20 eventos/página)
+- Filtro `project_only` para mostrar solo nodos del proyecto (3/12)
+- Dashboard VPN completo en `/vpn` con logs en tiempo real
+- 3 APScheduler jobs (health metrics every 5 min, critical check every 2 min)
+- Critical nodes monitoring (production/development/git) - 100% healthy
+- Zero Docker socket exposure + Zero información sensible expuesta (placeholders)
 
 ### Recent Completion: Sprint 12 Fase 11 - E2E Testing Suite
 **Status**: COMPLETED (October 20, 2025)
@@ -163,12 +167,12 @@ Implemented:
   - 102 tests (36 E2E), 100% passing, coverage 19%
   - Tests ML (Prophet + sklearn), servicios, integration, E2E
   - Smoke tests + automatic rollback integrated in pipeline
-- Sprint 13: Tailscale Observability (Oct 21, 2025)
-  - HTTP proxy server (socat) en sidecar
-  - 4 endpoints `/analytics/*`
-  - Dashboard VPN (`/vpn`)
-  - Device classification + quota tracking
-  - 2 APScheduler jobs (analytics)
+- Sprint 13: Health Monitoring (Oct 21, 2025) - **Pivoted from Analytics**
+  - HTTP proxy server (socat) en sidecar - maintained
+  - 5 endpoints `/health-monitoring/*` (summary, critical, alerts, nodes, uptime)
+  - Uptime tracking + proactive alerts for critical nodes
+  - 3 APScheduler jobs (metrics 5min, critical check 2min, status log hourly)
+  - Critical nodes: 100% healthy (production/development/git)
   - Zero Docker socket exposure (secure)
 
 ### Core Infrastructure (2-Container Architecture)

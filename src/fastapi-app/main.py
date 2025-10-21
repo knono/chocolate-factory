@@ -36,7 +36,7 @@ from api.routers import (
     gaps_router,
     insights_router,
     chatbot_router,  # Sprint 11
-    analytics_router  # Sprint 13
+    health_monitoring_router  # Sprint 13 (pivoted)
 )
 
 # Setup logging (console only to avoid permission issues)
@@ -98,7 +98,7 @@ app.include_router(analysis_router)
 app.include_router(gaps_router)
 app.include_router(insights_router)
 app.include_router(chatbot_router)  # Sprint 11
-app.include_router(analytics_router)  # Sprint 13
+app.include_router(health_monitoring_router)  # Sprint 13 (pivoted to health monitoring)
 
 logger.info("✅ API routers registered")
 
@@ -117,7 +117,7 @@ async def dashboard_redirect():
 
 @app.get("/vpn")
 async def vpn_dashboard():
-    """VPN Analytics Dashboard - Tailscale monitoring."""
+    """Redirect to Tailscale Health Monitoring dashboard (Sprint 13 pivoted)."""
     return RedirectResponse(url="/static/vpn.html")
 
 
