@@ -12,7 +12,11 @@ from core.config import settings
 from .ree_jobs import ree_ingestion_job
 from .weather_jobs import weather_ingestion_job
 from .ml_jobs import ensure_prophet_model_job
-from .analytics_jobs import collect_analytics, log_tailscale_status  # Sprint 13
+from .health_monitoring_jobs import (  # Sprint 13 (pivoted)
+    collect_health_metrics,
+    log_health_status,
+    check_critical_nodes
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,26 +65,37 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
     )
     logger.info("   ✅ Prophet model check: at startup + every 24 hours")
 
-    # Tailscale analytics collection (every 15 minutes) - Sprint 13
+    # Health monitoring metrics collection (every 5 minutes) - Sprint 13 (pivoted)
     scheduler.add_job(
-        func=collect_analytics,
+        func=collect_health_metrics,
         trigger="interval",
-        minutes=15,
-        id="tailscale_analytics_collection",
-        name="Tailscale Analytics Collection",
+        minutes=5,
+        id="health_metrics_collection",
+        name="Health Metrics Collection",
         replace_existing=True
     )
-    logger.info("   ✅ Tailscale analytics: every 15 minutes")
+    logger.info("   ✅ Health metrics: every 5 minutes")
 
-    # Tailscale status logging (every hour) - Sprint 13
+    # Health status logging (every hour) - Sprint 13 (pivoted)
     scheduler.add_job(
-        func=log_tailscale_status,
+        func=log_health_status,
         trigger="interval",
         hours=1,
-        id="tailscale_status_log",
-        name="Tailscale Status Logging",
+        id="health_status_log",
+        name="Health Status Logging",
         replace_existing=True
     )
-    logger.info("   ✅ Tailscale status log: every hour")
+    logger.info("   ✅ Health status log: every hour")
+
+    # Critical nodes check (every 2 minutes) - Sprint 13 (pivoted)
+    scheduler.add_job(
+        func=check_critical_nodes,
+        trigger="interval",
+        minutes=2,
+        id="critical_nodes_check",
+        name="Critical Nodes Health Check",
+        replace_existing=True
+    )
+    logger.info("   ✅ Critical nodes check: every 2 minutes")
 
     logger.info(f"✅ Registered {len(scheduler.get_jobs())} jobs")

@@ -396,8 +396,72 @@ GET /vpn                       → 302 Redirect to /static/vpn.html
 
 ---
 
+## ⚠️ PIVOTE CRÍTICO - SPRINT 13 REENFOCADO (Oct 21, 18:00)
+
+**Razón del Pivote**: Implementación inicial (analytics) NO aportaba valor real
+
+### Problema Detectado por Usuario
+- Dashboard VPN solo mostraba snapshot de dispositivos activos
+- Access logs vacíos (nginx logs no configurados correctamente)
+- Métricas sin contexto histórico ni valor accionable
+- Feedback usuario: "No veo cambios al conectarme con iPhone, no aporta información de valor"
+
+### Decisión: Pivote Camino Medio (Opción 2+3)
+- ✅ **Mantener**: HTTP proxy server (infraestructura útil)
+- ❌ **Eliminar**: VPN dashboard, parse_nginx_logs, analytics sin valor
+- ✅ **Pivotar a**: Health Monitoring con métricas útiles y accionables
+
+### Resultado del Pivote
+
+**Archivos Eliminados** (sin valor):
+- `static/vpn.html` (176 líneas)
+- `static/css/vpn-dashboard.css` (215 líneas)
+- `static/js/vpn-dashboard.js` (241 líneas)
+- Endpoint `/vpn` en main.py
+- Total eliminado: 632 líneas sin valor
+
+**Archivos Pivotados**:
+1. `tailscale_analytics_service.py` → `tailscale_health_service.py`
+   - Eliminado: `parse_nginx_logs()`, quota tracking sin uso
+   - Agregado: `get_health_summary()`, `check_node_reachability()`, `calculate_uptime()`
+   - Reducido: 455 → 316 líneas (enfoque en salud)
+
+2. `api/routers/analytics.py` → `health_monitoring.py`
+   - Eliminado: 4 endpoints analytics sin valor
+   - Agregado: 5 endpoints health útiles
+   - 224 → 209 líneas
+
+3. `tasks/analytics_jobs.py` → `health_monitoring_jobs.py`
+   - Eliminado: `collect_analytics()` (logs parsing)
+   - Agregado: `collect_health_metrics()`, `check_critical_nodes()`
+   - Cambio: Cada 15 min → Cada 5 min (métricas), + job cada 2 min (critical)
+
+**Nuevos Endpoints con Valor Real**:
+```
+GET /health-monitoring/summary      → Overall health + critical nodes %
+GET /health-monitoring/critical     → Status nodos críticos (prod/dev/git)
+GET /health-monitoring/alerts       → Alertas activas (nodos caídos)
+GET /health-monitoring/nodes        → Detalle todos los nodos
+GET /health-monitoring/uptime/{hostname}  → Uptime % últimas 24h
+```
+
+**APScheduler Jobs (3 automáticos)**:
+- `collect_health_metrics` - Cada 5 min → InfluxDB analytics bucket
+- `log_health_status` - Cada hora → Log resumen salud
+- `check_critical_nodes` - Cada 2 min → Alertas proactivas
+
+**Valor Entregado Post-Pivote**:
+1. ✅ Health percentage nodos críticos (prod/dev/git): 100%
+2. ✅ Alertas cuando nodo crítico cae >2 minutos
+3. ✅ Uptime histórico por nodo (InfluxDB)
+4. ✅ Status lights: healthy/degraded/critical
+5. ✅ Métricas accionables para operaciones
+
+---
+
 **Fecha creación**: 2025-10-21
-**Fecha completado**: 2025-10-21
-**Versión**: 4.0 (HTTP Proxy - Opción A)
+**Fecha pivote**: 2025-10-21 (18:00)
+**Fecha completado**: 2025-10-21 (18:20)
+**Versión**: 5.0 (Health Monitoring - Pivotado)
 **Sprint anterior**: Sprint 12 - Forgejo CI/CD
-**Decisión clave**: HTTP Proxy para seguridad (Docker socket descartado)
+**Decisión clave**: Pivotar de analytics a health monitoring para aportar valor real

@@ -9,7 +9,7 @@ from .analysis import router as analysis_router
 from .gaps import router as gaps_router
 from .insights import router as insights_router
 from .chatbot import router as chatbot_router  # Sprint 11
-from .analytics import router as analytics_router  # Sprint 13
+from .health_monitoring import router as health_monitoring_router  # Sprint 13 (pivoted)
 
 __all__ = [
     "health_router",
@@ -21,5 +21,5 @@ __all__ = [
     "gaps_router",
     "insights_router",
     "chatbot_router",  # Sprint 11
-    "analytics_router",  # Sprint 13
+    "health_monitoring_router",  # Sprint 13 (pivoted)
 ]

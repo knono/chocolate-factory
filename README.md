@@ -23,6 +23,7 @@ Energy optimization system combining machine learning price forecasting, automat
 - Testing: 102 tests (100% passing, 19% coverage, 36 E2E tests)
 - Clean Architecture: 41 modules (98% reduction from monolithic main.py)
 - CI/CD: Automated testing + smoke tests + rollback on failure
+- Observability: Tailscale health monitoring (uptime tracking, critical nodes alerts)
 
 **Components**:
 - FastAPI application with ML models (Prophet, sklearn RandomForest)
@@ -96,8 +97,9 @@ Secrets: SOPS encrypted + .env fallback
 src/fastapi-app/
 ├── main.py (76 lines)           # Entry point
 ├── api/                         # HTTP Interface
-│   ├── routers/                 # 9 routers (health, dashboard, ree, weather,
-│   │                            #   optimization, analysis, insights, gaps, chatbot)
+│   ├── routers/                 # 10 routers (health, dashboard, ree, weather,
+│   │                            #   optimization, analysis, insights, gaps,
+│   │                            #   chatbot, analytics)
 │   └── schemas/                 # Pydantic models
 ├── domain/                      # Business Logic
 │   ├── energy/forecaster.py    # Price forecasting
@@ -108,7 +110,8 @@ src/fastapi-app/
 │   ├── dashboard.py            # Data consolidation
 │   ├── predictive_insights.py  # ML insights
 │   ├── chatbot_service.py      # Claude Haiku API
-│   └── backfill_service.py     # Gap recovery
+│   ├── backfill_service.py     # Gap recovery
+│   └── tailscale_analytics_service.py  # Tailscale observability (HTTP)
 ├── infrastructure/              # External Systems
 │   ├── influxdb/               # DB client + queries
 │   └── external_apis/          # REE, AEMET, OpenWeatherMap
@@ -206,14 +209,7 @@ Modules: 41 Python files organized by layer
 | 10 | Oct 2025 | ML Documentation & Validation | Feature engineering validated |
 | 11 | Oct 2025 | Chatbot BI (Claude Haiku) | RAG + keyword matching |
 | 12 | Oct 2025 | Forgejo CI/CD + Testing Suite | 102 tests, 19% coverage, automated rollback |
-
-### Sprint 13 Status (Tailscale Observability - IN PROGRESS)
-
-**Active Sprint** (October 21, 2025):
-- Objective: CLI-native monitoring for Tailnet access analytics (24/7 autonomous)
-- Decision: Subprocess CLI over MCP/Skills (autonomy requirement)
-- To implement: TailscaleAnalyticsService + 3 endpoints + dashboard widget
-- Estimated: 8-10 hours
+| 13 | Oct 2025 | Health Monitoring (Pivoted) | 5 endpoints, uptime tracking, critical nodes alerts |
 
 ### ML Models
 
@@ -424,6 +420,6 @@ Provided as-is for educational and research purposes.
 
 Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-**Current Status**: Sprint 13 in progress (Tailscale Observability - CLI native)
+**Current Status**: Sprint 13 completed (Health Monitoring - Pivoted, Oct 21 2025)
 
 </div>
