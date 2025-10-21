@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tailscale Health Monitoring - Chocolate Factory</title>
+    <link rel="stylesheet" href="/static/css/vpn-dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 Tailscale Health Monitoring</h1>
+            <p class="subtitle">Monitorización de salud y disponibilidad de nodos críticos Tailnet</p>
+            <div class="header-actions">
+                <button onclick="refreshDashboard()" class="btn-refresh">🔄 Actualizar</button>
+                <a href="/static/index.html" class="btn-link">← Dashboard Principal</a>
+            </div>
+        </header>
+
+        <!-- Health Summary Card -->
+        <section class="card health-summary-card" id="health-summary-card">
+            <h2>📊 Estado General de Salud</h2>
+            <div class="health-content">
+                <div class="health-gauge">
+                    <div class="gauge-circle" id="health-gauge">
+                        <div class="gauge-text">
+                            <span class="health-number" id="health-percentage">--</span>
+                            <span class="health-label">health</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="health-details">
+                    <div class="health-stat">
+                        <span class="stat-label">Nodos Críticos:</span>
+                        <span class="stat-value" id="critical-online">--</span>
+                    </div>
+                    <div class="health-stat">
+                        <span class="stat-label">Total Red:</span>
+                        <span class="stat-value" id="total-online">--</span>
+                    </div>
+                    <div class="health-stat">
+                        <span class="stat-label">Estado:</span>
+                        <span class="stat-value status-badge" id="health-status">--</span>
+                    </div>
+                    <div class="health-alert" id="health-alert" style="display:none;">
+                        <strong>⚠️ Alerta:</strong> <span id="health-alert-text"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Critical Nodes Grid -->
+        <section class="nodes-grid">
+            <!-- Production Nodes Card -->
+            <div class="card nodes-card" id="production-card">
+                <h2>🏭 Nodos Producción</h2>
+                <div class="node-count" id="production-count">0 nodos</div>
+                <div class="nodes-list" id="production-nodes"></div>
+            </div>
+
+            <!-- Development Nodes Card -->
+            <div class="card nodes-card" id="development-card">
+                <h2>🔧 Nodos Desarrollo</h2>
+                <div class="node-count" id="development-count">0 nodos</div>
+                <div class="nodes-list" id="development-nodes"></div>
+            </div>
+
+            <!-- Git/Infrastructure Nodes Card -->
+            <div class="card nodes-card" id="git-card">
+                <h2>📦 Nodos Infraestructura</h2>
+                <div class="node-count" id="git-count">0 nodos</div>
+                <div class="nodes-list" id="git-nodes"></div>
+            </div>
+        </section>
+
+        <!-- Alerts Card -->
+        <section class="card alerts-card" id="alerts-card">
+            <h2>🚨 Alertas Activas</h2>
+            <div class="alerts-summary" id="alerts-summary">
+                <div class="summary-stat">
+                    <span class="stat-number alert-critical" id="critical-alerts">0</span>
+                    <span class="stat-label">Críticas</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="stat-number alert-warning" id="warning-alerts">0</span>
+                    <span class="stat-label">Warnings</span>
+                </div>
+                <div class="summary-stat">
+                    <span class="stat-number alert-ok" id="ok-status">0</span>
+                    <span class="stat-label">OK</span>
+                </div>
+            </div>
+            <div class="alerts-list-container">
+                <div class="alerts-list" id="alerts-list">
+                    <div class="no-alerts">✅ No hay alertas activas</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detailed Nodes Table -->
+        <section class="card nodes-table-card">
+            <h2>📋 Estado Detallado de Nodos</h2>
+            <div class="table-container">
+                <table class="nodes-table" id="nodes-table">
+                    <thead>
+                        <tr>
+                            <th>Nodo</th>
+                            <th>Estado</th>
+                            <th>IP</th>
+                            <th>Tipo</th>
+                            <th>OS</th>
+                            <th>Última Conexión</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nodes-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Health Events Log Section -->
+        <section class="card logs-card">
+            <h2>📝 Event Logs - Estado Actual y Reciente</h2>
+
+            <!-- Filters -->
+            <div class="logs-filters">
+                <select id="severity-filter" onchange="filterLogs()">
+                    <option value="">Todos los eventos</option>
+                    <option value="ok">✅ OK</option>
+                    <option value="warning">⚠️ Warning</option>
+                    <option value="critical">🔴 Critical</option>
+                </select>
+                <select id="event-type-filter" onchange="filterLogs()">
+                    <option value="">Todos los tipos</option>
+                    <option value="health_check">Health Check</option>
+                    <option value="node_online">Node Online</option>
+                    <option value="node_offline">Node Offline</option>
+                </select>
+            </div>
+
+            <!-- Summary (compact) -->
+            <div class="logs-summary-compact">
+                <span><strong id="logs-total">0</strong> eventos</span>
+                <span style="color: #ef4444;">🔴 <strong id="logs-critical">0</strong></span>
+                <span style="color: #f59e0b;">⚠️ <strong id="logs-warning">0</strong></span>
+                <span style="color: #10b981;">✅ <strong id="logs-ok">0</strong></span>
+            </div>
+
+            <!-- Logs List -->
+            <div class="logs-table-container">
+                <div id="logs-list"></div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="logs-pagination">
+                <button id="prev-page" onclick="previousPage()" disabled>← Anterior</button>
+                <span id="page-info">Página 1 de 1</span>
+                <button id="next-page" onclick="nextPage()" disabled>Siguiente →</button>
+            </div>
+        </section>
+
+        <footer>
+            <p>Última actualización: <span id="last-update">--</span></p>
+            <p class="footer-note">Health Monitoring Sprint 13 | Auto-refresh cada 30s</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/vpn-dashboard.js"></script>
+</body>
+</html>

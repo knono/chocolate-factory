@@ -115,8 +115,10 @@ async def dashboard_redirect():
     return RedirectResponse(url="/static/index.html")
 
 
-# Sprint 13 pivoted: removed /vpn dashboard endpoint (no value)
-# Use /health-monitoring/* endpoints instead for useful metrics
+@app.get("/vpn")
+async def vpn_dashboard():
+    """Redirect to Tailscale Health Monitoring dashboard (Sprint 13 pivoted)."""
+    return RedirectResponse(url="/static/vpn.html")
 
 
 if __name__ == "__main__":

@@ -109,20 +109,22 @@ src/fastapi-app/
 
 ## Development Status
 
-### Recent Completion: Sprint 13 - Health Monitoring (Pivoted from Analytics)
-**Status**: COMPLETED (October 21, 2025 - Pivoted 18:00)
+### Recent Completion: Sprint 13 - Health Monitoring + Event Logs (Pivoted from Analytics)
+**Status**: COMPLETED (October 21, 2025 - Pivoted 18:00, Finished 19:30)
 **Documentation**: [`.claude/sprints/infrastructure/SPRINT_13_TAILSCALE_OBSERVABILITY.md`](.claude/sprints/infrastructure/SPRINT_13_TAILSCALE_OBSERVABILITY.md)
 
-**Pivote Crítico**: Analytics inicial NO aportaba valor → Reenfocado a Health Monitoring
+**Pivote Crítico**: Analytics inicial NO aportaba valor → Reenfocado a Health Monitoring + Event Logs
 
 Implemented:
-- HTTP proxy server in Tailscale sidecar (socat, port 8765) - maintained
-- TailscaleHealthService with health checks (316 lines, focused)
-- 5 endpoints `/health-monitoring/*` (summary, critical, alerts, nodes, uptime)
+- HTTP proxy server in Tailscale sidecar (socat, port 8765)
+- TailscaleHealthService + HealthLogsService (537 lines total)
+- 6 endpoints `/health-monitoring/*` (summary, critical, alerts, nodes, uptime, **logs**)
+- Event logs paginados con filtros (severity + event_type, 20 eventos/página)
+- Filtro `project_only` para mostrar solo nodos del proyecto (3/12)
+- Dashboard VPN completo en `/vpn` con logs en tiempo real
 - 3 APScheduler jobs (health metrics every 5 min, critical check every 2 min)
-- Uptime tracking in InfluxDB + proactive alerts
 - Critical nodes monitoring (production/development/git) - 100% healthy
-- Zero Docker socket exposure (security maintained)
+- Zero Docker socket exposure + Zero información sensible expuesta (placeholders)
 
 ### Recent Completion: Sprint 12 Fase 11 - E2E Testing Suite
 **Status**: COMPLETED (October 20, 2025)

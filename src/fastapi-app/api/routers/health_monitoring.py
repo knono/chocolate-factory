@@ -10,6 +10,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 from services.tailscale_health_service import TailscaleHealthService
+from services.health_logs_service import HealthLogsService
 from infrastructure.influxdb.client import get_influxdb_client
 from core.logging_config import get_logger
 
@@ -52,10 +53,15 @@ async def get_health_summary(
 
 @router.get("/nodes")
 async def get_nodes_status(
+    project_only: bool = True,
     service: TailscaleHealthService = Depends(get_health_service)
 ) -> Dict[str, Any]:
     """
     Get detailed status of all monitored nodes.
+
+    Args:
+        project_only: If True, show only project nodes (production/development/git).
+                     If False, show all Tailnet nodes. Default: True.
 
     Returns list of nodes with:
         - Hostname, IP, OS
@@ -64,11 +70,19 @@ async def get_nodes_status(
         - Last seen timestamp
     """
     try:
-        nodes = service.get_nodes_health()
+        all_nodes = service.get_nodes_health()
+
+        # Filter project nodes if requested (default)
+        if project_only:
+            nodes = [n for n in all_nodes if n.node_type in ["production", "development", "git"]]
+            logger.info(f"Filtered to project nodes: {len(nodes)}/{len(all_nodes)}")
+        else:
+            nodes = all_nodes
 
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "total_nodes": len(nodes),
+            "project_only": project_only,
             "nodes": [
                 {
                     "hostname": node.hostname,
@@ -206,3 +220,50 @@ async def get_health_alerts(
     except Exception as e:
         logger.error(f"Failed to get health alerts: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve alerts: {str(e)}")
+
+
+@router.get("/logs")
+async def get_health_logs(
+    page: int = 1,
+    page_size: int = 50,
+    hours: int = 48,
+    severity: str = None,
+    event_type: str = None,
+    service: TailscaleHealthService = Depends(get_health_service)
+) -> Dict[str, Any]:
+    """
+    Get paginated health monitoring event logs.
+
+    Generates logs based on current node states and historical patterns.
+
+    Args:
+        page: Page number (1-indexed, default 1)
+        page_size: Entries per page (default 50)
+        hours: Hours to look back for historical events (default 48 = 2 days)
+        severity: Filter by severity (ok, warning, critical)
+        event_type: Filter by event type (node_online, node_offline, health_check, alert)
+
+    Returns:
+        Paginated logs with metadata and summary
+    """
+    try:
+        logs_service = HealthLogsService(health_service=service)
+        result = logs_service.get_logs_paginated(
+            page=page,
+            page_size=page_size,
+            hours=hours,
+            severity=severity,
+            event_type=event_type
+        )
+
+        logger.info(
+            f"Health logs retrieved: page {page}/{result['pagination']['total_pages']}, "
+            f"{len(result['logs'])} entries, "
+            f"severity={severity or 'all'}, event_type={event_type or 'all'}"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to get health logs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve logs: {str(e)}")
