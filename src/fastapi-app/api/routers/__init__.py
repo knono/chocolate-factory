@@ -10,6 +10,7 @@ from .gaps import router as gaps_router
 from .insights import router as insights_router
 from .chatbot import router as chatbot_router  # Sprint 11
 from .health_monitoring import router as health_monitoring_router  # Sprint 13 (pivoted)
+from .ml_predictions import router as ml_predictions_router  # sklearn predictions
 
 __all__ = [
     "health_router",
@@ -22,4 +23,5 @@ __all__ = [
     "insights_router",
     "chatbot_router",  # Sprint 11
     "health_monitoring_router",  # Sprint 13 (pivoted)
+    "ml_predictions_router",  # sklearn predictions
 ]

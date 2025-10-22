@@ -12,6 +12,7 @@ from core.config import settings
 from .ree_jobs import ree_ingestion_job
 from .weather_jobs import weather_ingestion_job
 from .ml_jobs import ensure_prophet_model_job
+from .sklearn_jobs import sklearn_training_job  # sklearn training
 from .health_monitoring_jobs import (  # Sprint 13 (pivoted)
     collect_health_metrics,
     log_health_status,
@@ -64,6 +65,17 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
         next_run_time=dt.now()  # Execute immediately
     )
     logger.info("   ✅ Prophet model check: at startup + every 24 hours")
+
+    # sklearn model training (every 30 minutes)
+    scheduler.add_job(
+        func=sklearn_training_job,
+        trigger="interval",
+        minutes=30,
+        id="sklearn_training",
+        name="sklearn Model Training",
+        replace_existing=True
+    )
+    logger.info("   ✅ sklearn training: every 30 minutes")
 
     # Health monitoring metrics collection (every 5 minutes) - Sprint 13 (pivoted)
     scheduler.add_job(

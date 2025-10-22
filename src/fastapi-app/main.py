@@ -36,7 +36,8 @@ from api.routers import (
     gaps_router,
     insights_router,
     chatbot_router,  # Sprint 11
-    health_monitoring_router  # Sprint 13 (pivoted)
+    health_monitoring_router,  # Sprint 13 (pivoted)
+    ml_predictions_router  # sklearn predictions
 )
 
 # Setup logging (console only to avoid permission issues)
@@ -99,6 +100,7 @@ app.include_router(gaps_router)
 app.include_router(insights_router)
 app.include_router(chatbot_router)  # Sprint 11
 app.include_router(health_monitoring_router)  # Sprint 13 (pivoted to health monitoring)
+app.include_router(ml_predictions_router)  # sklearn predictions
 
 logger.info("✅ API routers registered")
 

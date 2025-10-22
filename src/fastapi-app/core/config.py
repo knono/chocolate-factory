@@ -214,7 +214,7 @@ class Settings(BaseSettings):
     # CHATBOT SETTINGS (Sprint 11 - Migrated to Haiku 4.5)
     # =================================================================
     CHATBOT_MODEL: str = "claude-haiku-4-5"
-    CHATBOT_MAX_TOKENS: int = 300  # Respuestas concisas
+    CHATBOT_MAX_TOKENS: int = 500  # Respuestas completas (aumentado Oct 22, 2025)
     CHATBOT_RATE_LIMIT: str = "20/minute"  # Max requests per minute
     CHATBOT_CONTEXT_MAX_TOKENS: int = 2000  # Max tokens for context
 

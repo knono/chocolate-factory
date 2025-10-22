@@ -184,6 +184,16 @@ class ChatbotContextService:
             prod_status = current.get('production_status', 'N/A')
             efficiency = current.get('factory_efficiency', 'N/A')
 
+            # Extraer predicciones sklearn (restauradas Oct 22, 2025)
+            predictions = data.get('predictions', {})
+            energy_opt = predictions.get('energy_optimization', {})
+            prod_rec = predictions.get('production_recommendation', {})
+
+            energy_score = energy_opt.get('score', 'N/A')
+            energy_rec = energy_opt.get('recommendation', 'N/A')
+            prod_class = prod_rec.get('class', 'N/A')
+            prod_confidence = prod_rec.get('confidence', 'N/A')
+
             context = f"""ESTADO ACTUAL CHOCOLATE FACTORY
 Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 Precio energía actual: {price} €/kWh
@@ -193,7 +203,11 @@ Humedad: {humidity}%
 Presión: {pressure} hPa
 Confort: {comfort}
 Estado producción: {prod_status}
-Eficiencia fábrica: {efficiency}%"""
+Eficiencia fábrica: {efficiency}%
+
+🤖 PREDICCIONES ML (sklearn):
+Optimización energética: {energy_score}/100 ({energy_rec})
+Recomendación producción: {prod_class} (confianza {prod_confidence}%)"""
 
             logger.info(f"Context built successfully with {len(context)} chars")
             return context
