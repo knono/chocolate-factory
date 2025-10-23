@@ -1,604 +1,371 @@
-# SPRINT 13: Tailscale Observability
+# SPRINT 13: Tailscale Health Monitoring
 
-**Estado**: COMPLETADO
-**Prerequisito**: Sprint 11-12 completados, Tailscale sidecar operacional
-**Duración**: 8 horas
-**Fecha inicio**: 2025-10-21
-**Fecha finalización**: 2025-10-21
-
----
-
-## Objetivo
-
-Implementar sistema de observabilidad Tailscale usando CLI nativo para monitoring autónomo 24/7 de accesos y dispositivos en la Tailnet.
+**Status**: COMPLETED
+**Duration**: 8 hours (includes pivot)
+**Date**: Oct 21, 2025
+**Pivot**: 18:00 (analytics → health monitoring + event logs)
+**Completion**: 19:30
 
 ---
 
-## Justificación Técnica: CLI Nativo vs MCP/Skills
+## Objective
 
-### Decisión: CLI Nativo Exclusivamente
+Implement autonomous Tailscale health monitoring with proactive alerts for critical nodes, using native CLI for 24/7 operation.
 
-**Opciones evaluadas**:
-1. **MCP (@tailscale/mcp-server)** - Servidor MCP third-party de Tailscale
-2. **Skills (Claude Code)** - Skills personalizados para Claude Code
-3. **CLI Nativo** - Comandos `tailscale` subprocess Python (SELECCIONADO)
+---
 
-### Análisis Comparativo
+## Technical Decision: CLI Native via HTTP Proxy
 
-| Aspecto | MCP | Skills | CLI Nativo |
-|---------|-----|--------|------------|
-| **Autonomía** | ❌ Requiere Claude Desktop activo | ❌ Requiere sesión Claude Code | ✅ APScheduler 24/7 |
-| **Latencia** | ~1.5s (API call overhead) | ~0.5-1s (Claude invocation) | <0.2s (subprocess directo) |
-| **Dependencias** | npm + @tailscale/mcp-server | Claude Code runtime | Zero (solo CLI instalado) |
-| **Disponibilidad** | Solo con Claude Desktop | Solo en sesiones Claude Code | Siempre disponible |
-| **Mantenimiento** | Depende de Tailscale MCP updates | Depende de Claude Code | Estándar subprocess |
-| **Use case** | Queries ad-hoc interactivas | Queries ad-hoc en desarrollo | Monitoring continuo |
+**Selected**: CLI native with HTTP proxy server
+**Rejected**: MCP (@tailscale/mcp-server), Claude Code Skills
 
-### Razones de la Decisión
+**Rationale**:
 
-**1. Requisito de Autonomía 24/7**
+| Aspect | MCP/Skills | CLI Native (HTTP Proxy) |
+|--------|-----------|-------------------------|
+| Autonomy | Requires active Claude session | APScheduler 24/7 |
+| Latency | 1-1.5s (API overhead) | <100ms (HTTP local) |
+| Dependencies | npm + runtime | Zero (socat only) |
+| Availability | Manual invocation | Always available |
+| Use case | Ad-hoc queries | Continuous monitoring |
 
-El sistema Chocolate Factory opera con APScheduler:
-- 11 jobs automatizados actualmente
-- Ingesta datos cada 5 minutos
-- ML retraining cada 30 minutos
-- Analytics debe ser igualmente autónomo
+**Architecture Consistency**:
+- Existing pattern: `APScheduler → Services → InfluxDB → Dashboard`
+- This sprint: `APScheduler → TailscaleHealthService (HTTP proxy) → InfluxDB → Dashboard`
 
-**MCP/Skills NO cumplen**: Requieren intervención manual (sesión Claude activa).
-
-**2. Stack Architecture Consistency**
-
-Arquitectura actual:
-```
-APScheduler → Services → InfluxDB → Dashboard
-```
-
-Añadir analytics con CLI nativo mantiene el patrón:
-```
-APScheduler → TailscaleAnalyticsService (subprocess CLI) → InfluxDB → Dashboard
-```
-
-**MCP/Skills rompen el patrón**: Introducen dependencia runtime externa.
-
-**3. Zero Overhead**
-
-Performance medido:
+**Performance**:
 - `tailscale status --json`: 50-200ms
 - `tailscale whois <ip>`: 30-100ms
+- HTTP proxy overhead: <50ms
 
-MCP overhead: +1-1.5s latencia adicional (API calls, serialización JSON, network).
-
-**4. Separation of Concerns**
-
-- **CLI Nativo**: Monitoring autónomo (producción)
-- **MCP/Skills**: Queries interactivas (desarrollo/debugging)
-
-Para monitoring 24/7, CLI nativo es la herramienta correcta.
-
-### Conclusión
-
-MCP y Skills son herramientas válidas para **consultas ad-hoc interactivas**, pero inadecuadas para **sistemas autónomos de monitoring**.
-
-El proyecto ya tiene un patrón establecido (APScheduler + Services + InfluxDB) que funciona perfectamente para este caso de uso.
+**Security**:
+- No Docker socket exposure (rejected subprocess approach)
+- HTTP proxy on localhost:8765 only
+- Sidecar-to-FastAPI communication via HTTP
 
 ---
 
-## Arquitectura
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  TAILSCALE CLI (Host)                   │
-│  ├─ tailscale status --json                             │
-│  └─ tailscale whois <ip>                                │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────┐
-│         TailscaleAnalyticsService (Python)              │
-│  ├─ subprocess.run(['tailscale', 'status', '--json'])   │
-│  ├─ Parse nginx access logs                             │
-│  ├─ Correlate IP → User/Device (whois)                  │
-│  └─ Enrich log entries                                  │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────┐
-│              InfluxDB (analytics bucket)                │
-│  - Measurement: tailscale_access                        │
-│  - Tags: user, device, endpoint                         │
-│  - Fields: status, response_time                        │
-└─────────────────────────────────────────────────────────┘
-                           ↓
-┌─────────────────────────────────────────────────────────┐
-│                  Dashboard Widget                       │
-│  - Accesos última semana                                │
-│  - Usuarios únicos                                      │
-│  - Dispositivos activos                                 │
-│  - Endpoints más visitados                              │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│   Tailscale CLI (Sidecar Container) │
+│   ├─ tailscale status --json        │
+│   └─ tailscale whois <ip>           │
+└─────────────────────────────────────┘
+              ↓ (socat HTTP proxy)
+┌─────────────────────────────────────┐
+│   HTTP Server (port 8765, socat)    │
+│   ├─ GET /status                    │
+│   └─ GET /whois/<ip>                │
+└─────────────────────────────────────┘
+              ↓ (httpx.Client)
+┌─────────────────────────────────────┐
+│   TailscaleHealthService (FastAPI)  │
+│   ├─ get_health_summary()           │
+│   ├─ check_node_reachability()      │
+│   └─ calculate_uptime()             │
+└─────────────────────────────────────┘
+              ↓
+┌─────────────────────────────────────┐
+│   InfluxDB (analytics bucket)       │
+│   - health_metrics                  │
+│   - node_status                     │
+└─────────────────────────────────────┘
 ```
 
 ---
 
-## Entregables
+## Implementation
 
-### 1. TailscaleAnalyticsService
+### HTTP Proxy Server (Sidecar)
 
-**Archivo**: `src/fastapi-app/services/tailscale_analytics_service.py`
+**File**: `docker/tailscale-http-server.sh` (48 lines)
 
-**Responsabilidades**:
-- Ejecutar `tailscale status --json` para listar dispositivos
-- Ejecutar `tailscale whois <ip>` para identificar usuarios
-- Parsear nginx access logs del sidecar
-- Correlacionar IP Tailscale con usuario/dispositivo
-- Almacenar métricas en InfluxDB
-
-**Métodos principales**:
-```python
-async def get_active_devices() -> List[Dict]
-async def whois_ip(ip: str) -> Dict[str, Any]
-async def parse_nginx_logs(hours: int) -> List[Dict]
-async def store_analytics(log: Dict)
-```
-
----
-
-### 2. API Router
-
-**Archivo**: `src/fastapi-app/api/routers/analytics.py`
+**Method**: socat TCP listener on port 8765
 
 **Endpoints**:
-- `GET /analytics/devices` - Dispositivos activos en Tailnet
-- `GET /analytics/access-logs?hours=N` - Access logs con usuario identificado
-- `GET /analytics/dashboard-usage?days=N` - Métricas de uso del dashboard
+- `GET /status` → `tailscale status --json`
+- `GET /whois/<ip>` → `tailscale whois <ip> --json`
+
+**Security**: Localhost only (not exposed externally)
+
+**Integration**:
+- `docker/tailscale-sidecar.Dockerfile`: Install socat
+- `docker/tailscale-start.sh`: Launch HTTP server in background
+- `docker-compose.yml`: Shared volume `tailscale_state` (read-only)
 
 ---
 
-### 3. Dashboard Widget
+### Backend Services
 
-**Archivo**: `static/js/components/analytics-widget.js`
+**1. TailscaleHealthService** (`services/tailscale_health_service.py`, 316 lines)
 
-**Renderiza**:
-- Accesos totales última semana
-- Usuarios únicos
-- Dispositivos conectados
-- Lista actividad reciente (últimos 5 accesos)
+**Methods**:
+- `get_active_devices()` → HTTP GET /status
+- `whois_ip(ip)` → HTTP GET /whois/<ip>
+- `get_health_summary()` → Overall health + critical nodes percentage
+- `check_node_reachability()` → Test connectivity
+- `calculate_uptime(hostname)` → Uptime % last 24h
 
-**Actualización**: Auto-refresh cada 5 minutos
+**HTTP Client**: httpx.Client to localhost:8765
+
+**2. HealthLogsService** (`services/health_logs_service.py`, 221 lines)
+
+**Methods**:
+- `generate_event_logs()` → Synthetic logs from current state
+- `filter_logs(severity, event_type)` → Filter by criteria
+- `paginate_logs(page, per_page)` → 20 events per page
+
+**Event Types**:
+- `health_check` - Periodic system checks
+- `node_online` - Node healthy
+- `node_offline` - Node down (generates alert)
+- `alert` - System alerts
 
 ---
 
-### 4. APScheduler Job
+### API Endpoints
 
-**Archivo**: `src/fastapi-app/tasks/analytics_jobs.py`
+**File**: `api/routers/health_monitoring.py` (209 lines)
 
-**Job**: `collect_analytics()`
-- Frecuencia: Cada 15 minutos
-- Proceso: Parse logs última hora → Enrich con whois → Store InfluxDB
+**Endpoints**:
+```
+GET /health-monitoring/summary
+    → Overall health + critical nodes percentage
 
----
+GET /health-monitoring/critical
+    → Status of critical nodes only (production/development/git)
 
-### 5. Nginx Logs Persistence
+GET /health-monitoring/alerts
+    → Active alerts (nodes down >2 min)
 
-**Configuración**: Bind mount en `docker-compose.override.yml`
+GET /health-monitoring/nodes?project_only=true
+    → Node details (default: 3 critical nodes, false: all 12)
 
-```yaml
-volumes:
-  - ./logs/sidecar:/var/log/nginx:rw
+GET /health-monitoring/uptime/{hostname}
+    → Uptime percentage last 24h
+
+GET /health-monitoring/logs?page=1&severity=&event_type=
+    → Event logs with pagination (20/page) and filters
 ```
 
----
-
-## Checklist de Implementación
-
-- [x] **(2h)** Crear `services/tailscale_analytics_service.py`
-  - [x] Método `get_active_devices()` con HTTP client
-  - [x] Método `whois_ip()` con HTTP client
-  - [x] Método `parse_nginx_logs()` con regex
-  - [x] Método `store_analytics()` con InfluxDB client
-  - [x] HTTP proxy en vez de subprocess (seguridad)
-
-- [x] **(2h)** Crear `api/routers/analytics.py`
-  - [x] Endpoint `GET /analytics/devices`
-  - [x] Endpoint `GET /analytics/quota-status`
-  - [x] Endpoint `GET /analytics/access-logs`
-  - [x] Endpoint `GET /analytics/dashboard-usage`
-  - [x] Registrar router en `main.py`
-
-- [x] **(2h)** Dashboard VPN
-  - [x] Crear `static/vpn.html`
-  - [x] Crear `static/css/vpn-dashboard.css`
-  - [x] Crear `static/js/vpn-dashboard.js`
-  - [x] Integrar endpoint `/vpn` en main.py
-
-- [x] **(1h)** APScheduler jobs
-  - [x] Crear `tasks/analytics_jobs.py`
-  - [x] Job `collect_analytics()` cada 15 min
-  - [x] Job `log_tailscale_status()` cada hora
-  - [x] Registrar en `scheduler_config.py`
-
-- [x] **(1h)** HTTP Proxy Server en Sidecar
-  - [x] Crear `docker/tailscale-http-server.sh` (socat)
-  - [x] Actualizar `docker/tailscale-sidecar.Dockerfile` (instalar socat)
-  - [x] Actualizar `docker/tailscale-start.sh` (lanzar HTTP server)
-  - [x] Configurar nginx para exponer `/analytics/*` y `/vpn`
-
-- [x] **(1h)** Testing y validación
-  - [x] Test endpoints retornan 200
-  - [x] Test clasificación dispositivos (own/shared/external)
-  - [x] Test quota tracking (0/3 usuarios)
-  - [x] Test logs parsing funciona correctamente
+**Filters**:
+- `project_only`: true (3 critical nodes) | false (all nodes)
+- `severity`: ok | warning | critical
+- `event_type`: health_check | node_online | node_offline | alert
 
 ---
 
-## Criterios de Éxito
+### APScheduler Jobs
 
-- ✅ **3 endpoints /analytics/** operacionales
-- ✅ **Dashboard widget** muestra datos reales última semana
-- ✅ **APScheduler job** recolecta analytics cada 15 min
-- ✅ **Nginx logs** persisten entre reinicios
-- ✅ **InfluxDB bucket analytics** guarda históricos
-- ✅ **Zero dependencias externas** (solo Tailscale CLI del host)
+**File**: `tasks/health_monitoring_jobs.py`
 
----
+**Jobs**:
+1. `collect_health_metrics()` - Every 5 min → InfluxDB analytics bucket
+2. `log_health_status()` - Every hour → Log health summary
+3. `check_critical_nodes()` - Every 2 min → Proactive alerts
 
-## Problemas Potenciales
-
-### Problema 1: Tailscale CLI no disponible en container
-
-**Síntomas**: `subprocess.run(['tailscale', ...])` falla con "command not found"
-
-**Solución A** (Preferida): Ejecutar desde host
-```python
-# Service ejecuta comando en host via docker exec
-result = subprocess.run(
-    ["docker", "exec", "chocolate_factory_brain", "tailscale", "status", "--json"],
-    capture_output=True
-)
-```
-
-**Solución B**: Instalar Tailscale CLI en container
-```dockerfile
-# docker/fastapi.Dockerfile
-RUN curl -fsSL https://tailscale.com/install.sh | sh
-```
-
-### Problema 2: Nginx logs Permission Denied
-
-**Síntomas**: FileNotFoundError o Permission denied al leer `/logs/sidecar/access.log`
-
-**Solución**:
-```bash
-mkdir -p ./logs/sidecar
-chmod -R 755 ./logs/sidecar/
-# Reiniciar sidecar para regenerar logs con permisos correctos
-docker compose restart chocolate-factory
-```
-
-### Problema 3: Parsing nginx logs falla
-
-**Síntomas**: Regex no matchea líneas del log
-
-**Solución**: Verificar formato real del log nginx:
-```bash
-tail -n 5 ./logs/sidecar/access.log
-```
-
-Ajustar regex según formato:
-```python
-# Formato esperado:
-# 100.x.x.x - - [21/Oct/2025:14:32:15 +0000] "GET /dashboard HTTP/1.1" 200
-pattern = r'(\d+\.\d+\.\d+\.\d+) .* \[(.+?)\] "(\w+) (.+?) HTTP.*?" (\d+)'
-```
+**Registered**: `tasks/scheduler_config.py`
 
 ---
 
-## Valor del Sprint
+### Dashboard
 
-**Beneficios inmediatos**:
-1. Visibilidad completa de accesos Tailnet
-2. Identificación automática de usuarios/dispositivos
-3. Métricas históricas en InfluxDB
-4. Dashboard widget integrado
-5. Monitoring autónomo 24/7
+**Files**:
+- `static/vpn.html` (182 lines)
+- `static/css/vpn-dashboard.css` (659 lines)
+- `static/js/vpn-dashboard.js` (435 lines)
 
-**Métricas**:
-- Latencia queries: <200ms (subprocess directo)
-- Overhead RAM: <5MB (sin dependencias externas)
-- Autonomía: 100% (APScheduler)
-- Mantenimiento: Zero (CLI estándar)
+**Components**:
+1. Health Summary Card - Gauge visual (100% health)
+2. Critical Nodes Grid - Production/Development/Git status
+3. Active Alerts Section
+4. Node Details Table - Filtered to project nodes
+5. Event Logs - Paginated with filters
 
----
+**Access**: `https://<tailnet>.ts.net/vpn` or `http://localhost:8000/vpn`
 
-## Referencias
-
-- **Tailscale CLI**: https://tailscale.com/kb/1080/cli
-- **nginx logs**: http://nginx.org/en/docs/http/ngx_http_log_module.html
-- **InfluxDB Python client**: https://influxdb-client.readthedocs.io/
+**Auto-refresh**: 30 seconds
 
 ---
 
-## Implementación Final
+## Critical Pivot (Oct 21, 18:00)
 
-### Decisión de Arquitectura: HTTP Proxy (Opción A)
+**Reason**: Initial analytics implementation provided no actionable value
 
-**Cambio durante implementación**: Se descartó subprocess CLI por razones de seguridad.
+**Problem Identified**:
+- VPN dashboard showed only device snapshots
+- nginx logs empty (not configured correctly)
+- Metrics lacked historical context
+- User feedback: "No value when connecting with iPhone"
 
-**Problema identificado**:
-- Subprocess requería Docker socket mount (`/var/run/docker.sock`)
-- Esto equivale a acceso root al host (violación seguridad)
-- Superficie de ataque amplia si hay vulnerabilidad en FastAPI
+**Decision**: Pivot to Health Monitoring (Option 2+3)
 
-**Solución implementada**: HTTP Proxy Server en Sidecar
-- Script `socat` en puerto 8765 (localhost only)
-- Endpoints: `/status` y `/whois/<ip>`
-- FastAPI usa `httpx.Client` para comunicación HTTP
-- Zero exposición Docker socket
-- Patrón HTTP estándar y limpio
+**Changes**:
+- Maintained: HTTP proxy server (useful infrastructure)
+- Eliminated: VPN dashboard, nginx log parsing, analytics without value (632 lines removed)
+- Pivoted to: Health monitoring with actionable metrics
 
-### Archivos Creados/Modificados
+**Files Eliminated**:
+- Original `static/vpn.html` (176 lines)
+- Original `static/css/vpn-dashboard.css` (215 lines)
+- Original `static/js/vpn-dashboard.js` (241 lines)
+- Endpoint `/vpn` (original version)
 
-**Backend Python**:
-1. `services/tailscale_analytics_service.py` (455 líneas) - HTTP client en vez de subprocess
-2. `api/routers/analytics.py` (224 líneas) - 4 endpoints analytics
-3. `tasks/analytics_jobs.py` (104 líneas) - 2 APScheduler jobs
-
-**Sidecar Infrastructure**:
-4. `docker/tailscale-http-server.sh` (48 líneas) - Servidor HTTP con socat
-5. `docker/tailscale-sidecar.Dockerfile` - Instala `socat`
-6. `docker/tailscale-start.sh` - Lanza HTTP server en background
-7. `docker/sidecar-nginx.conf` - Expone `/analytics/*` y `/vpn`
-
-**Frontend Dashboard**:
-8. `static/vpn.html` (176 líneas) - Dashboard VPN
-9. `static/css/vpn-dashboard.css` (215 líneas) - Estilos dark theme
-10. `static/js/vpn-dashboard.js` (241 líneas) - Lógica + auto-refresh
-
-**Configuration**:
-11. `main.py` - Registra analytics_router + endpoint `/vpn`
-12. `api/routers/__init__.py` - Exporta analytics_router
-13. `tasks/scheduler_config.py` - Registra 2 jobs analytics
-14. `docker-compose.yml` - Volumen compartido tailscale_state (read-only)
-
-### Resultados de Testing
-
-**Endpoints operacionales**:
-```bash
-GET /analytics/devices         → 200 OK (4 dispositivos detectados)
-GET /analytics/quota-status    → 200 OK (0/3 usuarios externos)
-GET /analytics/access-logs     → 200 OK (logs parsing correcto)
-GET /analytics/dashboard-usage → 200 OK (placeholder InfluxDB)
-GET /vpn                       → 302 Redirect to /static/vpn.html
-```
-
-**Clasificación dispositivos**:
-- Own nodes: 4 detectados (nono-desktop, git, chocolate-factory-dev, cafeteria-rosario)
-- Shared nodes: 0
-- External users: 0 (3 slots disponibles en free tier)
-
-**APScheduler Jobs**:
-- `collect_analytics`: Cada 15 min (parsea logs + enrich con whois + store InfluxDB)
-- `log_tailscale_status`: Cada hora (log resumen dispositivos + quota)
-
-### Valor Entregado
-
-**Beneficios**:
-1. Visibilidad completa accesos Tailnet
-2. Clasificación automática dispositivos (own/shared/external)
-3. Tracking quota free tier (3 usuarios)
-4. Dashboard VPN integrado
-5. Monitoring autónomo 24/7 (APScheduler)
-6. **Seguridad mejorada** (sin Docker socket exposure)
-
-**Métricas**:
-- Latencia HTTP proxy: <100ms
-- Overhead RAM: <5MB (socat server)
-- Autonomía: 100% (APScheduler, sin intervención manual)
-- Seguridad: Zero Docker socket exposure
-
----
-
-## ⚠️ PIVOTE CRÍTICO - SPRINT 13 REENFOCADO (Oct 21, 18:00)
-
-**Razón del Pivote**: Implementación inicial (analytics) NO aportaba valor real
-
-### Problema Detectado por Usuario
-- Dashboard VPN solo mostraba snapshot de dispositivos activos
-- Access logs vacíos (nginx logs no configurados correctamente)
-- Métricas sin contexto histórico ni valor accionable
-- Feedback usuario: "No veo cambios al conectarme con iPhone, no aporta información de valor"
-
-### Decisión: Pivote Camino Medio (Opción 2+3)
-- ✅ **Mantener**: HTTP proxy server (infraestructura útil)
-- ❌ **Eliminar**: VPN dashboard, parse_nginx_logs, analytics sin valor
-- ✅ **Pivotar a**: Health Monitoring con métricas útiles y accionables
-
-### Resultado del Pivote
-
-**Archivos Eliminados** (sin valor):
-- `static/vpn.html` (176 líneas)
-- `static/css/vpn-dashboard.css` (215 líneas)
-- `static/js/vpn-dashboard.js` (241 líneas)
-- Endpoint `/vpn` en main.py
-- Total eliminado: 632 líneas sin valor
-
-**Archivos Pivotados**:
+**Files Pivoted**:
 1. `tailscale_analytics_service.py` → `tailscale_health_service.py`
-   - Eliminado: `parse_nginx_logs()`, quota tracking sin uso
-   - Agregado: `get_health_summary()`, `check_node_reachability()`, `calculate_uptime()`
-   - Reducido: 455 → 316 líneas (enfoque en salud)
+   - Removed: `parse_nginx_logs()`, unused quota tracking
+   - Added: `get_health_summary()`, `check_node_reachability()`, `calculate_uptime()`
+   - Size: 455 → 316 lines
 
 2. `api/routers/analytics.py` → `health_monitoring.py`
-   - Eliminado: 4 endpoints analytics sin valor
-   - Agregado: 5 endpoints health útiles
-   - 224 → 209 líneas
+   - Removed: 4 analytics endpoints without value
+   - Added: 6 health endpoints with actionable data
+   - Size: 224 → 209 lines
 
 3. `tasks/analytics_jobs.py` → `health_monitoring_jobs.py`
-   - Eliminado: `collect_analytics()` (logs parsing)
-   - Agregado: `collect_health_metrics()`, `check_critical_nodes()`
-   - Cambio: Cada 15 min → Cada 5 min (métricas), + job cada 2 min (critical)
-
-**Nuevos Endpoints con Valor Real**:
-```
-GET /health-monitoring/summary      → Overall health + critical nodes %
-GET /health-monitoring/critical     → Status nodos críticos (prod/dev/git)
-GET /health-monitoring/alerts       → Alertas activas (nodos caídos)
-GET /health-monitoring/nodes        → Detalle todos los nodos
-GET /health-monitoring/uptime/{hostname}  → Uptime % últimas 24h
-```
-
-**APScheduler Jobs (3 automáticos)**:
-- `collect_health_metrics` - Cada 5 min → InfluxDB analytics bucket
-- `log_health_status` - Cada hora → Log resumen salud
-- `check_critical_nodes` - Cada 2 min → Alertas proactivas
-
-**Valor Entregado Post-Pivote**:
-1. ✅ Health percentage nodos críticos (prod/dev/git): 100%
-2. ✅ Alertas cuando nodo crítico cae >2 minutos
-3. ✅ Uptime histórico por nodo (InfluxDB)
-4. ✅ Status lights: healthy/degraded/critical
-5. ✅ Métricas accionables para operaciones
+   - Removed: `collect_analytics()` (log parsing)
+   - Added: `collect_health_metrics()`, `check_critical_nodes()`
+   - Frequency: Every 15 min → Every 5 min (metrics) + Every 2 min (critical checks)
 
 ---
 
-**Fecha creación**: 2025-10-21
-**Fecha pivote**: 2025-10-21 (18:00)
-**Fecha completado**: 2025-10-21 (19:30)
-**Versión**: 6.0 (Health Monitoring + Event Logs - FINAL)
-**Sprint anterior**: Sprint 12 - Forgejo CI/CD
-**Decisión clave**: Pivotar de analytics a health monitoring + agregar event logs paginados
+## Post-Pivot Implementation
+
+### Event Logs System (Added)
+
+**Service**: `services/health_logs_service.py` (221 lines)
+
+**Features**:
+- Synthetic logs based on current state
+- Pagination (20 events per page)
+- Filters by severity and event_type
+- Compact summary (1 line)
+
+**Integration**:
+- Endpoint: `/health-monitoring/logs`
+- Dashboard: Real-time event logs section
+
+### Project Node Filtering
+
+**Default**: Only 3 critical nodes (production/development/git)
+**Optional**: `?project_only=false` shows all 12 nodes
+
+**Critical Nodes**:
+- chocolate_factory_brain (production)
+- chocolate_factory_dev (development)
+- git (CI/CD server)
 
 ---
 
-## 📋 DOCUMENTACIÓN FINAL - SPRINT 13 COMPLETADO
+## Testing & Validation
 
-### Implementación Completada
+**Endpoints Verified**:
+```bash
+✅ GET /health-monitoring/summary          → 200 OK (3/3 critical online)
+✅ GET /health-monitoring/critical         → 200 OK (100% healthy)
+✅ GET /health-monitoring/alerts           → 200 OK (0 alerts)
+✅ GET /health-monitoring/nodes            → 200 OK (3 nodes filtered)
+✅ GET /health-monitoring/logs?page=1      → 200 OK (13 events)
+✅ GET /vpn                                → 307 Redirect
+✅ GET /static/vpn.html                    → 200 OK
+```
 
-**Fecha finalización**: 2025-10-21 19:30
-**Estado**: ✅ COMPLETADO Y DOCUMENTADO
+**Device Classification**:
+- Own nodes: 4 detected (nono-desktop, git, chocolate-factory-dev, cafeteria-rosario)
+- Shared nodes: 0
+- External users: 0 (3 slots available in free tier)
 
-#### Entregables Finales
+---
 
-1. **Dashboard VPN Health Monitoring** (`/vpn`)
-   - Health summary card con gauge visual (100% health)
-   - Grid de nodos críticos (Production, Development, Git)
-   - Sección de alertas activas
-   - Tabla detallada de nodos (filtrada a proyecto)
-   - **Event Logs paginados con filtros**
+## Results & Metrics
 
-2. **Event Logs System** (NUEVO - Post-Pivote)
-   - Servicio de logs sintéticos basados en estado actual
-   - Endpoint `/health-monitoring/logs` con paginación
-   - Filtros por severity (ok/warning/critical) y event_type
-   - Summary compacto (1 línea)
-   - 20 eventos por página con navegación
+**Current Status**:
+- Critical nodes: 3/3 online (100% healthy)
+- Total network: 6/12 nodes online
+- Active alerts: 0
+- Event logs: 13+ events available
+- Auto-refresh: 30 seconds
 
-3. **Filtrado de Nodos del Proyecto**
-   - Por defecto: solo 3 nodos críticos (production/development/git)
-   - Parámetro opcional `?project_only=false` para ver todos
+**Performance**:
+- HTTP proxy latency: <100ms
+- RAM overhead: <5MB (socat server)
+- Autonomy: 100% (APScheduler)
+- Security: Zero Docker socket exposure
 
-#### Archivos Creados/Modificados
+---
+
+## Value Delivered
+
+1. Complete visibility of critical node status
+2. Real-time event logs with simulated history
+3. Functional pagination and filters
+4. Compact summary (1 line instead of 4 boxes)
+5. Professional responsive dashboard
+6. Zero sensitive information exposure (placeholders)
+7. Autonomous 24/7 monitoring (APScheduler)
+8. Proactive alerts for critical nodes down >2 min
+9. Improved security (HTTP proxy vs Docker socket)
+
+---
+
+## Files Created/Modified
 
 **Backend**:
-1. `services/health_logs_service.py` (221 líneas) - Generador de event logs
-2. `api/routers/health_monitoring.py` - 6 endpoints total
-   - `/summary` - Resumen general de salud
-   - `/critical` - Solo nodos críticos
-   - `/alerts` - Alertas activas
-   - `/nodes` - Detalle de nodos (con filtro project_only)
-   - `/uptime/{hostname}` - Uptime de nodo específico
-   - `/logs` - Event logs paginados (NUEVO)
+- `services/tailscale_health_service.py` (316 lines)
+- `services/health_logs_service.py` (221 lines)
+- `api/routers/health_monitoring.py` (209 lines)
+- `tasks/health_monitoring_jobs.py` (104 lines)
+
+**Sidecar Infrastructure**:
+- `docker/tailscale-http-server.sh` (48 lines)
+- `docker/tailscale-sidecar.Dockerfile` (socat installation)
+- `docker/tailscale-start.sh` (HTTP server launch)
+- `docker/sidecar-nginx.conf` (expose /health-monitoring/*, /vpn)
 
 **Frontend**:
-3. `static/vpn.html` (182 líneas) - Dashboard con logs
-4. `static/css/vpn-dashboard.css` (659 líneas) - Estilos completos
-5. `static/js/vpn-dashboard.js` (435 líneas) - Lógica + paginación
+- `static/vpn.html` (182 lines)
+- `static/css/vpn-dashboard.css` (659 lines)
+- `static/js/vpn-dashboard.js` (435 lines)
 
-**Configuración**:
-6. `src/fastapi-app/main.py` - Endpoint `/vpn` para redirección
+**Configuration**:
+- `main.py` (register router + /vpn endpoint)
+- `api/routers/__init__.py` (export health_monitoring router)
+- `tasks/scheduler_config.py` (register 3 jobs)
+- `docker-compose.yml` (shared volume tailscale_state)
 
-#### Endpoints Disponibles
-
-```bash
-# Health Monitoring
-GET /health-monitoring/summary              # Overall health (100%)
-GET /health-monitoring/critical             # Solo nodos críticos (3)
-GET /health-monitoring/alerts               # Alertas activas (0)
-GET /health-monitoring/nodes                # Nodos del proyecto (default)
-GET /health-monitoring/nodes?project_only=false  # Todos los nodos (12)
-GET /health-monitoring/uptime/{hostname}    # Uptime de nodo
-
-# Event Logs (NUEVO)
-GET /health-monitoring/logs                 # Página 1 (20 eventos)
-GET /health-monitoring/logs?page=2          # Paginación
-GET /health-monitoring/logs?severity=critical  # Filtro por severidad
-GET /health-monitoring/logs?event_type=node_offline  # Filtro por tipo
-```
-
-#### Tipos de Eventos de Log
-
-- `health_check` - Verificaciones periódicas del sistema
-- `node_online` - Nodo conectado y saludable
-- `node_offline` - Nodo caído (genera alerta)
-- `alert` - Alertas del sistema
-
-#### Métricas Actuales
-
-- **Nodos críticos**: 3/3 online (100% healthy)
-- **Total red**: 6/12 nodes online
-- **Alertas activas**: 0
-- **Event logs**: 13+ eventos disponibles
-- **Auto-refresh**: Cada 30 segundos
-
-#### Acceso al Dashboard
-
-- **URL principal**: `https://<your-tailnet>.ts.net/vpn`
-- **URL local dev**: `http://localhost:8000/vpn`
-- **URL directa**: `http://localhost:8000/static/vpn.html`
-
-#### Seguridad
-
-✅ **Información Sensible Protegida**:
-- Código fuente usa `${TAILSCALE_DOMAIN}` (variable de entorno)
-- Sin hardcodeo de dominios Tailscale reales
-- Nombres de nodos genéricos en ejemplos
-- Documentación usa placeholders: `<your-tailnet>.ts.net`
-- Zero exposición de Docker socket (HTTP proxy con socat)
-
-#### Testing Realizado
-
-```bash
-# Endpoints verificados
-✅ GET /health-monitoring/summary          → 200 OK (3/3 críticos online)
-✅ GET /health-monitoring/critical         → 200 OK (100% healthy)
-✅ GET /health-monitoring/alerts           → 200 OK (0 alertas)
-✅ GET /health-monitoring/nodes            → 200 OK (3 nodos filtrados)
-✅ GET /health-monitoring/logs?page=1      → 200 OK (13 eventos)
-✅ GET /vpn                                → 307 Redirect to /static/vpn.html
-✅ GET /static/vpn.html                    → 200 OK (dashboard renderiza)
-```
-
-#### Valor Entregado
-
-1. ✅ Visibilidad completa del estado de nodos críticos
-2. ✅ Event logs en tiempo real con historial simulado
-3. ✅ Paginación y filtros funcionales
-4. ✅ Summary compacto (1 línea en lugar de 4 cajas)
-5. ✅ Dashboard responsive y profesional
-6. ✅ Zero exposición de información sensible
-7. ✅ Monitoreo autónomo 24/7 (APScheduler)
+**Total**: 537 lines backend + 1,276 lines frontend + infrastructure = ~1,813 lines
 
 ---
 
-**Próximos Pasos**:
-- Hacer commit de cambios a feature branch
-- Push a develop para rebuild de imagen dev
-- Deploy a producción
-- Verificar funcionamiento en Tailnet
+## Security
+
+**Sensitive Information Protected**:
+- Code uses `${TAILSCALE_DOMAIN}` (environment variable)
+- No hardcoded Tailscale domains
+- Generic node names in examples
+- Documentation uses placeholders: `<your-tailnet>.ts.net`
+- Zero Docker socket exposure (HTTP proxy with socat)
 
 ---
 
-**Fecha creación**: 2025-10-21
-**Fecha pivote**: 2025-10-21 (18:00)
-**Fecha completado**: 2025-10-21 (19:30)
-**Versión**: 6.0 (Health Monitoring + Event Logs - FINAL)
-**Sprint anterior**: Sprint 12 - Forgejo CI/CD
-**Decisión clave**: Pivotar de analytics a health monitoring + agregar event logs útiles
+## Known Issues
+
+None. All functionality operational.
+
+---
+
+## References
+
+- Tailscale CLI: https://tailscale.com/kb/1080/cli
+- InfluxDB Python client: https://influxdb-client.readthedocs.io/
+
+---
+
+**Created**: Oct 21, 2025
+**Pivoted**: Oct 21, 2025 (18:00)
+**Completed**: Oct 21, 2025 (19:30)
+**Version**: 6.0 (Health Monitoring + Event Logs - Final)
+**Previous Sprint**: Sprint 12 - Forgejo CI/CD
+**Key Decision**: Pivot from analytics to health monitoring + event logs
