@@ -845,7 +845,7 @@ curl https://${TAILSCALE_DOMAIN}/health
 ### Fase 7: Configuración Git (1-2 horas) ✅
 
 - [x] Configurar remotes dobles (GitHub + Forgejo)
-- [x] Documentar flujo de trabajo Git en `docs/GIT_WORKFLOW_DUAL_REMOTES.md`
+- [x] Documentar flujo de trabajo Git en `docs/GIT_WORKFLOW.md`
 - [x] Validar push a ambos servidores simultáneamente
 - [x] Test flujo develop → dev, main → prod
 
@@ -1639,7 +1639,7 @@ Justificación: CI/CD sin tests solo automatiza deploys. Tests previenen bugs en
 - `docker/dev-start.sh` - Startup con SSL para dev sidecar
 - `docker/git-nginx.conf` - Nginx con HTTPS para Forgejo
 - `docker/dev-nginx.conf` - Nginx con HTTPS para development
-- `docs/GIT_WORKFLOW_DUAL_REMOTES.md` - Guía git remotes dobles
+- `docs/GIT_WORKFLOW.md` - Guía git workflow con remotes dobles
 - `.env.example` - Variables para 3 nodos Tailscale
 
 **Pendiente**:

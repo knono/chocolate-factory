@@ -534,15 +534,16 @@ docker compose up -d chocolate-factory
 - **Data freshness**: Always check backfill status when container starts (system not always running)
 - **Gap recovery**: Use backfill when necessary to maintain data currency
 - **API updates**: Ensure REE and AEMET data stays current (remember OpenWeather for 08:00-23:00)
-- **Backfill strategy**: 48h intelligent strategy - OpenWeatherMap for gaps <48h, AEMET for ≥48h (see `docs/BACKFILL_48H_STRATEGY.md`)
+- **Backfill strategy**: 48h intelligent strategy - OpenWeatherMap for gaps <48h, AEMET for ≥48h (see `docs/BACKFILL_SYSTEM.md`)
 
 ### Documentation Structure
 
 **`docs/`** - Technical documentation (permanent)
 - API references (API_REFERENCE.md, ENHANCED_ML_API_REFERENCE.md)
-- Troubleshooting guides (AEMET_TROUBLESHOOTING.md, DATA_PIPELINE_TROUBLESHOOTING.md)
-- System guides (AUTOMATIC_BACKFILL_SYSTEM.md, GAP_DETECTION_STRATEGY.md)
-- Migration docs (GAPS_ROUTER_MIGRATION.md, BACKFILL_48H_STRATEGY.md)
+- Troubleshooting guide (TROUBLESHOOTING.md - consolidated)
+- Backfill system (BACKFILL_SYSTEM.md - consolidated)
+- Git workflow (GIT_WORKFLOW.md - consolidated)
+- Migration docs (GAPS_ROUTER_MIGRATION.md)
 
 **`.claude/`** - Claude Code context (sprints, rules, completion reports)
 - Sprint documentation (`.claude/sprints/ml-evolution/`)
@@ -555,7 +556,7 @@ docker compose up -d chocolate-factory
 ### Intelligent Backfill Strategy (Oct 7, 2025)
 Dual strategy based on gap age: OpenWeatherMap for gaps <48h, AEMET for gaps ≥48h.
 Implementation: `services/backfill_service.py:183-393`
-Documentation: `docs/BACKFILL_48H_STRATEGY.md`
+Documentation: `docs/BACKFILL_SYSTEM.md`
 
 ### AEMET Integration Fix (Sept 19, 2025)
 Fixed imports to `SiarETL`, enhanced logging, proper error handling.
