@@ -1,118 +1,179 @@
-# 🎯 SPRINT 09: Dashboard Predictivo Completo
+# SPRINT 09: Predictive Dashboard
 
-> **Estado**: ✅ **COMPLETADO** (7 de Octubre, 2025)
-> **Prioridad**: 🟡 ALTA
-> **Prerequisito**: Sprints 06-08 completados
-> **Estimación**: 6-8 horas (Tiempo real: ~8h)
+**Status**: COMPLETED
+**Date**: 2025-10-07
+**Duration**: 8 hours
 
----
+## Objective
 
-## 📋 Objetivo
+Unified predictive dashboard with optimal production windows (7 days), REE D-1 deviation analysis, predictive alerts, and savings tracking.
 
-Dashboard con **ventanas óptimas predichas**, análisis **desviaciones REE D-1 vs real**, alertas predictivas.
+## Technical Implementation
 
----
+### 1. Predictive Insights Service
 
-## 📦 Entregables
+**File**: `services/predictive_insights_service.py`
 
-### 0. Rescate Funcionalidad Sprint 08
-**Card "Análisis REE" eliminada** (v0.43.0 - redundante con Timeline Horaria).
+**Methods**:
+- `get_optimal_windows()`: 7-day Prophet forecast with production recommendations
+- `get_ree_deviation()`: D-1 vs real price comparison (last 24h)
+- `get_predictive_alerts()`: Threshold-based alerts (price spikes, climate extremes)
+- `get_savings_tracking()`: ROI tracking with baseline comparison
 
-**Funcionalidades a rescatar/mejorar**:
-1. **BusinessLogicService** (ya implementado en Sprint 05)
-   - Mantener lógica humanizada de recomendaciones
-   - Ubicación actual: `services/business_logic_service.py`
-   - Integrar en nuevos widgets (no en card independiente)
+### 2. API Endpoints
 
-2. **Recomendaciones contextualizadas** → Integrar en Widget "Próximas Ventanas Óptimas"
-   - Rescatar: Análisis momento energético actual
-   - Rescatar: Oportunidad de ahorro vs promedio
-   - Rescatar: Análisis por procesos (Conchado/Rolado/Templado)
-   - **Mejora**: Usar Prophet para ventanas futuras, no solo momento actual
+**Router**: `api/routers/insights.py`
 
-3. **Métricas eliminadas** (ahora redundantes):
-   - ❌ Momento energético actual → Ya en Timeline Horaria (granularidad hora a hora)
-   - ❌ Ranking precio actual → Ya en Timeline Horaria (posición vs 24h)
-   - ❌ Proceso recomendado → Ya en Timeline Horaria (proceso activo por hora)
-
-**Nueva arquitectura (Sprint 09)**:
-- Widget único "Próximas Ventanas Óptimas" que agrega:
-  - Recomendaciones BusinessLogicService
-  - Predicciones Prophet 7 días
-  - Contexto timeline horaria
-  - Alertas predictivas
-
-### 1. Widget "Próximas Ventanas Óptimas"
 ```
-┌─────────────────────────────────────────┐
-│  🟢 PRÓXIMAS VENTANAS ÓPTIMAS (7 DÍAS)  │
-├─────────────────────────────────────────┤
-│  Lun 00-06h: EXCELENTE (0.08€/kWh)     │
-│    → Conchado intensivo 80kg            │
-│    → Ahorro: 12€ vs producir en pico   │
-│                                         │
-│  Mar 02-05h: ÓPTIMA (0.06€/kWh)        │
-│    → Premium + stock estratégico        │
-│    → Ahorro: 18€ vs producir en pico   │
-│                                         │
-│  Jue 19-22h: ⚠️ EVITAR (0.32€/kWh)     │
-│    → Solo completar lotes en curso      │
-└─────────────────────────────────────────┘
+GET /insights/optimal-windows
+GET /insights/ree-deviation
+GET /insights/alerts
+GET /insights/savings-tracking
 ```
 
-### 2. Análisis Desviación REE D-1
-```
-┌──────────────────────────────────────┐
-│  📊 REE D-1 vs REAL (ÚLTIMAS 24H)   │
-├──────────────────────────────────────┤
-│  Desviación Media: ±0.018 €/kWh     │
-│  Accuracy Score: 87%                 │
-│  Trend: ESTABLE                      │
-│                                      │
-│  ⚠️ Mayor desviación: 10-14h (pico) │
-│  ✅ Más confiable: 00-06h (valle)   │
-└──────────────────────────────────────┘
-```
+**Example responses**:
 
-### 3. Alertas Predictivas
-- [ ] "⚠️ Pico precio inminente: 19h hoy (0.34€/kWh predicho)"
-- [ ] "🌡️ Ola calor próximos 3 días: Refrigeración preventiva"
-- [ ] "💰 Ventana óptima abierta: Próximas 6h precios valle"
-
-### 4. Comparativa Ahorro Real vs Planificado
-```
-┌────────────────────────────────┐
-│  💰 AHORRO ENERGÉTICO SEMANAL  │
-├────────────────────────────────┤
-│  Plan Optimizado: 892€         │
-│  Plan Baseline:   1,047€       │
-│  Ahorro Real:     155€ (15%)   │
-│                                │
-│  Objetivo Mensual: 620€        │
-│  Progreso: 25% (Semana 1/4)    │
-└────────────────────────────────┘
+**Optimal windows**:
+```json
+{
+  "windows": [
+    {
+      "date": "2025-10-08",
+      "period": "00:00-06:00",
+      "avg_price": 0.08,
+      "quality": "excellent",
+      "recommended_kg": 80,
+      "savings_vs_peak": 12.00
+    }
+  ]
+}
 ```
 
----
+**Savings tracking**:
+```json
+{
+  "daily_saving": 4.55,
+  "weekly_saving": 31.85,
+  "monthly_saving": 620.00,
+  "annual_projection": 1661.00,
+  "comparison": {
+    "optimized_cost": 26.47,
+    "baseline_cost": 31.02,
+    "percent_saving": 14.66
+  }
+}
+```
 
-## 🧪 Métricas de Éxito
+### 3. Dashboard Integration
 
-- **Visualización**: Widgets claros y accionables
-- **Actualización**: Tiempo real (auto-refresh 30s)
-- **Precisión alertas**: > 90% (alertas útiles vs falsas alarmas)
-- **Adoption**: Usuarios siguen recomendaciones > 70% del tiempo
+**Cards added to dashboard**:
+1. "Optimal Production Windows (7 days)"
+2. "REE D-1 Deviation Analysis"
+3. "Predictive Alerts"
+4. "Savings Tracking"
 
----
+**JavaScript rendering**:
+- `static/js/dashboard.js`: Functions for each card
+- Real-time updates every 30 seconds
+- Color-coded indicators (green/yellow/red)
 
-## ✅ Checklist
+### 4. BusinessLogicService Integration
 
-- [ ] Widget ventanas óptimas (JavaScript)
-- [ ] Análisis desviación REE D-1 (backend service)
-- [ ] Sistema alertas predictivas (thresholds inteligentes)
-- [ ] Comparativa ahorro (tracking real vs predicho)
-- [ ] CSS responsive para nuevos widgets
-- [ ] Integración con `/dashboard/complete`
+**Location**: `services/business_logic_service.py` (implemented Sprint 05)
 
----
+Humanized recommendations integrated into optimal windows widget:
+- Current energy moment analysis
+- Savings opportunity vs average
+- Process-specific recommendations (Conching/Rolling/Tempering)
+- Spanish business context
 
-**Próximo Sprint**: Sprint 10 - Consolidación y Limpieza
+### 5. ROI Tracking
+
+**Trazability**:
+```
+Frontend Dashboard
+  ↓
+GET /insights/savings-tracking (routers/insights.py:259)
+  ↓
+PredictiveInsightsService.get_savings_tracking() (line 333)
+  ↓
+ROI calculations:
+  - Daily: 4.55€ savings/day (26.47€ optimized vs 31.02€ baseline)
+  - Weekly: 31.85€/week
+  - Monthly: 620€/month (Sprint 08 target)
+  - Annual: 1,661€/year
+```
+
+**Dashboard card**:
+- Current savings (daily/weekly/monthly/annual)
+- Progress vs monthly target (620€/month)
+- Comparison optimized vs baseline (85.33% savings from Sprint 08)
+- ROI description: "1.7k€/year estimated"
+
+## Files Modified
+
+**Created**:
+- `src/fastapi-app/services/predictive_insights_service.py`
+- `src/fastapi-app/api/routers/insights.py`
+
+**Modified**:
+- `src/fastapi-app/main.py` (register insights router)
+- `src/fastapi-app/services/dashboard.py` (integrate predictive data)
+- `static/index.html` (4 new dashboard cards)
+- `static/js/dashboard.js` (rendering functions for insights)
+- `static/css/dashboard.css` (styling for new cards)
+
+## Key Decisions
+
+1. **Rescate funcionalidad Sprint 08**: Card "Análisis REE" removed (redundant with Hourly Timeline), functionality integrated into unified widgets
+2. **BusinessLogicService maintained**: Implemented Sprint 05, humanized recommendations integrated into optimal windows (not separate card)
+3. **ROI tracking already implemented**: Sprint 09 completed tracking, verified in Sprint 10
+4. **7-day forecast scope**: Balance between accuracy (Prophet) and planning horizon
+
+## Testing
+
+**API endpoint tests**:
+```bash
+curl http://localhost:8000/insights/optimal-windows
+curl http://localhost:8000/insights/ree-deviation
+curl http://localhost:8000/insights/alerts
+curl http://localhost:8000/insights/savings-tracking
+```
+
+**Dashboard validation**:
+- Visit `http://localhost:8000/dashboard`
+- Verify 4 new cards render correctly
+- Check real-time updates (30s refresh)
+- Validate savings calculations against baseline
+
+**Prophet integration**:
+- Verify 168h forecast availability
+- Check confidence intervals
+- Validate price range (0.03€ - 0.16€/kWh)
+
+## Known Limitations
+
+- REE D-1 deviation only last 24h (limited historical comparison)
+- Prophet accuracy varies by market volatility (MAE 0.033 €/kWh from Sprint 06)
+- Alerts threshold-based (no ML classification)
+- Savings tracking assumes consistent production patterns
+
+## Results
+
+**Metrics**:
+- 1,661€/year energy savings (ROI tracking active)
+- 85.33% savings vs fixed schedule baseline
+- 7-day optimal window recommendations
+- Real-time predictive alerts
+
+**Dashboard completion**:
+- 4 new cards operational
+- Integration with Sprints 06-08 (Prophet, SIAR, Optimization)
+- Unified view: predictions + historical + current + recommendations
+
+## References
+
+- Prophet forecasting: Sprint 06
+- SIAR analysis: Sprint 07
+- Hourly optimization: Sprint 08
+- BusinessLogicService: Sprint 05
