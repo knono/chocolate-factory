@@ -174,11 +174,18 @@ Implemented:
   - 3 APScheduler jobs (metrics 5min, critical check 2min, status log hourly)
   - Critical nodes: 100% healthy (production/development/git)
   - Zero Docker socket exposure (secure)
+- Sprint 14: HYBRID ML Training Optimization (Oct 24, 2025)
+  - Problem: merge INNER with timestamp mismatch (REE hourly vs Weather diario/5min)
+  - Solution Phase 1: RESAMPLE weather to hourly (mean/max/min)
+  - Solution Phase 2: HYBRID training with SIAR historical (8,885 samples, 25 years)
+  - Result: R² 0.334 → 0.963 (191% improvement)
+  - New endpoints: POST /predict/train/hybrid
+  - Prophet router integrated: GET /predict/prices/weekly, /hourly, /train, /status
 
 ### Core Infrastructure (2-Container Architecture)
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
 - **InfluxDB Storage** (chocolate_factory_storage) - Time series database
-- **Tailscale Sidecar** (chocolate-factory) - HTTPS remote access (optional)
+- **Tailscale Sidecar** (<tailscale-hostname>) - HTTPS remote access (optional)
 
 ### Data Integration
 - **REE API**: Real Spanish electricity prices 
@@ -188,14 +195,22 @@ Implemented:
 
 ### Machine Learning (Direct Implementation)
 - **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.033 €/kWh, R²: 0.49)
-- **sklearn Models**: RandomForest (energy optimization + production classification)
+- **sklearn Models**: RandomForest energy optimization (R²: 0.963 with SIAR hybrid training)
+  - Regression: Energy score prediction (0-100)
+  - Classification: Production class (Optimal/Moderate/Reduced/Halt)
 - **Direct Training**: sklearn + Prophet + pickle storage (no external ML services)
-- **Feature Engineering**: Target generation from real data (energy_score, production_class)
+- **HYBRID Training (Oct 24, 2025)**:
+  - Phase 1: SIAR historical (8,885 samples, 25 years, 2000-2025)
+  - Phase 2: REE fine-tune (100 days recent data)
+  - Result: R² 0.334 → 0.963 (191% improvement, 24x more samples)
+- **Feature Engineering**: 5 core features (price, hour, dow, temperature, humidity)
+  - SIAR sources: temperature, humidity from 2 stations (J09, J17)
+  - REE source: price_eur_kwh hourly data
 - **Real-time Predictions**: Energy optimization + production recommendations + price forecasting
-- **Automated ML**: Model retraining and predictions (hourly for Prophet, every 30 min for sklearn)
+- **Automated ML**: Model retraining every 30 min (sklearn), hourly (Prophet)
 - **ROI Tracking**: 1,661€/año ahorro energético demostrable (Sprint 09)
-- **Testing**: 66 tests automatizados (100% pasando, coverage 19% - Sprint 12)
-- **Documentation**: Arquitectura ML completa en `docs/ML_ARCHITECTURE.md` (Sprint 10)
+- **Testing**: 102 tests (36 E2E), 100% passing, 19% coverage (Sprint 12)
+- **Documentation**: `docs/ML_ARCHITECTURE.md` (Sprint 10, updated Oct 24)
 
 ### Operations
 - **APScheduler**: 11 automated jobs (ingestion, ML, Prophet forecasting, backfill, health)

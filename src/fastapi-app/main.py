@@ -37,7 +37,8 @@ from api.routers import (
     insights_router,
     chatbot_router,  # Sprint 11
     health_monitoring_router,  # Sprint 13 (pivoted)
-    ml_predictions_router  # sklearn predictions
+    ml_predictions_router,  # sklearn predictions
+    price_forecast_router  # Sprint 06 - Prophet forecasting
 )
 
 # Setup logging (console only to avoid permission issues)
@@ -101,6 +102,7 @@ app.include_router(insights_router)
 app.include_router(chatbot_router)  # Sprint 11
 app.include_router(health_monitoring_router)  # Sprint 13 (pivoted to health monitoring)
 app.include_router(ml_predictions_router)  # sklearn predictions
+app.include_router(price_forecast_router)  # Sprint 06 - Prophet forecasting
 
 logger.info("✅ API routers registered")
 
