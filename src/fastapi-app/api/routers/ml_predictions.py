@@ -58,3 +58,32 @@ async def train_sklearn_models() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Training failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/train/hybrid")
+async def train_hybrid_models() -> Dict[str, Any]:
+    """
+    🔥 HYBRID TRAINING - OPCIÓN C
+
+    Entrena en 2 fases:
+    - Fase 1: SIAR históricos (88k registros, 25 años, weather patterns)
+    - Fase 2: Fine-tune con REE reciente (100 días, precios actuales)
+
+    Resultado esperado: R² > 0.75, muestras ~7400
+    """
+    try:
+        logger.info("🔥 Iniciando HYBRID TRAINING (OPCIÓN C)...")
+        direct_ml = DirectMLService()
+        results = await direct_ml.train_models_hybrid()
+
+        success = results.get("success", False)
+        status_icon = "✅" if success else "❌"
+
+        return {
+            "status": status_icon,
+            "results": results,
+            "mode": "HYBRID_OPCION_C",
+            "expected_improvement": "R² should increase from 0.33 to 0.75+"
+        }
+    except Exception as e:
+        logger.error(f"Hybrid training failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -189,27 +189,28 @@ Cada sprint se considera **COMPLETADO** cuando:
 
 ## 🔄 Estado Actual del Proyecto
 
-**Serie ML Evolution**: ✅ **COMPLETADA** (Sprints 06-10)
-**Fecha Completitud**: 2025-10-20
-**Completitud Total**: 100% (Sprints 01-10 completados)
+**Serie ML Evolution**: ✅ **COMPLETADA** (Sprints 06-10, 14)
+**Fecha Completitud**: 2025-10-24
+**Completitud Total**: 100% (Sprints 01-14 completados)
 
-**Sprints Completados**: 01, 02, 03, 04, 05, 06, 07, 08, 09, 10 ✅
-**Sprint Pendiente**: Ninguno (ML Evolution completada)
+**Sprints Completados**: 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 14 ✅
+**Sprint Pendiente**: Ninguno (ML Evolution + Optimization completada)
 
 **Logros Serie ML Evolution**:
 - ✅ Prophet forecasting (MAE 0.033 €/kWh)
-- ✅ sklearn optimization (R² 0.85-0.95)
+- ✅ sklearn optimization (R² 0.963 - HYBRID training)
 - ✅ SIAR historical analysis (88,935 registros)
 - ✅ Hourly optimization (85.33% savings)
 - ✅ Predictive dashboard (7 días forecast)
 - ✅ ROI tracking (1,661€/año)
-- ✅ Testing suite (66 tests, 100% pasando - Sprint 12)
+- ✅ Testing suite (102 tests, 100% pasando - Sprint 12)
 - ✅ Arquitectura ML documentada (docs/ML_ARCHITECTURE.md)
+- ✅ HYBRID ML training (Sprint 14): 8,885 samples, R² 0.963 (191% improvement)
 
-**Valor Total Generado**: Sistema ML real, funcional, testeado y documentado con ROI demostrable.
+**Valor Total Generado**: Sistema ML real, funcional, testeado y documentado con ROI demostrable. HYBRID training con 25 años de datos históricos.
 
 ---
 
-**Última actualización**: 2025-10-20
+**Última actualización**: 2025-10-24
 **Autor**: Sistema ML Evolution
-**Versión**: 3.0 (Sprint 10 completado)
+**Versión**: 3.1 (Sprint 14 completado)
