@@ -79,7 +79,7 @@ Energy optimization system combining machine learning price forecasting, automat
 │  │  - FastAPI (prod)                                 │         │
 │  │  - InfluxDB (data ingestion)                      │         │
 │  │  - ML models (Prophet, sklearn)                   │         │
-│  │  - APScheduler (11 jobs)                          │         │
+│  │  - APScheduler (13+ jobs)                         │         │
 │  │  - Port 8000                                      │         │
 │  │  - Nginx SSL                                      │         │
 │  └────────────────────────────────────────────────────┘         │
@@ -97,21 +97,27 @@ Secrets: SOPS encrypted + .env fallback
 src/fastapi-app/
 ├── main.py (76 lines)           # Entry point
 ├── api/                         # HTTP Interface
-│   ├── routers/                 # 10 routers (health, dashboard, ree, weather,
-│   │                            #   optimization, analysis, insights, gaps,
-│   │                            #   chatbot, analytics)
+│   ├── routers/                 # 12 routers (health, ree, weather, dashboard,
+│   │                            #   optimization, analysis, gaps, insights,
+│   │                            #   chatbot, health_monitoring, ml_predictions,
+│   │                            #   price_forecast)
 │   └── schemas/                 # Pydantic models
 ├── domain/                      # Business Logic
 │   ├── energy/forecaster.py    # Price forecasting
 │   └── ml/model_trainer.py     # ML validation
 ├── services/                    # Orchestration
 │   ├── ree_service.py          # REE + InfluxDB
-│   ├── weather_aggregation.py  # Multi-source weather
+│   ├── weather_aggregation_service.py  # Multi-source weather
 │   ├── dashboard.py            # Data consolidation
-│   ├── predictive_insights.py  # ML insights
+│   ├── siar_analysis_service.py  # SIAR historical analysis
+│   ├── hourly_optimizer_service.py  # Production optimization
+│   ├── predictive_insights_service.py  # ML insights
 │   ├── chatbot_service.py      # Claude Haiku API
+│   ├── chatbot_context_service.py  # RAG local context builder
+│   ├── direct_ml.py            # Direct ML training (sklearn, Prophet)
 │   ├── backfill_service.py     # Gap recovery
-│   └── tailscale_analytics_service.py  # Tailscale observability (HTTP)
+│   ├── tailscale_health_service.py  # Tailscale health monitoring
+│   └── health_logs_service.py  # Event logs storage and retrieval
 ├── infrastructure/              # External Systems
 │   ├── influxdb/               # DB client + queries
 │   └── external_apis/          # REE, AEMET, OpenWeatherMap
@@ -160,7 +166,7 @@ Modules: 41 Python files organized by layer
 | **Chatbot** | Claude Haiku 3.5 | Conversational BI (RAG) |
 | **CI/CD** | Forgejo + Gitea Actions | Self-hosted automation |
 | **Registry** | Docker Registry 2.8 | Private image storage |
-| **Scheduling** | APScheduler | 11 automated jobs |
+| **Scheduling** | APScheduler | 13+ automated jobs |
 | **Containerization** | Docker Compose | Orchestration |
 | **Reverse Proxy** | Nginx (Alpine) | SSL + endpoint filtering |
 | **VPN** | Tailscale (WireGuard) | Zero-trust mesh network |
@@ -209,13 +215,15 @@ Modules: 41 Python files organized by layer
 | 10 | Oct 2025 | ML Documentation & Validation | Feature engineering validated |
 | 11 | Oct 2025 | Chatbot BI (Claude Haiku) | RAG + keyword matching |
 | 12 | Oct 2025 | Forgejo CI/CD + Testing Suite | 102 tests, 19% coverage, automated rollback |
-| 13 | Oct 2025 | Health Monitoring (Pivoted) | 5 endpoints, uptime tracking, critical nodes alerts |
+| 13 | Oct 2025 | Health Monitoring (Pivoted) | 6 endpoints, uptime tracking, critical nodes alerts, event logs |
+| 14 | Oct 2025 | Hybrid ML Training Optimization | SIAR (88k) + REE fine-tune, R² 0.334→0.963 (191% improvement) |
 
 ### ML Models
 
-- **Price Forecasting**: Prophet 168h ahead
-- **Energy Optimization**: RandomForest regressor (R²: 0.89)
-- **Production Recommendation**: RandomForest classifier (90% accuracy)
+- **Price Forecasting**: Prophet 168h ahead (MAE: 0.033 €/kWh, R²: 0.49)
+- **Energy Optimization**: RandomForest regressor (R²: 0.963 hybrid training, 191% improvement)
+- **Production Recommendation**: RandomForest classifier (89% accuracy)
+- **Hybrid Training** (Sprint 14): Phase 1 SIAR historical (88k records, 25 years) + Phase 2 REE fine-tune (100 days)
 - **Historical Analysis**: SIAR correlations (R²=0.049 temp, R²=0.057 humidity)
 - **ROI Tracking**: 1,661€/year savings (4.55€/day vs baseline)
 
@@ -420,6 +428,6 @@ Provided as-is for educational and research purposes.
 
 Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-**Current Status**: Sprint 13 completed (Health Monitoring - Pivoted, Oct 21 2025)
+**Current Status**: Sprint 14 completed (Hybrid ML Training Optimization, Oct 24 2025)
 
 </div>

@@ -281,10 +281,10 @@ Implemented:
 - `GET /ree/prices` - Current electricity prices
 
 ### ML Operations
-- `POST /models/train` - Train ML models directly
-- `GET /models/status-direct` - Model health and performance
-- `POST /predict/energy-optimization` - Energy optimization predictions
-- `POST /predict/production-recommendation` - Production recommendations
+- `POST /predict/energy-optimization` - Energy optimization score (0-100) predictions
+- `POST /predict/production-recommendation` - Production class predictions (Optimal/Moderate/Reduced/Halt)
+- `POST /predict/train` - Train sklearn models manually (energy + production)
+- `POST /predict/train/hybrid` - Hybrid training: Phase 1 SIAR (88k records) + Phase 2 REE fine-tune (100 days)
 
 ### Price Forecasting (Sprint 06 - Prophet ML)
 - `GET /predict/prices/weekly` - 168-hour Prophet forecast with confidence intervals
@@ -362,6 +362,14 @@ curl -X POST http://localhost:8000/chat/ask \
 - `GET /dashboard` - Visual dashboard with interactive heatmap
 - `GET /dashboard/complete` - Integrated dashboard JSON data
 - `GET /scheduler/status` - APScheduler job status
+
+### Health Monitoring (Sprint 13 - health_monitoring_router) ✅
+- `GET /health-monitoring/summary` - System health overview
+- `GET /health-monitoring/critical` - Critical nodes status
+- `GET /health-monitoring/alerts` - Active alert summary
+- `GET /health-monitoring/nodes` - Detailed node information
+- `GET /health-monitoring/uptime/{hostname}` - Uptime metrics for specific node
+- `GET /health-monitoring/logs?severity=INFO&event_type=all&page=1` - Event logs with pagination (20 events/page)
 
 ### Weekly Forecast System (✅ Sprint 06 Enhanced)
 - **7-day Prophet predictions**: Real ML forecasts (not simulated)
