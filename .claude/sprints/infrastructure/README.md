@@ -1,20 +1,18 @@
 # Infrastructure Sprints
 
-## Sprint 11: Chatbot BI Conversacional - Claude Haiku API
+## Sprint 11: Chatbot BI Conversacional
 
 **Estado**: COMPLETADO (2025-10-10)
 **Archivo**: [`SPRINT_11_CHATBOT_BI.md`](./SPRINT_11_CHATBOT_BI.md)
 
-Chatbot conversacional integrado en dashboard para consultas en lenguaje natural sobre producción, precios energéticos y clima. Implementa RAG local con keyword matching, 3 endpoints `/chat/*` (ask, stats, health), y rate limiting.
+Chatbot conversacional con Claude Haiku. RAG local (keyword matching), 3 endpoints, rate limiting.
 
-**Implementación**:
-- Chatbot service con Claude Haiku API (193 líneas)
-- RAG local con keyword matching 7 categorías (287 líneas)
-- Widget conversacional integrado en dashboard
-- Tests: 5/5 preguntas
-- Latencia: 10-13s
-- Context: 600-1200 tokens/consulta
-- Costo: €1.74-5.21/mes
+**Código**:
+- chatbot_context_service.py (524 líneas)
+- chatbot_service.py (198 líneas)
+- chatbot.py router (237 líneas)
+
+**Características**: Queries sobre producción/precios/clima, responses 300 tokens max, latencia 10-13s, in-memory stats
 
 ---
 
