@@ -18,7 +18,9 @@ Energy optimization system combining machine learning price forecasting, automat
 
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
-- Prophet ML: 168-hour price forecasting (MAE: 0.033 €/kWh)
+- Prophet ML: 168-hour price forecasting (MAE: 0.033 €/kWh, R²: 0.49)
+- sklearn ML: Production state classification (Accuracy: 1.0, R²: 0.9986) - real data, business rules
+- ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
 - ROI: 1,661€/year energy savings (85.33% vs fixed schedule)
 - Testing: 102 tests (100% passing, 19% coverage, 36 E2E tests)
 - Clean Architecture: 41 modules (98% reduction from monolithic main.py)

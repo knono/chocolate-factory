@@ -11,36 +11,68 @@
 - **Proxy**: Nginx - NO Apache, NO Traefik
 - **Container**: Docker Compose - NO Kubernetes, NO Swarm
 
-### Rutas y Endpoints Principales
+### Routers y Endpoints
 ```python
+# Health
+GET /health, /ready, /version
+
+# Data APIs
+GET /ree/prices
+GET /weather/hybrid
+
+# ML Predictions
+POST /predict/energy-optimization
+POST /predict/production-recommendation
+POST /predict/train, /predict/train/hybrid
+
+# Price Forecasting
+GET /predict/prices/weekly, /hourly
+POST /models/price-forecast/train
+GET /models/price-forecast/status
+
+# Analysis
+GET /analysis/weather-correlation, /seasonal-patterns, /critical-thresholds, /siar-summary
+POST /analysis/forecast/aemet-contextualized
+
+# Production Optimization
+POST /optimize/production/daily
+GET /optimize/production/summary
+
+# Insights
+GET /insights/optimal-windows, /ree-deviation, /alerts, /savings-tracking
+
+# Gaps & Backfill
+GET /gaps/summary, /gaps/detect
+POST /gaps/backfill, /gaps/backfill/auto, /gaps/backfill/range
+
+# Chatbot
+POST /chat/ask
+GET /chat/stats, /chat/health
+
 # Dashboard
-GET /dashboard → HTMLResponse (HTML embebido)
-GET /dashboard/complete → JSON data
-GET /dashboard/alerts → JSON alerts
-GET /dashboard/recommendations → JSON recommendations
+GET /dashboard, /dashboard/complete, /dashboard/summary, /dashboard/alerts
 
-# APIs
-POST /predict/* → ML predictions
-GET /models/* → Model status
-GET /gaps/* → Data gaps detection
-GET /scheduler/* → Scheduler status
+# Health Monitoring
+GET /health-monitoring/summary, /critical, /alerts, /nodes, /uptime/{hostname}, /logs
 ```
 
-### Estructura de Archivos REAL
+### Estructura de Archivos Real
 ```
-src/
-├── fastapi-app/
-│   ├── main.py                 # FastAPI app principal
-│   ├── services/
-│   │   ├── energy_service.py   # REE API
-│   │   ├── weather_service.py  # AEMET/OpenWeather
-│   │   ├── ml_service.py       # Modelos ML
-│   │   └── influx_service.py   # InfluxDB client
-│   └── routers/
-│       ├── dashboard.py        # Dashboard routes
-│       └── api.py              # API routes
-├── models/                      # Pickled ML models
-└── configs/                     # Configuraciones
+src/fastapi-app/
+├── main.py                     # Entry point
+├── api/routers/               # 12 routers
+│   ├── health.py, ree.py, weather.py, dashboard.py
+│   ├── price_forecast.py, ml_predictions.py
+│   ├── optimization.py, analysis.py
+│   ├── gaps.py, insights.py, chatbot.py
+│   └── health_monitoring.py
+├── services/                   # 30+ application services
+├── domain/                     # Business logic
+├── infrastructure/             # External API clients
+├── core/                       # Config, logging, exceptions
+├── tasks/                      # APScheduler jobs
+├── models/                     # Pickled ML models
+└── tests/                      # 102 tests
 ```
 
 ---
@@ -57,35 +89,30 @@ src/
 
 ### Contenedores en Producción
 
-#### 1. **chocolate_factory_brain** - FastAPI App
+#### 1. **chocolate_factory_brain** - FastAPI
 ```yaml
-Imagen: Custom (docker/fastapi.Dockerfile)
+Imagen: docker/fastapi.Dockerfile
 Puerto: 8000
-Volúmenes:
-  - ./src/fastapi-app/services:/app/services
-  - ./models:/app/models
-  - ./docker/services/fastapi/logs:/app/logs
+Volúmenes: Services, models, logs, static files, .claude rules
 Red: backend (192.168.100.0/24)
-Función: API + Dashboard + ML + Scheduler
+Función: API + Dashboard + ML + APScheduler
 ```
 
 #### 2. **chocolate_factory_storage** - InfluxDB
 ```yaml
 Imagen: influxdb:2.7
 Puerto: 8086
-Volúmenes:
-  - ./docker/services/influxdb/data:/var/lib/influxdb2
-  - ./docker/services/influxdb/config:/etc/influxdb2
+Volúmenes: Data, config
 Red: backend
-Función: Time series data storage
+Función: Time series database
 ```
 
 #### 3. **chocolate-factory** - Tailscale Sidecar (Opcional)
 ```yaml
 Imagen: Alpine + Tailscale
 Puerto: 443 (HTTPS)
-Función: Acceso remoto seguro vía Tailnet
-Expone: Solo /dashboard (limitado)
+Función: Remote access via Tailnet
+Expone: /dashboard, /static, limited API
 ```
 
 ## Arquitectura de Red
@@ -106,62 +133,97 @@ Expone: Solo /dashboard (limitado)
                         └─────────────────┘
 ```
 
-### Endpoints de Dashboard
+### Access Points
 
 - **Local**: http://localhost:8000/dashboard
-- **Nginx**: http://localhost/dashboard
-- **Tailscale**: https://[machine-name].tailnet/dashboard
+- **API Dev**: http://localhost:8000/docs
+- **Tailscale**: https://<your-tailnet-host>/dashboard (via Tailnet)
 
-## Acceso por Rutas
+## API Endpoints
 
-### 1. Dashboard Principal
-- **Ruta**: GET /dashboard
-- **Tipo**: HTMLResponse (HTML + CSS + JS embebido)
-- **Función**: Dashboard visual interactivo
-- **Auto-refresh**: 30 segundos vía JavaScript
+### Dashboard
+- **GET /dashboard** - HTMLResponse with embedded static files
+- **GET /dashboard/complete** - Full JSON dashboard data
+- **GET /dashboard/summary** - Quick summary
+- **GET /dashboard/alerts** - System alerts
 
-### 2. APIs de Datos
-- **Base**: /dashboard/*
-- **Formato**: JSON
-- **Endpoints**:
-  - `/dashboard/complete` - Dashboard completo
-  - `/dashboard/alerts` - Alertas activas
-  - `/dashboard/recommendations` - Recomendaciones
-  - `/dashboard/heatmap` - Pronóstico semanal
+### Data Ingestion
+- **GET /ree/prices** - Current electricity prices
+- **GET /weather/hybrid** - Current weather (AEMET/OpenWeather)
+- **POST /ingest-now** - Manual ingestion trigger
 
-### 3. APIs Operacionales
-- `/predict/*` - Predicciones ML
-- `/models/*` - Estado y entrenamiento ML
-- `/gaps/*` - Detección y backfill de gaps
-- `/scheduler/*` - Estado APScheduler
+### ML Operations
+- **POST /predict/energy-optimization** - Energy score (0-100)
+- **POST /predict/production-recommendation** - Production class
+- **POST /predict/train** - Train sklearn models
+- **POST /predict/train/hybrid** - SIAR + REE hybrid training
 
-## Frontend: HTML + JavaScript
+### Price Forecasting
+- **GET /predict/prices/weekly** - 7-day Prophet forecast
+- **GET /predict/prices/hourly** - Configurable horizon (1-168h)
+- **POST /models/price-forecast/train** - Train Prophet
+- **GET /models/price-forecast/status** - Model metrics
 
-### Tecnología Confirmada
-- **Framework**: Ninguno (Vanilla JS)
-- **Renderizado**: Server-side (FastAPI HTMLResponse)
-- **Datos**: Fetch API → JSON endpoints
-- **Styling**: CSS3 con variables custom
-- **Interactividad**: JavaScript ES6+
+### Analysis & Optimization
+- **GET /analysis/*/** - SIAR historical analysis
+- **POST /optimize/production/daily** - 24h production plan
+- **GET /optimize/production/summary** - Optimization metrics
 
-### Estructura Frontend
+### Insights & Alerts
+- **GET /insights/optimal-windows** - Next 7 days windows
+- **GET /insights/ree-deviation** - D-1 vs Real analysis
+- **GET /insights/alerts** - Predictive alerts (24-48h)
+- **GET /insights/savings-tracking** - Real savings tracking
+
+### Gap Management
+- **GET /gaps/summary** - Data status overview
+- **GET /gaps/detect** - Detailed gap analysis
+- **POST /gaps/backfill** - Manual backfill
+- **POST /gaps/backfill/auto** - Auto intelligent backfill
+
+### Chatbot
+- **POST /chat/ask** - Question submission
+- **GET /chat/stats** - Usage statistics
+- **GET /chat/health** - Service health
+
+### Health Monitoring
+- **GET /health-monitoring/summary** - System health overview
+- **GET /health-monitoring/critical** - Critical nodes
+- **GET /health-monitoring/nodes** - Detailed node info
+- **GET /health-monitoring/logs** - Event logs (paginated)
+
+## Frontend Architecture
+
+### Technology Stack
+- **Framework**: Vanilla JavaScript (no dependencies)
+- **Styling**: CSS3 with custom properties
+- **Build**: Static files (no bundler)
+- **Data**: Fetch API to JSON endpoints
+
+### Directory Structure
 ```
-GET /dashboard → HTMLResponse
-├── HTML Base (estructura)
-├── CSS Embebido (estilos + responsive)
-├── JavaScript Embebido (lógica + auto-refresh)
-└── Fetch → /dashboard/complete (datos JSON)
+static/
+├── index.html              # Main dashboard
+├── vpn.html                # Tailscale-only dashboard
+├── css/
+│   └── dashboard.css       # Styles
+├── js/
+│   └── dashboard.js        # Logic + API calls
+├── assets/                 # Images, icons
+└── README.md
 ```
 
-### Auto-refresh Pattern
-```javascript
-// Pattern actual confirmado
-setInterval(async () => {
-    const response = await fetch('/dashboard/complete');
-    const data = await response.json();
-    updateDashboardElements(data);
-}, 30000); // 30 segundos
-```
+### Data Flow
+1. Browser loads `GET /dashboard` → static files served
+2. JavaScript calls `GET /dashboard/complete` for JSON
+3. Auto-refresh every 30s via `setInterval`
+4. Real-time updates without page reload
+
+### Static Files Strategy
+- Served directly from FastAPI `/static` directory
+- No HTML/CSS/JS embedded in Python
+- Reduces main.py maintainability
+- Clear separation of concerns
 
 ## Datos y Persistencia
 

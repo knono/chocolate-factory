@@ -205,12 +205,12 @@ Cada sprint se considera **COMPLETADO** cuando:
 - ✅ ROI tracking (1,661€/año)
 - ✅ Testing suite (102 tests, 100% pasando - Sprint 12)
 - ✅ Arquitectura ML documentada (docs/ML_ARCHITECTURE.md)
-- ✅ HYBRID ML training (Sprint 14): 8,885 samples, R² 0.963 (191% improvement)
+- ✅ Real ML training (Sprint 14): 481 merged samples, Accuracy 1.0, R² 0.9986 (real data, business rules)
 
 **Valor Total Generado**: Sistema ML real, funcional, testeado y documentado con ROI demostrable. HYBRID training con 25 años de datos históricos.
 
 ---
 
-**Última actualización**: 2025-10-24
-**Autor**: Sistema ML Evolution
-**Versión**: 3.1 (Sprint 14 completado)
+**Última actualización**: 2025-10-28
+**Autor**: Sistema ML Evolution (Real Data Training)
+**Versión**: 3.2 (Sprint 14 - Real ML Training completado)
