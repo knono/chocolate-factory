@@ -274,3 +274,33 @@ APScheduler job configured for `/predict/train/hybrid` every 30 minutes.
 - [x] Error handling for Phase 2 fallback
 - [x] APScheduler job configured
 - [x] Documentation updated
+
+---
+
+## UPDATE OCT 28: FEATURES BUG FIXED
+
+**Problema**: Métodos predicción usaban 3 features, modelo entrenado con 5
+
+**Cambios**:
+
+### Fix: `predict_energy_optimization()` (línea 915-923)
+```python
+# ANTES: 3 features
+features = np.array([[price_eur_kwh, now.hour, now.weekday()]])
+
+# AHORA: 5 features (coincide con training)
+features = np.array([[
+    price_eur_kwh,
+    now.hour,
+    now.weekday(),
+    temperature,        # ✅ AGREGADO
+    humidity            # ✅ AGREGADO
+]])
+```
+
+### Fix: `predict_production_recommendation()` (línea 970-978)
+- Mismo cambio: agregado temperature y humidity
+
+**Impacto**: Endpoints `/predict/*` ahora funcionan con 5 features correctas. BUG CRÍTICO RESUELTO.
+
+**Integration con Sprint 08**: Optimizer ahora puede usar predicciones ML sin errores.

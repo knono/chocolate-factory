@@ -184,3 +184,32 @@ curl -X POST http://localhost:8000/optimize/production/daily \
 - Prophet model: Sprint 06
 - SIAR analysis: Sprint 07
 - Spanish tariff periods: BOE electricity regulation
+
+---
+
+## UPDATE OCT 28: INTEGRACIÓN SKLEARN EN TIMELINE
+
+**Cambios Realizados**:
+
+### Inicialización: `__init__()`
+- Agregado DirectMLService y carga modelos sklearn (línea 172-175)
+
+### Timeline: `_generate_hourly_timeline()`
+- Para cada hora, predice `ml_service.predict_production_recommendation(price, temp, humidity)`
+- Nuevos campos en respuesta:
+  - `production_state`: "Optimal"/"Moderate"/"Reduced"/"Halt" (de sklearn)
+  - `ml_confidence`: 0-1 (confianza del modelo)
+  - `climate_score`: 0-1 (basado en estado)
+
+### JSON Response: `optimize_daily_production()`
+- Nuevo bloque `ml_insights`:
+  - `model_accuracy`: 1.0
+  - `model_type`: "RandomForestClassifier + RandomForestRegressor"
+  - `high_confidence_windows`: Ventanas con confianza >0.8 y Optimal
+  - `production_state_distribution`: Conteo de estados
+
+### Métodos auxiliares:
+- `_extract_high_confidence_windows()`: Extrae ventanas óptimas (línea 870-894)
+- `_count_production_states()`: Distribución de estados (línea 896-903)
+
+**Impacto**: Optimizer ahora data-driven con confianza ML visible. No breaking changes (campos aditivos).

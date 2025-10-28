@@ -150,6 +150,48 @@ class PriceForecastingService:
 
         return prophet_df
 
+    def _add_prophet_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Agrega features exógenas: demanda proxy (horas pico), holidays españoles.
+
+        Args:
+            df: DataFrame con columnas ds, y
+
+        Returns:
+            DataFrame con features adicionales
+        """
+        df = df.copy()
+
+        # Extract temporal features
+        df['hour'] = df['ds'].dt.hour
+        df['dayofweek'] = df['ds'].dt.dayofweek
+        df['month'] = df['ds'].dt.month
+
+        # Demand proxy: horas pico tienen mayor demanda (10-13, 18-21)
+        df['is_peak_hour'] = df['hour'].isin([10, 11, 12, 13, 18, 19, 20, 21]).astype(int)
+
+        # Identificar holidays españoles (fin de semana + festividades principales)
+        df['is_weekend'] = df['dayofweek'].isin([5, 6]).astype(int)
+
+        # Festividades españoles fijas (mes, día)
+        holidays_es = [
+            (1, 1),    # Año Nuevo
+            (1, 6),    # Reyes
+            (5, 1),    # Día del Trabajo
+            (8, 15),   # Asunción
+            (10, 12),  # Hispanidad
+            (11, 1),   # Todos los Santos
+            (12, 6),   # Constitución
+            (12, 25),  # Navidad
+        ]
+
+        df['is_holiday'] = df.apply(
+            lambda row: 1 if (row['ds'].month, row['ds'].day) in holidays_es else 0,
+            axis=1
+        )
+
+        return df
+
     async def train_model(self, months_back: int = 12, test_size: float = 0.2) -> Dict[str, Any]:
         """
         Entrena modelo Prophet con datos históricos REE.
@@ -176,6 +218,10 @@ class PriceForecastingService:
             logger.warning(f"⚠️ Datos insuficientes para entrenamiento: {len(df_prophet)} registros")
             return {"success": False, "error": f"Datos insuficientes: {len(df_prophet)} registros (mínimo 100)"}
 
+        # 2b. Agregar features exógenas (holidays, demanda proxy)
+        df_prophet = self._add_prophet_features(df_prophet)
+        logger.info("✅ Features exógenas agregadas (holidays, peak hours)")
+
         # 3. Split train/test (temporal, no aleatorio)
         split_idx = int(len(df_prophet) * (1 - test_size))
         df_train = df_prophet[:split_idx].copy()
@@ -187,6 +233,14 @@ class PriceForecastingService:
             # 4. Configurar y entrenar Prophet
             self.model = Prophet(**self.prophet_config)
 
+            # Agregar country holidays españoles
+            self.model.add_country_holidays('ES')
+
+            # Agregar regressores exógenos
+            self.model.add_regressor('is_peak_hour', prior_scale=0.1)
+            self.model.add_regressor('is_weekend', prior_scale=0.05)
+            self.model.add_regressor('is_holiday', prior_scale=0.1)
+
             # Suprimir output verbose de Prophet
             import logging as prophet_logging
             prophet_logging.getLogger('prophet').setLevel(prophet_logging.WARNING)
@@ -196,7 +250,7 @@ class PriceForecastingService:
             logger.info("✅ Modelo Prophet entrenado exitosamente")
 
             # 5. Validar con datos de test (backtesting)
-            future_test = df_test[['ds']].copy()
+            future_test = df_test[['ds', 'is_peak_hour', 'is_weekend', 'is_holiday']].copy()
             forecast_test = self.model.predict(future_test)
 
             # Calcular métricas
@@ -288,6 +342,9 @@ class PriceForecastingService:
             )
 
             future = pd.DataFrame({'ds': future_dates})
+
+            # Agregar features exógenas para predicción
+            future = self._add_prophet_features(future)
 
             # Predecir
             forecast = self.model.predict(future)

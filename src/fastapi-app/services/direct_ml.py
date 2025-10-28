@@ -912,12 +912,14 @@ class DirectMLService:
             return {"error": "Energy model not available"}
 
         try:
-            # Prepare features - match training features (only 3: price, hour, day_of_week)
+            # Prepare features - match training features (5: price, hour, day_of_week, temperature, humidity)
             now = datetime.now()
             features = np.array([[
                 price_eur_kwh,
                 now.hour,
-                now.weekday()
+                now.weekday(),
+                temperature,
+                humidity
             ]])
 
             # Get base prediction from model
@@ -967,12 +969,14 @@ class DirectMLService:
             return {"error": "Production model not available"}
 
         try:
-            # Prepare features - match training features (only 3: price, hour, day_of_week)
+            # Prepare features - match training features (5: price, hour, day_of_week, temperature, humidity)
             now = datetime.now()
             features = np.array([[
                 price_eur_kwh,
                 now.hour,
-                now.weekday()
+                now.weekday(),
+                temperature,
+                humidity
             ]])
 
             prediction = self.production_model.predict(features)[0]

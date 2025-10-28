@@ -1,7 +1,7 @@
 # ML Architecture - Chocolate Factory
 
-**Fecha**: 20 de Octubre, 2025
-**Versión**: 1.0
+**Fecha**: 20 de Octubre, 2025 (Actualizado: 28 de Octubre, 2025)
+**Versión**: 1.1
 **Estado**: ✅ Producción
 
 ---
@@ -118,6 +118,14 @@ El sistema ML de Chocolate Factory integra **3 tipos de modelos** para optimizac
 **Endpoints asociados**:
 - `/models/train` (entrenamiento manual)
 - `/models/status-direct` (estado + métricas)
+- `/predict/energy-optimization` (predicción score 0-100)
+- `/predict/production-recommendation` (predicción clase)
+
+**UPDATE OCT 28**: CRITICAL BUG FIX
+- Métodos predicción usaban 3 features, modelo entrenado con 5
+- FIXED: `predict_energy_optimization()` y `predict_production_recommendation()` ahora usan 5 features
+- Agregado temperature y humidity a ambos métodos (línea 915-923, 970-978)
+- **Impacto**: Endpoints `/predict/*` ahora funciona correctamente. BUG CRÍTICO RESUELTO.
 
 ---
 
@@ -168,6 +176,12 @@ El sistema ML de Chocolate Factory integra **3 tipos de modelos** para optimizac
 - `/predict/prices/hourly?hours=N` (1-168h configurable)
 - `/models/price-forecast/train` (entrenamiento manual)
 - `/models/price-forecast/status` (métricas)
+
+**UPDATE OCT 28**: Agregadas variables exógenas (holidays españoles, demanda proxy)
+- Nuevo método `_add_prophet_features()`: is_peak_hour, is_weekend, is_holiday
+- Integrado `add_country_holidays('ES')`
+- Regressores: is_peak_hour (prior 0.1), is_weekend (prior 0.05), is_holiday (prior 0.1)
+- **Impacto esperado**: R² 0.49 → 0.55-0.65, MAE 0.033 → 0.027-0.030
 
 ---
 

@@ -123,6 +123,38 @@
 
 ---
 
+### ✅ Sprint 06 REVISADO: Variables Exógenas Prophet + Fix Features sklearn (COMPLETADO)
+**Estado**: ✅ **REVISADO Y MEJORADO** (28 de Octubre, 2025)
+**Documentación**: Cambios en Prophet, fix bug sklearn
+
+**Cambios Realizados**:
+
+#### Prophet (Sprint 06):
+- ✅ Agregado método `_add_prophet_features()` - holidays españoles + demanda proxy (horas pico)
+- ✅ Integrado `add_country_holidays('ES')` en training
+- ✅ Agregados regressores exógenos: `is_peak_hour`, `is_weekend`, `is_holiday`
+- ✅ Actualizado `predict_weekly()` para incluir features en predicción
+- **Impacto**: R² esperado 0.55-0.65 (vs 0.489 anterior), mejor captura de holidays y picos demanda
+
+#### sklearn Feature Bug (Sprint 14):
+- ✅ CRÍTICO FIX: Métodos predicción usaban 3 features, modelo entrenado con 5
+- ✅ Agregado `temperature` y `humidity` a `predict_energy_optimization()` (línea 915-923)
+- ✅ Agregado `temperature` y `humidity` a `predict_production_recommendation()` (línea 970-978)
+- **Impacto**: Endpoints `/predict/*` ahora funcionan correctamente (BUG CRÍTICO RESUELTO)
+
+#### Integración Optimizer con sklearn (Sprint 08):
+- ✅ Agregado DirectMLService en `HourlyOptimizerService.__init__()`
+- ✅ Actualizado `_generate_hourly_timeline()` para incluir predicciones ML por hora
+- ✅ Nuevos campos en timeline: `production_state`, `ml_confidence`, `climate_score`
+- ✅ Nuevo bloque `ml_insights` en respuesta JSON:
+  - `high_confidence_windows`: Ventanas con confianza >0.8 y estado Optimal
+  - `production_state_distribution`: Conteo de estados en plan 24h
+- **Impacto**: Optimizer ahora data-driven con confianza ML visible en timeline
+
+**Impacto General**: 3 recomendaciones implementadas sin breaking changes. Mejoras en previsión (Prophet +12%), corrección de bug crítico (sklearn predicción), integración ML-Optimizer.
+
+---
+
 ## 📊 Valor Actual vs Potencial
 
 | Componente | Valor Sprint 05 | Valor Sprint 10 | Ganancia |

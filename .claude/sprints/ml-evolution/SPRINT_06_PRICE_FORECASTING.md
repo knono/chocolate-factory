@@ -166,6 +166,29 @@ scheduler.add_job(
 
 ---
 
+## UPDATE OCT 28: VARIABLES EXÓGENAS AGREGADAS
+
+**Cambios Realizados**:
+
+### Nuevo método: `_add_prophet_features()`
+- Holidays españoles fijos (Año Nuevo, Reyes, Asunción, etc.)
+- `is_peak_hour`: 1 si 10-13 o 18-21 (demanda máxima)
+- `is_weekend`: 1 si sábado/domingo
+- `is_holiday`: 1 si festividad española
+
+### Modificación: `train_model()`
+- Integrado `model.add_country_holidays('ES')`
+- Agregados regressores: `is_peak_hour`, `is_weekend`, `is_holiday`
+- Prior scales: 0.1, 0.05, 0.1
+
+### Modificación: `predict_weekly()`
+- Ahora agrega features antes de predecir
+- Captura holidays en rango de predicción
+
+**Impacto Esperado**: R² 0.489 → 0.55-0.65, MAE 0.0325 → 0.027-0.030
+
+---
+
 ## Files Modified
 
 **Core Implementation**:
