@@ -175,42 +175,6 @@ from(bucket: "energy_data")
 
 ---
 
-## Casos de Uso para MLflow
-
-### 7.1 Features de Entrada
-
-```python
-# Features meteorológicas híbridas
-weather_features = {
-    # Ventana oficial (00:00-07:00)
-    'temp_aemet_observed': aemet_temp,      # Datos oficiales
-    'humidity_aemet_observed': aemet_hum,    # Compliance regulatorio
-    
-    # Ventana tiempo real (08:00-23:00)  
-    'temp_owm_realtime': owm_temp,          # Precisión extrema
-    'humidity_owm_realtime': owm_hum,       # Datos actualizados
-    
-    # Features derivadas
-    'heat_stress_factor': calc_heat_stress(temp, humidity),
-    'chocolate_production_index': calc_choco_index(temp, hum, press),
-    'energy_optimization_score': calc_energy_opt(ree_price, temp)
-}
-```
-
-### 7.2 Modelos de Decisión
-
-**Producción de Chocolate**:
-- **Temperatura < 25°C**: Producción normal
-- **25°C ≤ Temperatura < 30°C**: Reducir velocidad máquinas  
-- **30°C ≤ Temperatura < 35°C**: Producción nocturna
-- **Temperatura ≥ 35°C**: Parada programada, refrigeración activa
-
-**Optimización Energética**:
-- **REE precio bajo + Temperatura alta**: Refrigeración preventiva
-- **REE precio alto + Temperatura extrema**: Activar backup renovables
-
----
-
 ## Monitoreo y Alertas
 
 ### 8.1 Health Checks Automatizados

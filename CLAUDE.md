@@ -175,6 +175,15 @@ Implemented:
   - main.py bug fixed: "main_new:app" → "main:app"
   - dependencies.py documented (DI container with @lru_cache())
   - sklearn_jobs.py added to tasks layer
+- Sprint 16: Documentation Integrity & Transparency (Oct 30, 2025)
+  - ML claims corrected: R² 0.9986 removed, labeled as deterministic scoring
+  - ROI 1,661€ labeled as theoretical estimate (not measured)
+  - MLflow references removed from TROUBLESHOOTING.md (57 lines)
+  - Prophet training frequency corrected: 30min → 24h (accurate)
+  - Job count corrected: 13+ → 7 (verified from scheduler_config.py)
+  - Endpoint paths fixed: /models/* → /predict/prices/models/*
+  - ML_ARCHITECTURE.md: Added 87-line "Limitaciones y Disclaimers" section
+  - 20+ disclaimers added (ML, testing, security, monitoring limitations)
 
 ### Core Infrastructure
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
