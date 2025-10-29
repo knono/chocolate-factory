@@ -260,46 +260,46 @@ async def get_savings_tracking(
     service: PredictiveInsightsService = Depends(get_insights_service)
 ) -> Dict[str, Any]:
     """
-    💰 Track real energy savings vs planned baseline.
+    💰 Track theoretical energy savings vs baseline.
+
+    ⚠️ **IMPORTANT DISCLAIMER**:
+    Returns THEORETICAL ESTIMATES based on machine specs and simulation.
+    NOT real measurements from production (no smart meters installed).
 
     Compares:
-    - **Optimized plan**: Hourly optimizer (Sprint 08) with Prophet predictions
-    - **Baseline plan**: Fixed schedule 08-16h (traditional approach)
-    - **Real consumption**: Actual costs (if available)
+    - **Optimized plan**: Hourly optimizer (Sprint 08) with Prophet predictions (theoretical)
+    - **Baseline plan**: Fixed schedule 08-16h (theoretical)
+    - **Real consumption**: NOT AVAILABLE (no measurement infrastructure)
 
     **Widget Integration**: Powers "Ahorro Energético" dashboard card.
+    **Future Work**: Replace with real measurements when smart meters available.
 
     Returns:
         Dict with:
-        - daily_savings: Today's optimized vs baseline comparison
-        - weekly_projection: 7-day forecast
-        - monthly_tracking: Progress vs 620€/month target
-        - annual_projection: ROI estimate
+        - disclaimer: Warning about theoretical nature
+        - data_source: Origin of estimates
+        - daily_savings: Theoretical comparison
+        - weekly_projection: Theoretical forecast
+        - monthly_tracking: Theoretical progress
+        - annual_projection: Theoretical ROI (baseline_theoretical_savings_eur, actual_measured_savings_eur: None)
 
     Example Response:
     ```json
     {
         "status": "success",
+        "disclaimer": "⚠️ Theoretical estimates - NOT real measurements from production",
+        "data_source": "Sprint 08 simulation using machine specs (no smart meters)",
         "daily_savings": {
             "optimized_cost_eur": 26.47,
             "baseline_cost_eur": 31.02,
             "savings_eur": 4.55,
             "savings_pct": 14.7
         },
-        "weekly_projection": {
-            "optimized_cost_eur": 185.29,
-            "baseline_cost_eur": 217.14,
-            "savings_eur": 31.85
-        },
-        "monthly_tracking": {
-            "target_eur": 620,
-            "projected_eur": 127.40,
-            "progress_pct": 20.5,
-            "status": "⚠️ Below target"
-        },
         "annual_projection": {
-            "estimated_savings_eur": 1661,
-            "roi_description": "ROI estimado: 1.7k€/año"
+            "baseline_theoretical_savings_eur": 1661,
+            "actual_measured_savings_eur": null,
+            "confidence": "low - theoretical only",
+            "roi_description": "ROI teórico: 1.7k€/año (no medido)"
         }
     }
     ```
