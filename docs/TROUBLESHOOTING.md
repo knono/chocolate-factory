@@ -6,7 +6,7 @@
 |-------|-------|-----|
 | No data in InfluxDB | `/init/status`, verify containers | Run `/init/all`, check scheduler |
 | AEMET API failures | Check token validity, API status | Use SIAR ETL alternative |
-| MLflow no models | Feature engineering endpoint | Force emergency training |
+| Prophet model issues | `/predict/prices/models/price-forecast/status` | Force manual training POST `/predict/prices/models/price-forecast/train` |
 | Scheduler not running | `/scheduler/status` | Restart FastAPI container |
 | Weather data gaps | `/influxdb/verify` | Execute backfill system |
 
@@ -162,61 +162,98 @@ curl -X POST http://localhost:8000/init/all
 
 ---
 
-## 5. MLflow & ML Pipeline
+## 5. Direct ML Troubleshooting
 
-### No models created after training
+### Prophet Price Forecasting Issues
+
+**Check model status:**
 ```bash
-# Test feature engineering directly
-curl "http://localhost:8000/mlflow/features?hours_back=1"
+# Check Prophet model status and metrics
+curl -s http://localhost:8000/predict/prices/models/price-forecast/status | jq
 
-# Check recent MLflow runs
-curl -s "http://localhost:5000/api/2.0/mlflow/runs/search" \
+# Expected output:
+# {
+#   "status": "available",
+#   "model_info": {
+#     "type": "Prophet",
+#     "last_training": "2025-10-24T..."
+#   },
+#   "metrics": {
+#     "mae": 0.033,
+#     "rmse": 0.045,
+#     "r2": 0.49
+#   }
+# }
+```
+
+**Manual training:**
+```bash
+# Force Prophet model retraining
+curl -X POST http://localhost:8000/predict/prices/models/price-forecast/train
+
+# Verify training completed
+curl -s http://localhost:8000/predict/prices/models/price-forecast/status | jq '.model_info.last_training'
+```
+
+**Get predictions:**
+```bash
+# Weekly forecast (168 hours)
+curl -s http://localhost:8000/predict/prices/weekly | jq
+
+# Custom forecast horizon
+curl -s "http://localhost:8000/predict/prices/hourly?hours=48" | jq
+```
+
+### Sklearn Scoring Models Issues
+
+**Note:** Energy optimization scoring uses deterministic business rules, not trained ML prediction.
+
+**Check model files:**
+```bash
+# List model files
+docker exec chocolate_factory_brain ls -lh /app/models/
+
+# Expected: energy_model.pkl, production_model.pkl
+```
+
+**Manual training:**
+```bash
+# Train sklearn models (SIAR historical + REE data)
+curl -X POST http://localhost:8000/predict/train/hybrid
+
+# Check training logs
+docker logs chocolate_factory_brain | grep "Training completed"
+```
+
+**Test predictions:**
+```bash
+# Energy optimization score (0-100)
+curl -X POST http://localhost:8000/predict/energy-optimization \
   -H "Content-Type: application/json" \
-  -d '{"experiment_ids":["1","2"],"max_results":3}' | \
-  jq '.runs[] | {name: .info.run_name, status: .info.status}'
+  -d '{"price_eur_kwh": 0.15, "temperature": 22, "humidity": 55}'
+
+# Production recommendation
+curl -X POST http://localhost:8000/predict/production-recommendation \
+  -H "Content-Type: application/json" \
+  -d '{"price_eur_kwh": 0.30, "temperature": 35, "humidity": 80}'
 ```
 
-### Emergency training (synthetic data)
+### Training Schedule Issues
+
+**Check automated training jobs:**
 ```bash
-docker exec chocolate_factory_brain python -c "
-import mlflow
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.datasets import make_regression
-from datetime import datetime
+# Verify scheduler jobs
+curl -s http://localhost:8000/scheduler/status | jq '.scheduler.jobs[] | select(.id | contains("ml") or contains("prophet"))'
 
-mlflow.set_tracking_uri('http://mlflow:5000')
-mlflow.set_experiment('chocolate_energy_optimization')
-
-with mlflow.start_run(run_name=f'EMERGENCY_{datetime.now().strftime(\"%Y%m%d_%H%M\")}'):
-    X, y = make_regression(n_samples=100, n_features=8, noise=0.1, random_state=42)
-    model = RandomForestRegressor(n_estimators=50, random_state=42)
-    model.fit(X, y)
-
-    mlflow.log_param('model_type', 'Emergency_Training')
-    mlflow.log_metric('train_r2', model.score(X, y))
-
-    print('✅ Emergency training completed')
-"
+# Expected jobs:
+# - train_sklearn_models_job (every 30 min)
+# - train_prophet_model_job (every 24 hours at 02:30)
 ```
 
-### Feature engineering query issues
-**Problem:** "No raw data available for feature engineering"
-
-**Diagnosis:**
-```bash
-# Check raw data exists
-docker exec chocolate_factory_storage influx query \
-  'from(bucket: "energy_data") |> range(start: -3h) |> filter(fn: (r) => r._measurement == "energy_prices") |> limit(n:3)'
-
-# Test different time windows
-curl "http://localhost:8000/mlflow/features?hours_back=24"
-```
-
-**Fix:** Enhanced query with explicit timestamps and schema-aware tag filtering
-```python
-# Energy: r.provider == "ree" or r.data_source == "ree_historical"
-# Weather: r.data_source == "openweathermap" or r.station_id == "openweathermap_linares"
-```
+**Training frequencies:**
+- Prophet: Every 24 hours (02:30 AM)
+- Sklearn: Every 30 minutes
+- Auto-backfill: Every 2 hours
 
 ---
 
@@ -371,10 +408,10 @@ log "✅ Verification completed"
 - [ ] Schema tags match: Check actual vs expected
 - [ ] Time ranges: Data within query window
 
-### MLflow
-- [ ] Server accessible: `curl http://localhost:5000/version`
-- [ ] Experiments exist: Check experiment IDs
-- [ ] Permissions: Container can write artifacts
+### ML Models
+- [ ] Prophet model status: `curl http://localhost:8000/predict/prices/models/price-forecast/status`
+- [ ] Model files exist: `docker exec chocolate_factory_brain ls /app/models/`
+- [ ] Training jobs scheduled: Check scheduler status for ML jobs
 
 ---
 

@@ -398,7 +398,7 @@ else: class = "Halt"
 ### Entrenamiento Automático (APScheduler)
 
 **Frecuencia**:
-- Prophet: Cada 1 hora (a los :30)
+- Prophet: Cada 24 horas (entrenamiento diario)
 - sklearn models: Cada 30 minutos
 
 **Trigger**: `tasks/scheduler_config.py`

@@ -396,18 +396,14 @@ curl -X POST http://localhost:8000/chat/ask \
 
 ## System Automation
 
-### APScheduler Jobs (13+ automated)
+### APScheduler Jobs (7 automated)
 - **REE ingestion**: Every 5 minutes
 - **Weather ingestion**: Every 5 minutes (hybrid AEMET/OpenWeatherMap)
-- **sklearn ML training**: Every 30 minutes (direct sklearn models) ✅ Sprint 14
-- **ML predictions**: Every 30 minutes
-- **Prophet forecasting**: Every hour at :30 (168h price predictions) ✅ Sprint 06
-- **Auto backfill**: Every 2 hours (gap detection & recovery)
-- **Health monitoring**: Every 5 minutes ✅ Sprint 13
+- **sklearn ML training**: Every 30 minutes (energy + production scoring models) ✅ Sprint 14
+- **Prophet forecasting**: Every 24 hours (168h price predictions) ✅ Sprint 06
+- **Health monitoring**: Every 5 minutes (metrics collection) ✅ Sprint 13
 - **Critical nodes check**: Every 2 minutes ✅ Sprint 13
 - **Status logging**: Every hour ✅ Sprint 13
-- **Token management**: Daily (AEMET renewal)
-- **Weekly cleanup**: Sundays at 2 AM
 
 ## Important Notes
 

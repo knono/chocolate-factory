@@ -59,22 +59,32 @@ Corregir documentación que no refleja la realidad del código:
 - [ ] Etiquetar 42,578 REE, 88,935 SIAR como "As of Oct 2025"
 - [ ] O crear script verificación desde InfluxDB
 
-### Fase 3: Limpiar Obsoleto
+### Fase 3: Limpiar Obsoleto ✅ COMPLETED
 
 **3.1 TROUBLESHOOTING.md**
-- [ ] Eliminar líneas 165-221 (sección MLflow completa)
-- [ ] Reemplazar con "Direct ML Troubleshooting"
-- [ ] Verificar todos los curl examples funcionan
+- [x] Eliminar líneas 165-221 (sección MLflow completa)
+- [x] Reemplazar con "Direct ML Troubleshooting"
+- [x] Verificar todos los curl examples funcionan
 
 **3.2 Training frequencies**
-- [ ] Corregir en todos los docs: Prophet 24h (no 30min)
-- [ ] Verificar contra `scheduler_config.py` líneas 61, 73
-- [ ] Actualizar job count: documentar 7 jobs reales
+- [x] Corregir en todos los docs: Prophet 24h (no 30min)
+- [x] Verificar contra `scheduler_config.py` líneas 61, 73
+- [x] Actualizar job count: documentar 7 jobs reales
 
 **3.3 Code examples**
-- [ ] Testar todos los curl en TROUBLESHOOTING.md
-- [ ] Testar todos los curl en API_REFERENCE.md
-- [ ] Actualizar o eliminar los que fallen
+- [x] Testar todos los curl en TROUBLESHOOTING.md
+- [x] Testar todos los curl en API_REFERENCE.md
+- [x] Actualizar o eliminar los que fallen
+
+**Changes Made**:
+- TROUBLESHOOTING.md: Replaced MLflow section (lines 165-221) with "Direct ML Troubleshooting"
+- TROUBLESHOOTING.md: Fixed Prophet endpoint paths (`/predict/prices/models/price-forecast/status`)
+- TROUBLESHOOTING.md: Updated Quick Reference table and ML Models checklist
+- CLAUDE.md: Corrected Prophet training from "Every hour at :30" to "Every 24 hours"
+- CLAUDE.md: Updated job count from "13+ automated" to "7 automated"
+- CLAUDE.md: Removed duplicate "ML predictions" and "Auto backfill" jobs from list
+- ML_ARCHITECTURE.md: Corrected Prophet frequency from "Cada 1 hora (a los :30)" to "Cada 24 horas"
+- Verified scheduler_config.py: 7 jobs total (REE, Weather, Prophet-24h, sklearn-30min, 3x health monitoring)
 
 ### Fase 4: Añadir Disclaimers
 
