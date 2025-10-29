@@ -68,6 +68,25 @@ Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Health Monit
 
 ---
 
+---
+
+## Sprint 16: Documentation Integrity & Transparency
+
+**Estado**: IN PROGRESS (2025-10-30)
+**Archivo**: [`SPRINT_16_INTEGRITY_TRANSPARENCY.md`](./SPRINT_16_INTEGRITY_TRANSPARENCY.md)
+
+Corrección de documentación que no refleja realidad del código.
+
+**Objetivos**:
+- Eliminar claims falsos (ML R² 0.963 circular, endpoints inexistentes)
+- Etiquetar valores hardcoded (ROI 1,661€, métricas Prophet)
+- Limpiar obsoleto (MLflow, frecuencias entrenamiento incorrectas)
+- Añadir disclaimers (limitations, security, test coverage 19%)
+
+**Effort**: ~8 horas (3 días)
+
+---
+
 ## Estado Actual del Proyecto
 
 - Sprints ML Evolution: 01-10 completados
@@ -76,14 +95,15 @@ Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Health Monit
 - Sprint 13 (Observability): Completado (Health Monitoring - Pivoted)
 - Sprint 14 (Hybrid ML Training): Completado (Oct 24, 2025)
 - Sprint 15 (Architecture Cleanup): Completado (Oct 29, 2025)
+- Sprint 16 (Documentation Integrity): IN PROGRESS (Oct 30, 2025)
 - Clean Architecture: Refactorizado y consolidado (Oct 6-29, 2025)
 - API Endpoints: 45 disponibles (12 routers activos)
 - Tailscale: 3 nodos activos (git, dev, prod) + observability
 - CI/CD: Pipeline automatizado con rollback
-- Tests: 102 tests (100% passing)
-- APScheduler: 13+ jobs automatizados
+- Tests: 102 tests (100% passing, 19% coverage)
+- APScheduler: 7 jobs automatizados
 
-**Próximos Sprints**: TBD
+**Próximo Sprint**: TBD (Testing Coverage o Observability)
 
 ---
 

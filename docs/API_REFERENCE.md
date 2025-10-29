@@ -13,9 +13,11 @@ System overview and available endpoints.
   "service": "Chocolate Factory API",
   "version": "1.0",
   "status": "running",
-  "total_endpoints": 19
+  "total_endpoints": 45
 }
 ```
+
+**Note**: Endpoint count verified as of October 30, 2025 (12 routers, 45 endpoints)
 
 ### GET /health
 Basic health check.
@@ -632,46 +634,70 @@ Optimization metrics summary.
 
 ## Predictive Insights
 
-### GET /insights/energy
-Energy price insights and recommendations.
+**Note**: The endpoints `/insights/energy`, `/insights/production`, `/insights/weather` documented previously DO NOT EXIST. Actual insights endpoints are below.
+
+### GET /insights/optimal-windows
+Calculate optimal production windows for next N days using Prophet forecasts.
+
+**Query Parameters:**
+- `days` (optional): Number of days ahead (default: 3)
 
 **Response:**
 ```json
 {
   "status": "success",
-  "current_price": 0.15,
-  "forecast_24h": [0.14, 0.16, 0.18],
-  "recommendation": "Producir en proximas 3 horas"
+  "forecast_days": 3,
+  "optimal_windows": [
+    {
+      "date": "2025-10-30",
+      "start_hour": 2,
+      "end_hour": 7,
+      "avg_price": 0.085,
+      "quality": "EXCELLENT",
+      "estimated_savings": 0.12
+    }
+  ]
 }
 ```
 
-### GET /insights/production
-Production optimization insights.
+### GET /insights/ree-deviation
+Compare D-1 Prophet forecasts with actual REE prices (last 24h).
 
 **Response:**
 ```json
 {
   "status": "success",
-  "current_conditions": "optimal",
-  "next_optimal_window": "2025-10-24T02:00:00",
-  "expected_savings": 0.42
+  "period": "last_24h",
+  "avg_deviation": 0.015,
+  "worst_hour": {
+    "hour": 18,
+    "predicted": 0.25,
+    "actual": 0.32,
+    "deviation": 0.07
+  }
 }
 ```
 
-### GET /insights/weather
-Weather impact analysis.
+### GET /insights/alerts
+Predictive alerts for next 24-48h (price spikes, heat waves, optimal windows).
 
 **Response:**
 ```json
 {
   "status": "success",
-  "current_impact": "favorable",
-  "next_24h_forecast": "stable",
-  "production_suitability": "high"
+  "alerts": [
+    {
+      "type": "PRICE_SPIKE",
+      "severity": "high",
+      "hour": 18,
+      "price": 0.35,
+      "message": "Precio punta >0.30€/kWh previsto"
+    }
+  ]
 }
 ```
 
-### GET /insights/summary
+### GET /insights/savings-tracking
 Unified predictive dashboard summary.
 
 **Response:**

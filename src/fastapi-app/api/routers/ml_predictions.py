@@ -1,4 +1,16 @@
-"""ML Predictions Router - sklearn models (energy + production)"""
+"""
+ML Predictions Router - Optimization Scoring
+
+IMPORTANT: These endpoints provide deterministic scoring based on business rules,
+NOT trained ML predictions. The scoring function is formula-based:
+- Energy score: Weighted combination of price, temperature, humidity, tariff
+- Production state: Rule-based classification using thresholds
+
+While sklearn models are used, they learn the same formula used to generate targets
+(circular training), so high accuracy metrics are not indicative of predictive power.
+
+For REAL ML predictions, see /predict/prices/* (Prophet forecasting).
+"""
 import logging
 from typing import Dict, Any
 from fastapi import APIRouter, HTTPException
@@ -6,7 +18,7 @@ from pydantic import BaseModel, Field
 from domain.ml.direct_ml import DirectMLService
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/predict", tags=["ML Predictions"])
+router = APIRouter(prefix="/predict", tags=["Optimization Scoring"])
 
 class PredictionRequest(BaseModel):
     price_eur_kwh: float
@@ -15,7 +27,11 @@ class PredictionRequest(BaseModel):
 
 @router.post("/energy-optimization")
 async def predict_energy_optimization(request: PredictionRequest) -> Dict[str, Any]:
-    """🔮 Energy optimization score (0-100)"""
+    """
+    🔮 Energy optimization score (0-100)
+
+    Note: Deterministic scoring function, not predictive ML.
+    """
     try:
         direct_ml = DirectMLService()
         result = direct_ml.predict_energy_optimization(
