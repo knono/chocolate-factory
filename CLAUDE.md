@@ -163,7 +163,8 @@ Implemented:
   - Problem: merge INNER with timestamp mismatch (REE hourly vs Weather diario/5min)
   - Solution Phase 1: RESAMPLE weather to hourly (mean/max/min)
   - Solution Phase 2: HYBRID training with SIAR historical (8,885 samples, 25 years)
-  - Result: R² 0.334 → 0.963 (191% improvement)
+  - Result: Deterministic scoring function (circular - predicts own formula)
+  - Note: Not predictive ML, rule-based optimization scoring
   - New endpoints: POST /predict/train/hybrid
   - Prophet router integrated: GET /predict/prices/weekly, /hourly, /train, /status
 - Sprint 15: Architecture Cleanup & Consolidation (Oct 29, 2025)
@@ -187,21 +188,18 @@ Implemented:
 - **Automatic Backfill**: Gap detection and recovery every 2 hours
 
 ### Machine Learning (Direct Implementation)
-- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.033 €/kWh, R²: 0.49)
-- **sklearn Models**: RandomForest with real data + business rules (Oct 28, 2025)
+- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.033 €/kWh, R²: 0.49) ✅ Real ML
+- **Optimization Scoring**: Deterministic business rules (NOT trained ML prediction)
+  - Energy Score (0-100): Formula-based calculation using price, temperature, humidity, tariff
+  - Production State: Rule-based classification (Optimal/Moderate/Reduced/Halt)
+  - Note: High "accuracy" is circular - model learns the formula used to generate targets
   - Data: REE 12,493 records (2022-2025) + SIAR 8,900 records (2000-2025)
-  - Merged: 481 days with both price + weather
-  - Regression: Energy score (0-100), R²: 0.9986 (test set)
-  - Classification: Production state (Optimal/Moderate/Reduced/Halt), Accuracy: 1.0 (test set)
+  - Use case: Real-time scoring for production decisions, not predictive forecasting
 - **Direct Training**: sklearn + Prophet + pickle storage (no external ML services)
-- **Real ML Training (Oct 28, 2025)**:
-  - Target: Business rules (not synthetic) - price/temp thresholds
-  - Train/Test: 80/20 split (384/97 samples)
-  - Validation: Proper test set metrics (honest, no data leakage)
 - **Feature Engineering**: 5 core features (price, hour, dow, temperature, humidity)
   - SIAR sources: temperature, humidity from 2 stations (J09, J17)
   - REE source: price_eur_kwh hourly data
-- **Real-time Predictions**: Energy optimization + production recommendations + price forecasting
+- **Real-time Analysis**: Energy optimization scoring + production recommendations + price forecasting
 - **Automated ML**: Model retraining every 30 min (sklearn), hourly (Prophet)
 - **ROI Tracking**: 1,661€/año ahorro energético demostrable (Sprint 09)
 - **Testing**: 102 tests (36 E2E), 100% passing, 19% coverage (Sprint 12)
@@ -398,18 +396,14 @@ curl -X POST http://localhost:8000/chat/ask \
 
 ## System Automation
 
-### APScheduler Jobs (13+ automated)
+### APScheduler Jobs (7 automated)
 - **REE ingestion**: Every 5 minutes
 - **Weather ingestion**: Every 5 minutes (hybrid AEMET/OpenWeatherMap)
-- **sklearn ML training**: Every 30 minutes (direct sklearn models) ✅ Sprint 14
-- **ML predictions**: Every 30 minutes
-- **Prophet forecasting**: Every hour at :30 (168h price predictions) ✅ Sprint 06
-- **Auto backfill**: Every 2 hours (gap detection & recovery)
-- **Health monitoring**: Every 5 minutes ✅ Sprint 13
+- **sklearn ML training**: Every 30 minutes (energy + production scoring models) ✅ Sprint 14
+- **Prophet forecasting**: Every 24 hours (168h price predictions) ✅ Sprint 06
+- **Health monitoring**: Every 5 minutes (metrics collection) ✅ Sprint 13
 - **Critical nodes check**: Every 2 minutes ✅ Sprint 13
 - **Status logging**: Every hour ✅ Sprint 13
-- **Token management**: Daily (AEMET renewal)
-- **Weekly cleanup**: Sundays at 2 AM
 
 ## Important Notes
 
@@ -664,3 +658,40 @@ Technical fixes applied:
 - Metrics achieved
 - No critical technical debt
 - cuando vayas a hacer un docker build --no-cache por favor
+
+---
+
+## System Limitations & Disclaimers
+
+### Machine Learning
+- **Energy Scoring**: Deterministic business rules, NOT trained ML prediction (circular if measured as ML)
+- **Prophet Forecasting**: Real ML with R² 0.49 (51% variance unexplained) ✅
+- **Model Monitoring**: No drift detection or performance tracking
+- **A/B Testing**: Not implemented
+
+### Testing & Quality
+- **Test Coverage**: 19% (81% of code untested)
+- **Recommended**: 40%+ coverage for production confidence
+- **Focus Areas**: Error handling, edge cases, failure scenarios
+
+### Security Model
+- **Network Level**: Tailscale VPN zero-trust mesh (WireGuard encrypted) ✅
+- **Application Level**: No authentication/authorization at API endpoints
+- **Access Control**:
+  - Localhost: Full access (development)
+  - Tailscale network: Full access (authorized devices only)
+  - Public internet: No access (not exposed)
+- **Rate Limiting**: Global per-endpoint, not per-user
+- **Deployment Model**: Private infrastructure with network-level security
+
+### Monitoring & Observability
+- **Health Checks**: Service availability only
+- **Alerting**: Not implemented (manual monitoring)
+- **Logs**: Collected, not centralized or analyzed
+- **Suitable For**: Development/demo, small-scale private deployments
+
+### Data & Metrics
+- **ROI (1,661€/year)**: Theoretical baseline estimate, NOT measured from real production
+- **Data Volumes**: Verifiable from InfluxDB (42k REE, 88k SIAR records as of Oct 2025)
+- **Prophet Metrics**: Last measured Oct 3, 2025 (MAE 0.033, R² 0.49) - initial benchmark, not dynamically updated
+- cuando documentes, hazlo de forma austera y directa; sin artefactos de marketing

@@ -398,7 +398,7 @@ else: class = "Halt"
 ### Entrenamiento Automático (APScheduler)
 
 **Frecuencia**:
-- Prophet: Cada 1 hora (a los :30)
+- Prophet: Cada 24 horas (entrenamiento diario)
 - sklearn models: Cada 30 minutos
 
 **Trigger**: `tasks/scheduler_config.py`
@@ -796,6 +796,73 @@ tests/ml/
 
 ---
 
+## ⚠️ Limitaciones y Disclaimers
+
+### Limitaciones de ML
+
+**Energy Scoring (sklearn)**:
+- ❌ **No es ML predictivo**: Usa reglas de negocio determinísticas
+- ❌ **Métricas circulares**: R² alto porque predice su propia fórmula
+- ✅ **Útil para**: Scoring en tiempo real basado en reglas validadas
+- ⚠️ **No usar para**: Predicciones futuras, forecasting, o análisis de tendencias
+
+**Prophet Price Forecasting**:
+- ✅ **ML real**: Modelo entrenado con datos históricos
+- ⚠️ **R² = 0.49**: Solo explica 49% de la varianza (51% sin explicar)
+- ⚠️ **MAE = 0.033 €/kWh**: Error promedio ~3.3 céntimos por predicción
+- ⚠️ **Métricas estáticas**: Última medición 24-Oct-2025, no se actualizan dinámicamente
+- ❌ **Sin drift detection**: No hay monitoreo de degradación del modelo
+- ❌ **Sin A/B testing**: No hay validación de mejoras en producción
+
+### Limitaciones de Testing
+
+**Cobertura de Tests**:
+- ⚠️ **19% coverage**: 81% del código sin testear
+- ✅ **102 tests**: 100% passing (36 E2E)
+- ❌ **Recomendado**: 40%+ coverage para producción con confianza
+- ⚠️ **Áreas sin cobertura**: Error handling, edge cases, failure scenarios
+
+### Limitaciones de Seguridad
+
+**Modelo de Seguridad**:
+- ✅ **Network-level**: Tailscale VPN zero-trust mesh (WireGuard encrypted)
+- ❌ **Application-level**: Sin autenticación/autorización en API endpoints
+- ❌ **Rate limiting**: Global per-endpoint, no per-user
+- ⚠️ **Modelo de despliegue**: Solo para infraestructura privada con seguridad a nivel de red
+- ❌ **No exponer**: A internet público sin autenticación adicional
+
+**Control de Acceso**:
+- ✅ Localhost: Acceso completo (desarrollo)
+- ✅ Tailscale network: Acceso completo (solo dispositivos autorizados)
+- ❌ Internet público: Sin acceso (no expuesto)
+
+### Limitaciones de Observabilidad
+
+**Monitoreo**:
+- ✅ **Health checks**: Disponibilidad de servicios
+- ❌ **Performance monitoring**: No implementado
+- ❌ **Alerting**: No hay sistema de alertas (Discord/Telegram/email)
+- ❌ **Logs centralizados**: Logs recolectados pero no analizados
+- ⚠️ **Adecuado para**: Desarrollo, demos, despliegues privados pequeños
+
+**Métricas ROI**:
+- ⚠️ **1,661€/año**: Estimación teórica de baseline, **NO medición real**
+- ✅ **Data volumes**: Verificables desde InfluxDB (42k REE, 88k SIAR - Oct 2025)
+- ❌ **Ahorro real**: No medido en producción real
+
+### Recomendaciones para Producción
+
+**Para uso en producción real se requiere**:
+1. ✅ Aumentar test coverage a 40%+
+2. ✅ Implementar autenticación/autorización en API
+3. ✅ Añadir drift detection en modelos ML
+4. ✅ Implementar sistema de alertas
+5. ✅ Centralizar y analizar logs
+6. ✅ Añadir performance monitoring
+7. ✅ Validar ROI con datos reales de producción
+
+---
+
 ## Referencias
 
 - **Sprint 06**: Prophet Price Forecasting (`.claude/sprints/ml-evolution/SPRINT_06_PRICE_FORECASTING.md`)
@@ -803,9 +870,10 @@ tests/ml/
 - **Sprint 08**: Hourly Optimization (`.claude/sprints/ml-evolution/SPRINT_08_HOURLY_OPTIMIZATION.md`)
 - **Sprint 09**: Predictive Dashboard (`.claude/sprints/ml-evolution/SPRINT_09_PREDICTIVE_DASHBOARD.md`)
 - **Sprint 12**: Testing Suite (`.claude/sprints/infrastructure/SPRINT_12_FORGEJO_CICD.md`)
+- **Sprint 16**: Documentation Integrity (`.claude/sprints/infrastructure/SPRINT_16_INTEGRITY_TRANSPARENCY.md`)
 
 ---
 
-**Última actualización**: 2025-10-20
-**Versión**: 1.0
-**Autor**: ML Architecture Documentation - Sprint 10
+**Última actualización**: 2025-10-30
+**Versión**: 1.1
+**Autor**: ML Architecture Documentation - Sprint 10, Updated Sprint 16

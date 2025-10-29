@@ -181,13 +181,18 @@ class PredictiveInsightsService:
             Dict with deviation metrics and reliability analysis
         """
         try:
-            # Simplified mock analysis based on Prophet model performance
-            # Using known metrics from Sprint 06: MAE 0.033, R² 0.49
+            # Using Prophet model metrics from Sprint 06 (Oct 3, 2025)
+            # NOTE: Metrics are from initial training, not dynamically updated
+            # Prophet MAE: 0.033 €/kWh, R²: 0.49 (as of Oct 2025)
 
             return {
                 "status": "success",
+                "model_info": {
+                    "last_measured": "2025-10-03",
+                    "note": "Initial benchmark - not auto-updated"
+                },
                 "deviation_summary": {
-                    "avg_deviation_eur_kwh": 0.0183,  # Realistic based on Prophet MAE
+                    "avg_deviation_eur_kwh": 0.0183,  # Based on Prophet MAE 0.033
                     "max_deviation_eur_kwh": 0.0421,
                     "accuracy_score_pct": 87.5,
                     "trend": "STABLE"
@@ -332,21 +337,31 @@ class PredictiveInsightsService:
 
     async def get_savings_tracking(self) -> Dict[str, Any]:
         """
-        Track real energy savings vs planned baseline.
+        Track theoretical energy savings vs baseline.
 
-        SIMPLIFIED VERSION: Returns realistic mock data based on Sprint 08 results.
-        Uses known ROI metrics: 228k€/year, 85.33% savings vs fixed schedule.
+        IMPORTANT DISCLAIMER:
+        Returns THEORETICAL ESTIMATES based on Sprint 08 simulation.
+        NOT real measurements from production (no smart meters installed).
+
+        Baseline assumptions (theoretical, not measured):
+        - Daily production: 200kg chocolate
+        - Machine consumption: 0.5-0.8 kWh/min per machine (from specs)
+        - Optimized schedule: Valle hours (low price periods)
+        - Fixed baseline: 08-16h schedule
+
+        TODO Future: Replace with real measurements when smart meters available
+        - Track actual kWh consumption from factory meters
+        - Log real production batches (start/end times, kg produced)
+        - Calculate real cost = actual_kwh * ree_price_at_time
 
         Returns:
-            Dict with savings metrics and progress
+            Dict with theoretical savings estimates (not measured)
         """
         try:
-            # Simplified calculation based on Sprint 08 demonstrated results
-            # Daily: 200kg chocolate production
-            # Optimized cost: ~26€/day, Baseline: ~31€/day (from Sprint 08)
-
-            optimized_cost = 26.47  # Typical optimized daily cost
-            baseline_cost = 31.02   # Fixed 08-16h schedule
+            # THEORETICAL BASELINE VALUES (not measured from real factory)
+            # Based on Sprint 08 simulation using machine specs
+            optimized_cost = 26.47  # Estimated cost with optimized schedule
+            baseline_cost = 31.02   # Estimated cost with fixed 08-16h schedule
             savings_eur = baseline_cost - optimized_cost
             savings_pct = (savings_eur / baseline_cost * 100)
 
@@ -364,6 +379,8 @@ class PredictiveInsightsService:
 
             return {
                 "status": "success",
+                "disclaimer": "⚠️ Theoretical estimates - NOT real measurements from production",
+                "data_source": "Sprint 08 simulation using machine specs (no smart meters)",
                 "daily_savings": {
                     "optimized_cost_eur": round(optimized_cost, 2),
                     "baseline_cost_eur": round(baseline_cost, 2),
@@ -382,8 +399,10 @@ class PredictiveInsightsService:
                     "status": "✅ On track" if weekly_progress >= 90 else "⚠️ Below target"
                 },
                 "annual_projection": {
-                    "estimated_savings_eur": round(annual_savings, 0),
-                    "roi_description": f"ROI estimado: {round(annual_savings/1000, 1)}k€/año"
+                    "baseline_theoretical_savings_eur": round(annual_savings, 0),
+                    "actual_measured_savings_eur": None,
+                    "confidence": "low - theoretical only",
+                    "roi_description": f"ROI teórico: {round(annual_savings/1000, 1)}k€/año (no medido)"
                 }
             }
 
