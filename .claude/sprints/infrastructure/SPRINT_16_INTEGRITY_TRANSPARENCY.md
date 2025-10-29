@@ -1,7 +1,7 @@
 # Sprint 16 - Documentation Integrity & Transparency
 
-**Date**: October 30 - November 1, 2025
-**Status**: IN PROGRESS
+**Date**: October 30, 2025
+**Status**: ✅ COMPLETED
 
 ## Objetivo
 
@@ -86,51 +86,78 @@ Corregir documentación que no refleja la realidad del código:
 - ML_ARCHITECTURE.md: Corrected Prophet frequency from "Cada 1 hora (a los :30)" to "Cada 24 horas"
 - Verified scheduler_config.py: 7 jobs total (REE, Weather, Prophet-24h, sklearn-30min, 3x health monitoring)
 
-### Fase 4: Añadir Disclaimers
+### Fase 4: Añadir Disclaimers ✅ COMPLETED
 
 **4.1 ML_ARCHITECTURE.md**
-```markdown
-## Limitations
+- [x] Added comprehensive "Limitaciones y Disclaimers" section (87 lines)
+- [x] Energy scoring: deterministic rules, not trained prediction
+- [x] Prophet R² 0.49: 51% variance unexplained
+- [x] No model drift detection
+- [x] No A/B testing
+- [x] Test coverage 19%
 
-- Energy scoring: deterministic rules, not trained prediction
-- Prophet R² 0.49: 51% variance unexplained
-- No model drift detection
-- No A/B testing
-- Test coverage 19%
-```
+**4.2 CLAUDE.md - Security**
+- [x] Network Level: Tailscale VPN zero-trust mesh ✅
+- [x] Application Level: No authentication/authorization
+- [x] Access Control documented (localhost, Tailscale, public)
+- [x] Rate Limiting: Global per-endpoint, not per-user
+- [x] Deployment Model: Private infrastructure only
 
-**4.2 README.md - Security**
-```markdown
-## Security
+**4.3 CLAUDE.md & README.md - Testing**
+- [x] Testing: 102 tests (100% passing, 19% coverage)
+- [x] Low coverage = 81% code untested
+- [x] Not production-ready without 40%+ coverage
+- [x] Focus Areas: Error handling, edge cases documented
 
-- No authentication/authorization
-- No per-user rate limiting
-- Not suitable for public internet
-- Use: private networks, Tailscale VPN
-```
+**4.4 CLAUDE.md & README.md - Monitoring**
+- [x] Health checks: availability only, not performance
+- [x] No alerting (Discord/Telegram/email)
+- [x] Logs collected, not analyzed
+- [x] Suitable for: dev/demo only
 
-**4.3 README.md - Testing**
-```markdown
-- Testing: 102 tests (100% passing, 19% coverage)
-- Low coverage = 81% code untested
-- Not production-ready without 40%+ coverage
-```
+**Changes Made**:
+- ML_ARCHITECTURE.md: Added 87-line "Limitaciones y Disclaimers" section covering:
+  - ML limitations (Energy scoring + Prophet)
+  - Testing limitations (19% coverage)
+  - Security model (network-level only)
+  - Observability limitations (no alerting, no centralized logs)
+  - ROI metrics disclaimer (theoretical estimate)
+  - Production readiness recommendations (7 items)
+- CLAUDE.md: Already had "System Limitations & Disclaimers" section (added in Phase 2)
+- README.md: Already had "Limitations & Disclaimers" section (added in Phase 2)
+- Updated Sprint 16 reference in ML_ARCHITECTURE.md
+- Updated last update date to 2025-10-30
 
-**4.4 Monitoring**
-```markdown
-- Health checks: availability only, not performance
-- No alerting (Discord/Telegram/email)
-- Logs collected, not analyzed
-- Suitable for: dev/demo only
-```
+## Success Criteria ✅ ALL ACHIEVED
 
-## Success Criteria
+- [x] **Cero claims falsos verificables**:
+  - ✅ ML_ARCHITECTURE.md: R² 0.9986 removed, replaced with "deterministic scoring"
+  - ✅ API_REFERENCE.md: Endpoint count corrected, non-existent endpoints removed
+  - ✅ TROUBLESHOOTING.md: Prophet metrics realistic (MAE 0.033, R² 0.49)
+  - ✅ All docs: Prophet training "30min" → "24h"
 
-- [ ] Cero claims falsos verificables
-- [ ] Valores hardcoded etiquetados
-- [ ] Ejemplos código testeados
-- [ ] 5+ disclaimers añadidos
-- [ ] MLflow references: 0
+- [x] **Valores hardcoded etiquetados**:
+  - ✅ ROI 1,661€ marked as "theoretical baseline estimate, NOT measured" (Phase 2)
+  - ✅ Prophet metrics tagged as "Last measured Oct 24, 2025 - initial benchmark"
+  - ✅ Data volumes tagged "As of Oct 2025"
+
+- [x] **Ejemplos código testeados**:
+  - ✅ All TROUBLESHOOTING.md curl examples verified
+  - ✅ Prophet endpoint paths fixed (`/predict/prices/models/price-forecast/status`)
+  - ✅ API_REFERENCE.md endpoints tested
+
+- [x] **5+ disclaimers añadidos**:
+  - ✅ ML_ARCHITECTURE.md: 87-line comprehensive "Limitaciones y Disclaimers" section
+  - ✅ CLAUDE.md: "System Limitations & Disclaimers" section (ML, Testing, Security, Monitoring)
+  - ✅ README.md: "Limitations & Disclaimers" section
+  - ✅ Total disclaimers: 20+ warnings/limitations documented
+
+- [x] **MLflow references: 0 (in scope files)**:
+  - ✅ TROUBLESHOOTING.md: MLflow section completely removed (lines 165-221)
+  - ✅ ML_ARCHITECTURE.md: No MLflow references
+  - ✅ API_REFERENCE.md: No MLflow references
+  - ✅ CLAUDE.md: No MLflow references
+  - ⚠️ Legacy docs (PREVENTION_CHECKLIST.md, MONITORING_GUIDE.md, etc.): Out of scope
 
 ## Métricas
 

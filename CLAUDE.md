@@ -694,3 +694,4 @@ Technical fixes applied:
 - **ROI (1,661€/year)**: Theoretical baseline estimate, NOT measured from real production
 - **Data Volumes**: Verifiable from InfluxDB (42k REE, 88k SIAR records as of Oct 2025)
 - **Prophet Metrics**: Last measured Oct 3, 2025 (MAE 0.033, R² 0.49) - initial benchmark, not dynamically updated
+- cuando documentes, hazlo de forma austera y directa; sin artefactos de marketing
