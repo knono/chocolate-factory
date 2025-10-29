@@ -25,86 +25,59 @@ The main FastAPI application (`src/fastapi-app/`) acts as the autonomous brain:
 
 ## Project Structure
 
-### ✅ Clean Architecture Refactoring (October 6, 2025)
+### ✅ Clean Architecture + Sprint 15 Consolidation (Oct 6 - Oct 29, 2025)
 
-The FastAPI application follows **Clean Architecture** principles:
+FastAPI application with Clean Architecture:
 
 ```
 src/fastapi-app/
-├── main.py                     # Entry point (76 lines)
+├── main.py                     # Entry point (136 lines)
+├── dependencies.py             # DI container - singleton pattern with @lru_cache()
 ├── startup_tasks.py            # Startup initialization
-├── dependencies.py             # Dependency injection
-├── pyproject.toml              # Python dependencies
 │
-├── api/                        # 🔷 HTTP Interface Layer
+├── api/                        # 🔷 HTTP Interface (13 routers, ~60 endpoints)
 │   ├── routers/
-│   │   ├── health.py          # System health (/health, /ready, /version)
-│   │   ├── ree.py             # REE prices (/ree/prices)
-│   │   ├── weather.py         # Weather (/weather/hybrid)
-│   │   ├── dashboard.py       # Dashboard (/dashboard/complete)
-│   │   ├── price_forecast.py  # Prophet (/predict/prices/*)
-│   │   ├── ml_predictions.py  # ML endpoints (/predict/*)
-│   │   ├── optimization.py    # Production (/optimize/production/*)
-│   │   ├── analysis.py        # SIAR (/analysis/*)
-│   │   ├── gaps.py            # Gaps (/gaps/*)
-│   │   ├── insights.py        # Insights (/insights/*)
-│   │   ├── chatbot.py         # Chatbot (/chat/*)
-│   │   └── health_monitoring.py # Health (/health-monitoring/*)
-│   └── schemas/
-│       ├── common.py          # Pydantic models
-│       └── ree.py             # REE schemas
+│   │   ├── health.py, ree.py, weather.py               # Core data
+│   │   ├── dashboard.py, optimization.py, analysis.py  # Dashboard/analysis
+│   │   ├── gaps.py, insights.py                        # Derived data
+│   │   ├── chatbot.py, health_monitoring.py            # Features (Sprints 11,13)
+│   │   ├── ml_predictions.py, price_forecast.py       # ML predictions
+│   │   └── schemas/
 │
-├── domain/                     # 🔶 Business Logic
-│   ├── energy/
-│   │   └── forecaster.py      # Price forecasting
-│   ├── ml/
-│   │   └── model_trainer.py   # ML training
+├── domain/                     # 🔶 Business Logic (14 files)
+│   ├── ml/                     # Direct ML, feature engineering, model training
+│   ├── recommendations/        # Business logic, production recommendations
+│   ├── analysis/               # SIAR historical analysis (88k records)
+│   ├── energy/forecaster.py   # Energy forecasting
 │   └── weather/
-│       └── classifier.py      # Weather classification
 │
-├── services/                   # 🔷 Application Layer (30+ services)
-│   ├── ree_service.py, ree_client.py
-│   ├── aemet_service.py, aemet_client.py
-│   ├── openweathermap_client.py, weather_aggregation_service.py
-│   ├── direct_ml.py            # sklearn training
-│   ├── price_forecasting_service.py  # Prophet
-│   ├── siar_analysis_service.py, siar_etl.py
-│   ├── hourly_optimizer_service.py
-│   ├── predictive_insights_service.py
-│   ├── chatbot_service.py, chatbot_context_service.py
-│   ├── tailscale_health_service.py, health_logs_service.py
-│   ├── backfill_service.py, gap_detector.py
-│   ├── scheduler.py
-│   └── [other utilities]
+├── services/                   # 🔷 Orchestration (21 active files)
+│   ├── Core: ree_service, aemet_service, weather_aggregation_service, dashboard
+│   ├── Data: siar_etl, gap_detector, backfill_service, data_ingestion
+│   ├── Features: chatbot_service, tailscale_health_service, health_logs_service
+│   ├── Supporting: scheduler, ml_models, etc.
+│   ├── Compatibility: ml_domain_compat, recommendation_domain_compat, analysis_domain_compat
+│   └── legacy/                 # 13 archived files (historical_*, initialization/)
 │
-├── infrastructure/             # 🔷 Infrastructure Layer
-│   ├── influxdb/
-│   │   ├── client.py          # InfluxDB wrapper
-│   │   └── queries.py         # Flux builder
-│   └── external_apis/         # API clients
+├── infrastructure/             # 🔷 External Systems (8 files)
+│   ├── influxdb/client.py, queries.py
+│   └── external_apis/ree_client.py, aemet_client.py, openweather_client.py
 │
-├── core/                       # 🔶 Core Utilities
-│   ├── config.py              # Settings
-│   ├── logging_config.py      # Logging
-│   └── exceptions.py          # Exceptions
+├── core/                       # 🔶 Utilities (4 files)
+│   ├── config.py, logging_config.py, exceptions.py
 │
-├── tasks/                      # 🔷 Background Jobs
-│   ├── ree_jobs.py, weather_jobs.py
-│   └── scheduler_config.py
+├── tasks/                      # 🔷 Background Jobs (5 files)
+│   ├── scheduler_config.py, ree_jobs.py, weather_jobs.py, ml_jobs.py, health_monitoring_jobs.py
 │
-├── tests/                      # Test suite (102 tests)
-│   ├── unit/, integration/, e2e/, ml/
-│   └── fixtures and markers
-│
-├── models/                     # Pickled ML models
-└── logs/                       # Application logs
+└── tests/                      # ~11 test files
 ```
 
-**Statistics:**
-- 12 routers
-- 30+ services
-- 60+ API endpoints
-- 102 tests (36 E2E, 100% passing)
+**Final Metrics:**
+- **13 routers** (~60 endpoints)
+- **21 services** (down from 30 - legacy archived)
+- **14 domain files** (business logic properly extracted)
+- **3 API clients** consolidated in infrastructure/
+- **102 tests** (36 E2E, 100% passing)
 
 ### Legacy Project Structure (Pre-Refactoring)
 ```

@@ -18,7 +18,7 @@ from loguru import logger
 import pandas as pd
 
 from .data_ingestion import DataIngestionService, DataIngestionStats
-from .aemet_client import AEMETWeatherData
+from .data_ingestion import AEMETWeatherData  # AEMETWeatherData is defined in data_ingestion.py
 
 
 class SiarETL:

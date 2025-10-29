@@ -373,9 +373,9 @@ class HourlyOptimizerService:
         """Obtiene predicciones clima para 24 horas desde target_date"""
         try:
             # Usar AEMET para predicciones
-            from services.aemet_client import AEMETClient
+            from infrastructure.external_apis import AEMETAPIClient  # Sprint 15
 
-            aemet = AEMETClient()
+            aemet = AEMETAPIClient()
             forecast = await aemet.get_daily_forecast()
 
             # Simplificación: asumir condiciones constantes durante el día

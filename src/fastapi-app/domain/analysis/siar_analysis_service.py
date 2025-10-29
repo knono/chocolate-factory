@@ -24,7 +24,7 @@ import numpy as np
 from scipy import stats
 from influxdb_client import InfluxDBClient
 
-from .data_ingestion import DataIngestionService
+from services.data_ingestion import DataIngestionService
 
 logger = logging.getLogger(__name__)
 

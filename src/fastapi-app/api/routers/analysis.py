@@ -26,7 +26,7 @@ async def get_siar_analysis_summary() -> Dict[str, Any]:
         Complete executive summary based on 25 years of data
     """
     try:
-        from services.siar_analysis_service import SIARAnalysisService
+        from domain.analysis.siar_analysis_service import SIARAnalysisService
 
         siar_service = SIARAnalysisService()
         summary = await siar_service.get_analysis_summary()
@@ -51,7 +51,7 @@ async def get_weather_correlation() -> Dict[str, Any]:
         R² correlations for temperature and humidity over 25 years
     """
     try:
-        from services.siar_analysis_service import SIARAnalysisService
+        from domain.analysis.siar_analysis_service import SIARAnalysisService
 
         siar_service = SIARAnalysisService()
         correlations_dict = await siar_service.calculate_production_correlations()
@@ -94,7 +94,7 @@ async def get_seasonal_patterns() -> Dict[str, Any]:
         Best and worst months for chocolate production based on historical data
     """
     try:
-        from services.siar_analysis_service import SIARAnalysisService
+        from domain.analysis.siar_analysis_service import SIARAnalysisService
 
         siar_service = SIARAnalysisService()
         patterns_list = await siar_service.detect_seasonal_patterns()
@@ -155,7 +155,7 @@ async def get_critical_thresholds() -> Dict[str, Any]:
         P90, P95, P99 percentiles for temperature and humidity based on historical data
     """
     try:
-        from services.siar_analysis_service import SIARAnalysisService
+        from domain.analysis.siar_analysis_service import SIARAnalysisService
 
         siar_service = SIARAnalysisService()
         thresholds_list = await siar_service.identify_critical_thresholds()
@@ -206,11 +206,11 @@ async def get_aemet_forecast_with_siar_context() -> Dict[str, Any]:
         AEMET predictions + recommendations based on historical evidence
     """
     try:
-        from services.siar_analysis_service import SIARAnalysisService
-        from services.aemet_client import AEMETClient
+        from domain.analysis.siar_analysis_service import SIARAnalysisService
+        from infrastructure.external_apis import AEMETAPIClient  # Sprint 15
 
         # Get AEMET predictions (uses existing API)
-        aemet_client = AEMETClient()
+        aemet_client = AEMETAPIClient()
         # Note: Here you would need to implement AEMET forecast retrieval
         # For now, we simulate the structure
         aemet_forecast = [

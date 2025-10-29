@@ -12,9 +12,13 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
 
-from ..ree_client import REEClient
-from ..aemet_client import AEMETClient, AEMETWeatherData
+from infrastructure.external_apis import REEAPIClient, AEMETAPIClient  # Sprint 15
+from infrastructure.external_apis.aemet_client import AEMETWeatherData
 from ..data_ingestion import DataIngestionService, DataIngestionStats
+
+# For backward compatibility
+REEClient = REEAPIClient
+AEMETClient = AEMETAPIClient
 
 logger = logging.getLogger(__name__)
 

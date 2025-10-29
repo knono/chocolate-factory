@@ -29,7 +29,7 @@ from influxdb_client import InfluxDBClient
 import warnings
 warnings.filterwarnings('ignore')
 
-from .data_ingestion import DataIngestionService
+from services.data_ingestion import DataIngestionService
 
 logger = logging.getLogger(__name__)
 
