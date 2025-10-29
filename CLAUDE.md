@@ -652,3 +652,4 @@ Technical fixes applied:
 - Documentation updated (sprint file + CLAUDE.md)
 - Metrics achieved
 - No critical technical debt
+- cuando vayas a hacer un docker build --no-cache por favor

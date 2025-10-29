@@ -169,8 +169,8 @@ class HourlyOptimizerService:
         self.bucket = "energy_data"
         self.org = "chocolate_factory"
 
-        # ML service para predicciones de producción
-        from .direct_ml import DirectMLService
+        # ML service para predicciones de producción (Sprint 15: moved to domain layer)
+        from domain.ml.direct_ml import DirectMLService
         self.ml_service = DirectMLService()
         self.ml_service.load_models()
 

@@ -60,7 +60,9 @@ class DashboardService:
         """Obtiene todos los datos consolidados para el dashboard"""
         try:
             # 1. Información actual
+            logger.info("📊 Getting complete dashboard data - starting with current_info")
             current_info = await self._get_current_info()
+            logger.info(f"📊 current_info result: {bool(current_info)} - keys: {list(current_info.keys()) if current_info else []}")
             
             # 2. Predicciones ML
             predictions = await self._get_ml_predictions(current_info)
@@ -115,37 +117,59 @@ class DashboardService:
     async def _get_current_info(self) -> Dict[str, Any]:
         """Obtiene información actual de precios y clima"""
         try:
-            # Precios REE actuales (últimas 2 horas)
-            end_time = datetime.now()
-            start_time = end_time - timedelta(hours=2)
-            
+            # Precios REE actuales (hoy)
+            # Sprint 15: REEAPIClient.get_pvpc_prices() only accepts target_date (single day)
+            today = datetime.now().date()
+            logger.info(f"🔍 Getting current info for date: {today}")
+
             async with self.ree_client as ree:
-                ree_data = await ree.get_pvpc_prices(start_date=start_time, end_date=end_time)
+                ree_data = await ree.get_pvpc_prices(target_date=today)
+
+            logger.info(f"📊 REE data received: {len(ree_data) if ree_data else 0} records")
+
             current_price = None
             if ree_data and len(ree_data) > 0:
+                # Get most recent price (last item in list)
+                latest = ree_data[-1]
                 current_price = {
-                    "price_eur_mwh": ree_data[0].price_eur_mwh,
-                    "price_eur_kwh": round(ree_data[0].price_eur_mwh / 1000, 4),
-                    "datetime": ree_data[0].timestamp.isoformat(),
-                    "trend": self._calculate_price_trend(ree_data)
+                    "price_eur_kwh": latest["price_eur_kwh"],
+                    "price_eur_mwh": latest["price_eur_kwh"] * 1000,
+                    "datetime": latest["timestamp"],
+                    "trend": self._calculate_price_trend_from_dicts(ree_data)
                 }
             
             # Clima actual
             async with self.weather_client as weather:
                 weather_data = await weather.get_current_weather()
+
+            logger.info(f"🌡️ Weather data type: {type(weather_data)}, has data: {bool(weather_data)}")
+
             current_weather = None
             if weather_data:
-                # weather_data is an AEMETWeatherData object
-                current_weather = {
-                    "temperature": weather_data.temperature,
-                    "humidity": weather_data.humidity,
-                    "pressure": weather_data.pressure,
-                    "description": "Current conditions",
-                    "comfort_index": self._calculate_comfort_index(
-                        weather_data.temperature, 
-                        weather_data.humidity
-                    )
-                }
+                # Sprint 15: weather_data can be dict or object
+                if isinstance(weather_data, dict):
+                    current_weather = {
+                        "temperature": weather_data.get("temperature", 0),
+                        "humidity": weather_data.get("humidity", 0),
+                        "pressure": weather_data.get("pressure", 0),
+                        "description": "Current conditions",
+                        "comfort_index": self._calculate_comfort_index(
+                            weather_data.get("temperature", 20),
+                            weather_data.get("humidity", 50)
+                        )
+                    }
+                else:
+                    # Object format (AEMETWeatherData)
+                    current_weather = {
+                        "temperature": weather_data.temperature,
+                        "humidity": weather_data.humidity,
+                        "pressure": weather_data.pressure,
+                        "description": "Current conditions",
+                        "comfort_index": self._calculate_comfort_index(
+                            weather_data.temperature,
+                            weather_data.humidity
+                        )
+                    }
             
             current_info = {
                 "energy": current_price,
@@ -578,13 +602,28 @@ class DashboardService:
             return []
     
     def _calculate_price_trend(self, price_data: List) -> str:
-        """Calcula tendencia de precios"""
+        """Calcula tendencia de precios (legacy objects)"""
         if len(price_data) < 2:
             return "stable"
-        
+
         current = price_data[0].price_eur_mwh
         previous = price_data[1].price_eur_mwh if len(price_data) > 1 else current
-        
+
+        if current > previous * 1.05:
+            return "rising"
+        elif current < previous * 0.95:
+            return "falling"
+        else:
+            return "stable"
+
+    def _calculate_price_trend_from_dicts(self, price_data: List[Dict]) -> str:
+        """Calcula tendencia de precios (Sprint 15: dict format)"""
+        if len(price_data) < 2:
+            return "stable"
+
+        current = price_data[-1]["price_eur_kwh"] * 1000  # Convert to MWh for comparison
+        previous = price_data[-2]["price_eur_kwh"] * 1000
+
         if current > previous * 1.05:
             return "rising"
         elif current < previous * 0.95:
@@ -633,8 +672,11 @@ class DashboardService:
         """Genera datos de pronóstico semanal con heatmap para calendario"""
         try:
             import httpx
-            from .aemet_client import AEMETClient
-            from .openweathermap_client import OpenWeatherMapClient
+            from infrastructure.external_apis import AEMETAPIClient, OpenWeatherMapAPIClient
+
+            # Sprint 15: Use infrastructure layer clients
+            AEMETClient = AEMETAPIClient
+            OpenWeatherMapClient = OpenWeatherMapAPIClient
             
             start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             
