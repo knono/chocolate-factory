@@ -74,12 +74,14 @@ Sprint 11 (Chatbot BI) → Sprint 12 (Forgejo CI/CD) → Sprint 13 (Health Monit
 - Sprint 11 (Infrastructure): Completado
 - Sprint 12 (CI/CD + Testing): Completado (Fases 1-11)
 - Sprint 13 (Observability): Completado (Health Monitoring - Pivoted)
-- Clean Architecture: Refactorizado (Oct 6, 2025)
-- API Endpoints: 38 disponibles (incluye `/chat/*` + `/health-monitoring/*`)
+- Sprint 14 (Hybrid ML Training): Completado (Oct 24, 2025)
+- Sprint 15 (Architecture Cleanup): Completado (Oct 29, 2025)
+- Clean Architecture: Refactorizado y consolidado (Oct 6-29, 2025)
+- API Endpoints: 45 disponibles (12 routers activos)
 - Tailscale: 3 nodos activos (git, dev, prod) + observability
 - CI/CD: Pipeline automatizado con rollback
 - Tests: 102 tests (100% passing)
-- APScheduler: 13 jobs automatizados (incluye analytics)
+- APScheduler: 13+ jobs automatizados
 
 **Próximos Sprints**: TBD
 

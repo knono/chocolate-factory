@@ -35,7 +35,7 @@ src/fastapi-app/
 ├── dependencies.py             # DI container - singleton pattern with @lru_cache()
 ├── startup_tasks.py            # Startup initialization
 │
-├── api/                        # 🔷 HTTP Interface (13 routers, ~60 endpoints)
+├── api/                        # 🔷 HTTP Interface (12 routers, 45 endpoints)
 │   ├── routers/
 │   │   ├── health.py, ree.py, weather.py               # Core data
 │   │   ├── dashboard.py, optimization.py, analysis.py  # Dashboard/analysis
@@ -51,13 +51,13 @@ src/fastapi-app/
 │   ├── energy/forecaster.py   # Energy forecasting
 │   └── weather/
 │
-├── services/                   # 🔷 Orchestration (21 active files)
+├── services/                   # 🔷 Orchestration (20 active files)
 │   ├── Core: ree_service, aemet_service, weather_aggregation_service, dashboard
 │   ├── Data: siar_etl, gap_detector, backfill_service, data_ingestion
 │   ├── Features: chatbot_service, tailscale_health_service, health_logs_service
 │   ├── Supporting: scheduler, ml_models, etc.
 │   ├── Compatibility: ml_domain_compat, recommendation_domain_compat, analysis_domain_compat
-│   └── legacy/                 # 13 archived files (historical_*, initialization/)
+│   └── legacy/                 # 7 archived files (2 root + 4 in initialization/)
 │
 ├── infrastructure/             # 🔷 External Systems (8 files)
 │   ├── influxdb/client.py, queries.py
@@ -66,15 +66,16 @@ src/fastapi-app/
 ├── core/                       # 🔶 Utilities (4 files)
 │   ├── config.py, logging_config.py, exceptions.py
 │
-├── tasks/                      # 🔷 Background Jobs (5 files)
-│   ├── scheduler_config.py, ree_jobs.py, weather_jobs.py, ml_jobs.py, health_monitoring_jobs.py
+├── tasks/                      # 🔷 Background Jobs (6 files)
+│   ├── scheduler_config.py, ree_jobs.py, weather_jobs.py, ml_jobs.py,
+│   ├── health_monitoring_jobs.py, sklearn_jobs.py (Sprint 14)
 │
 └── tests/                      # ~11 test files
 ```
 
 **Final Metrics:**
-- **13 routers** (~60 endpoints)
-- **21 services** (down from 30 - legacy archived)
+- **12 routers** (45 endpoints)
+- **20 services** (down from 30 - legacy archived)
 - **14 domain files** (business logic properly extracted)
 - **3 API clients** consolidated in infrastructure/
 - **102 tests** (36 E2E, 100% passing)
@@ -165,6 +166,14 @@ Implemented:
   - Result: R² 0.334 → 0.963 (191% improvement)
   - New endpoints: POST /predict/train/hybrid
   - Prophet router integrated: GET /predict/prices/weekly, /hourly, /train, /status
+- Sprint 15: Architecture Cleanup & Consolidation (Oct 29, 2025)
+  - API client duplication resolved (3 files consolidated in infrastructure/)
+  - Services layer reduced: 30 → 20 active files
+  - Legacy archived: 7 files in services/legacy/
+  - Domain layer developed: 14 files with proper business logic
+  - main.py bug fixed: "main_new:app" → "main:app"
+  - dependencies.py documented (DI container with @lru_cache())
+  - sklearn_jobs.py added to tasks layer
 
 ### Core Infrastructure
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
@@ -199,7 +208,7 @@ Implemented:
 - **Documentation**: `docs/ML_ARCHITECTURE.md` (Sprint 10, updated Oct 24)
 
 ### Operations
-- **APScheduler**: 11 automated jobs (ingestion, ML, Prophet forecasting, backfill, health)
+- **APScheduler**: 13+ automated jobs (ingestion, ML, sklearn training, Prophet forecasting, backfill, health monitoring)
 - **Integrated Dashboard**: `/dashboard/complete` (replaces Node-RED)
 - **Visual Dashboard**: `/dashboard` with Prophet ML heatmap and interactive tooltips
 - **Weekly Forecast**: 7-day Prophet predictions with color-coded price zones (Safari/Chrome/Brave compatible)
@@ -389,14 +398,16 @@ curl -X POST http://localhost:8000/chat/ask \
 
 ## System Automation
 
-### APScheduler Jobs (11 automated)
+### APScheduler Jobs (13+ automated)
 - **REE ingestion**: Every 5 minutes
 - **Weather ingestion**: Every 5 minutes (hybrid AEMET/OpenWeatherMap)
-- **ML training**: Every 30 minutes (direct sklearn)
+- **sklearn ML training**: Every 30 minutes (direct sklearn models) ✅ Sprint 14
 - **ML predictions**: Every 30 minutes
-- **Prophet forecasting**: Every hour at :30 (168h price predictions) ✅ NEW
+- **Prophet forecasting**: Every hour at :30 (168h price predictions) ✅ Sprint 06
 - **Auto backfill**: Every 2 hours (gap detection & recovery)
-- **Health monitoring**: Every 15 minutes
+- **Health monitoring**: Every 5 minutes ✅ Sprint 13
+- **Critical nodes check**: Every 2 minutes ✅ Sprint 13
+- **Status logging**: Every hour ✅ Sprint 13
 - **Token management**: Daily (AEMET renewal)
 - **Weekly cleanup**: Sundays at 2 AM
 

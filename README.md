@@ -23,7 +23,7 @@ Energy optimization system combining machine learning price forecasting, automat
 - ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
 - ROI: 1,661€/year energy savings (85.33% vs fixed schedule)
 - Testing: 102 tests (100% passing, 19% coverage, 36 E2E tests)
-- Clean Architecture: 41 modules (98% reduction from monolithic main.py)
+- Clean Architecture: 12 routers, 45 endpoints (96.5% reduction in main.py)
 - CI/CD: Automated testing + smoke tests + rollback on failure
 - Observability: Tailscale health monitoring (uptime tracking, critical nodes alerts)
 
@@ -97,10 +97,10 @@ Secrets: SOPS encrypted + .env fallback
 
 ```
 src/fastapi-app/
-├── main.py (76 lines)           # Entry point
+├── main.py (135 lines)          # Entry point
 ├── api/                         # HTTP Interface
-│   ├── routers/                 # 12 routers (health, ree, weather, dashboard,
-│   │                            #   optimization, analysis, gaps, insights,
+│   ├── routers/                 # 12 routers, 45 endpoints (health, ree, weather,
+│   │                            #   dashboard, optimization, analysis, gaps, insights,
 │   │                            #   chatbot, health_monitoring, ml_predictions,
 │   │                            #   price_forecast)
 │   └── schemas/                 # Pydantic models
@@ -132,8 +132,8 @@ src/fastapi-app/
     ├── weather_jobs.py         # Weather ingestion
     └── scheduler_config.py     # APScheduler
 
-Refactoring: 3,838 → 76 lines main.py (98% reduction)
-Modules: 41 Python files organized by layer
+Refactoring: 3,838 → 135 lines main.py (96.5% reduction)
+Modules: 60+ Python files organized by layer (Clean Architecture)
 ```
 
 ### Security
@@ -219,6 +219,7 @@ Modules: 41 Python files organized by layer
 | 12 | Oct 2025 | Forgejo CI/CD + Testing Suite | 102 tests, 19% coverage, automated rollback |
 | 13 | Oct 2025 | Health Monitoring (Pivoted) | 6 endpoints, uptime tracking, critical nodes alerts, event logs |
 | 14 | Oct 2025 | Hybrid ML Training Optimization | SIAR (88k) + REE fine-tune, R² 0.334→0.963 (191% improvement) |
+| 15 | Oct 2025 | Architecture Cleanup & Consolidation | API clients consolidated, services 30→20, legacy archived, main.py bugs fixed |
 
 ### ML Models
 
@@ -326,9 +327,9 @@ See: [`docs/GITFLOW_CICD_WORKFLOW.md`](docs/GITFLOW_CICD_WORKFLOW.md)
 ```
 chocolate-factory/
 ├── src/fastapi-app/           # Clean Architecture (Oct 2025)
-│   ├── main.py                # Entry point (76 lines)
+│   ├── main.py                # Entry point (135 lines)
 │   ├── api/                   # HTTP Interface Layer
-│   │   ├── routers/           # 9 routers
+│   │   ├── routers/           # 12 routers, 45 endpoints
 │   │   └── schemas/           # Pydantic models
 │   ├── domain/                # Business Logic Layer
 │   ├── services/              # Application Layer
@@ -430,6 +431,6 @@ Provided as-is for educational and research purposes.
 
 Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-**Current Status**: Sprint 14 completed (Hybrid ML Training Optimization, Oct 24 2025)
+**Current Status**: Sprint 15 completed (Architecture Cleanup & Consolidation, Oct 29 2025)
 
 </div>
