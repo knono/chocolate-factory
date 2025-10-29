@@ -19,7 +19,7 @@ Energy optimization system combining machine learning price forecasting, automat
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
 - Prophet ML: 168-hour price forecasting (MAE: 0.033 €/kWh, R²: 0.49)
-- sklearn ML: Production state classification (Accuracy: 1.0, R²: 0.9986) - real data, business rules
+- Optimization Scoring: Deterministic business rules (NOT predictive ML) - real data, formula-based
 - ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
 - ROI: 1,661€/year energy savings (85.33% vs fixed schedule)
 - Testing: 102 tests (100% passing, 19% coverage, 36 E2E tests)
@@ -218,17 +218,18 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 | 11 | Oct 2025 | Chatbot BI (Claude Haiku) | RAG + keyword matching |
 | 12 | Oct 2025 | Forgejo CI/CD + Testing Suite | 102 tests, 19% coverage, automated rollback |
 | 13 | Oct 2025 | Health Monitoring (Pivoted) | 6 endpoints, uptime tracking, critical nodes alerts, event logs |
-| 14 | Oct 2025 | Hybrid ML Training Optimization | SIAR (88k) + REE fine-tune, R² 0.334→0.963 (191% improvement) |
+| 14 | Oct 2025 | Hybrid ML Training Optimization | SIAR (88k) + REE fine-tune, deterministic scoring (circular formula) |
 | 15 | Oct 2025 | Architecture Cleanup & Consolidation | API clients consolidated, services 30→20, legacy archived, main.py bugs fixed |
 
 ### ML Models
 
-- **Price Forecasting**: Prophet 168h ahead (MAE: 0.033 €/kWh, R²: 0.49)
-- **Energy Optimization**: RandomForest regressor (R²: 0.963 hybrid training, 191% improvement)
-- **Production Recommendation**: RandomForest classifier (89% accuracy)
-- **Hybrid Training** (Sprint 14): Phase 1 SIAR historical (88k records, 25 years) + Phase 2 REE fine-tune (100 days)
+- **Price Forecasting**: Prophet 168h ahead (MAE: 0.033 €/kWh, R²: 0.49) ✅ Real ML
+- **Optimization Scoring**: Deterministic business rules (NOT predictive ML)
+  - Energy Score (0-100): Formula-based using price, temperature, humidity, tariff
+  - Production State: Rule-based classification (Optimal/Moderate/Reduced/Halt)
+  - Note: Not trained prediction, circular if measured as ML model
 - **Historical Analysis**: SIAR correlations (R²=0.049 temp, R²=0.057 humidity)
-- **ROI Tracking**: 1,661€/year savings (4.55€/day vs baseline)
+- **ROI Tracking**: 1,661€/year theoretical savings (baseline estimate, not measured)
 
 Full documentation: [`docs/ML_ARCHITECTURE.md`](docs/ML_ARCHITECTURE.md)
 
@@ -404,6 +405,24 @@ Docker bind mounts ensure data survives container restarts:
 - **Logs**: `./docker/services/fastapi/logs/`
 - **Forgejo**: `./docker/services/forgejo/data/`
 - **Registry**: `./docker/services/registry/data/`
+
+---
+
+## Limitations & Disclaimers
+
+### Machine Learning
+- **Prophet**: Real ML (R² 0.49) ✅ | **Optimization Scoring**: Deterministic rules (not predictive ML)
+- **Model Monitoring**: Not implemented | **A/B Testing**: Not implemented
+
+### Security
+- **Network**: Tailscale VPN (zero-trust, encrypted) ✅
+- **Application**: No auth/authz at API level
+- **Access**: Localhost (dev) | Tailscale network (prod) | Public internet (blocked)
+
+### Quality
+- **Tests**: 102 (100% passing, 19% coverage) - Recommend 40%+ for production
+- **Monitoring**: Health checks only, no alerting
+- **ROI**: 1,661€/year theoretical estimate (not measured from production)
 
 ---
 
