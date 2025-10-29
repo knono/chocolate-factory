@@ -18,7 +18,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, accuracy_score, classification_report
 from influxdb_client import InfluxDBClient
 
-from .data_ingestion import DataIngestionService
+from services.data_ingestion import DataIngestionService
 
 logger = logging.getLogger(__name__)
 
@@ -754,17 +754,20 @@ class DirectMLService:
             logger.error("Feature engineering failed")
             return {"success": False, "error": "Feature engineering failed"}
         
-        # Prepare features
-        feature_columns = ['price_eur_kwh', 'hour', 'day_of_week']
-        
-        # Add weather features if available
-        if 'temperature' in df.columns:
-            feature_columns.append('temperature')
-        if 'humidity' in df.columns:
-            feature_columns.append('humidity')
-        
+        # Prepare features - MUST match predict() method (5 features, Sprint 14)
+        feature_columns = ['price_eur_kwh', 'hour', 'day_of_week', 'temperature', 'humidity']
+
         # Clean data: remove rows with NaN in critical columns and fill remaining
         df_clean = df.dropna(subset=['price_eur_kwh']).copy()
+
+        # Ensure all required columns exist with safe defaults
+        # hour and day_of_week are created by engineer_features(), so they should exist
+        # temperature and humidity may be missing from some data sources
+        if 'temperature' not in df_clean.columns:
+            df_clean['temperature'] = 20.0  # Default comfortable temperature
+        if 'humidity' not in df_clean.columns:
+            df_clean['humidity'] = 50.0  # Default comfortable humidity
+
         X = df_clean[feature_columns].fillna(df_clean[feature_columns].mean())
         
         results = {}

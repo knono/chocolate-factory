@@ -61,9 +61,9 @@ async def get_complete_dashboard(
                 "message": f"Heatmap generation failed: {str(e)}"
             }
 
-        # Add historical analytics
+        # Add historical analytics (Sprint 15: moved to legacy)
         try:
-            from services.historical_analytics import HistoricalAnalyticsService
+            from services.legacy.historical_analytics import HistoricalAnalyticsService
             analytics_service = HistoricalAnalyticsService()
             historical_analytics = await analytics_service.get_historical_analytics()
             dashboard_data["historical_analytics"] = historical_analytics.model_dump()

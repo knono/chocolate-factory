@@ -96,16 +96,18 @@ def get_ree_client():
     """
     Get REE API client instance (lazy singleton).
 
+    Uses infrastructure/external_apis/ree_client.py as single source of truth.
+
     Returns:
-        REEClient: REE API client
+        REEAPIClient: REE API client
     """
     global _ree_client_instance
 
     if _ree_client_instance is None:
-        # Import here to avoid circular dependencies
-        from services.ree_client import REEClient
-        _ree_client_instance = REEClient()
-        logger.info("✅ REE client initialized")
+        # Import from infrastructure layer (Sprint 15 consolidation)
+        from infrastructure.external_apis import REEAPIClient
+        _ree_client_instance = REEAPIClient()
+        logger.info("✅ REE client initialized (from infrastructure)")
 
     return _ree_client_instance
 
@@ -114,16 +116,18 @@ def get_aemet_client():
     """
     Get AEMET API client instance (lazy singleton).
 
+    Uses infrastructure/external_apis/aemet_client.py as single source of truth.
+
     Returns:
-        AEMETClient: AEMET API client
+        AEMETAPIClient: AEMET API client
     """
     global _aemet_client_instance
 
     if _aemet_client_instance is None:
-        # Import here to avoid circular dependencies
-        from services.aemet_client import AEMETClient
-        _aemet_client_instance = AEMETClient()
-        logger.info("✅ AEMET client initialized")
+        # Import from infrastructure layer (Sprint 15 consolidation)
+        from infrastructure.external_apis import AEMETAPIClient
+        _aemet_client_instance = AEMETAPIClient()
+        logger.info("✅ AEMET client initialized (from infrastructure)")
 
     return _aemet_client_instance
 
@@ -132,16 +136,18 @@ def get_openweather_client():
     """
     Get OpenWeatherMap API client instance (lazy singleton).
 
+    Uses infrastructure/external_apis/openweather_client.py as single source of truth.
+
     Returns:
-        OpenWeatherMapClient: OpenWeatherMap API client
+        OpenWeatherMapAPIClient: OpenWeatherMap API client
     """
     global _openweather_client_instance
 
     if _openweather_client_instance is None:
-        # Import here to avoid circular dependencies
-        from services.openweathermap_client import OpenWeatherMapClient
-        _openweather_client_instance = OpenWeatherMapClient()
-        logger.info("✅ OpenWeatherMap client initialized")
+        # Import from infrastructure layer (Sprint 15 consolidation)
+        from infrastructure.external_apis import OpenWeatherMapAPIClient
+        _openweather_client_instance = OpenWeatherMapAPIClient()
+        logger.info("✅ OpenWeatherMap client initialized (from infrastructure)")
 
     return _openweather_client_instance
 
@@ -158,15 +164,17 @@ def get_direct_ml_service():
     """
     Get Direct ML Service instance (lazy singleton).
 
+    Uses domain/ml/direct_ml.py as single source of truth (Sprint 15).
+
     Returns:
         DirectMLService: Direct ML service
     """
     global _direct_ml_service_instance
 
     if _direct_ml_service_instance is None:
-        from services.direct_ml import DirectMLService
-        _direct_ml_service_instance = DirectMLService()
-        logger.info("✅ Direct ML Service initialized")
+        from domain.ml.direct_ml import DirectML  # Sprint 15
+        _direct_ml_service_instance = DirectML()
+        logger.info("✅ Direct ML Service initialized (from domain layer)")
 
     return _direct_ml_service_instance
 
@@ -175,15 +183,17 @@ def get_enhanced_ml_service():
     """
     Get Enhanced ML Service instance (lazy singleton).
 
+    Uses domain/ml/enhanced_ml_service.py as single source of truth (Sprint 15).
+
     Returns:
         EnhancedMLService: Enhanced ML service
     """
     global _enhanced_ml_service_instance
 
     if _enhanced_ml_service_instance is None:
-        from services.enhanced_ml_service import EnhancedMLService
+        from domain.ml.enhanced_ml_service import EnhancedMLService  # Sprint 15
         _enhanced_ml_service_instance = EnhancedMLService()
-        logger.info("✅ Enhanced ML Service initialized")
+        logger.info("✅ Enhanced ML Service initialized (from domain layer)")
 
     return _enhanced_ml_service_instance
 

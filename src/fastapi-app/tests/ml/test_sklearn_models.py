@@ -22,7 +22,7 @@ from pathlib import Path
 import pickle
 
 # Services under test
-from services.direct_ml import DirectMLService
+from domain.ml.direct_ml import DirectMLService
 from domain.ml.model_trainer import ModelTrainer
 
 

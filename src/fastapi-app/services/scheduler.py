@@ -426,10 +426,10 @@ class SchedulerService:
         """Scheduled job to check and renew AEMET token if needed"""
         try:
             logger.info("Checking AEMET token status")
-            
-            from .aemet_client import AEMETClient
-            
-            async with AEMETClient() as client:
+
+            from infrastructure.external_apis import AEMETAPIClient  # Sprint 15
+
+            async with AEMETAPIClient() as client:
                 token_status = await client.get_token_status()
             
             if token_status.get("status") == "expired":
@@ -624,7 +624,7 @@ class SchedulerService:
             logger.info("🤖 Starting scheduled direct ML training job")
             
             # Import direct ML service
-            from services.direct_ml import DirectMLService
+            from domain.ml.direct_ml import DirectMLService
             
             # Initialize direct ML service
             direct_ml = DirectMLService()
@@ -683,7 +683,7 @@ class SchedulerService:
             logger.info("✨ Starting scheduled Enhanced ML training job")
 
             # Import enhanced ML service
-            from services.enhanced_ml_service import EnhancedMLService
+            from domain.ml.enhanced_ml_service import EnhancedMLService
 
             # Initialize enhanced ML service
             enhanced_ml = EnhancedMLService()

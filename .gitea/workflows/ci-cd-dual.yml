@@ -354,8 +354,21 @@ jobs:
             docker tag localhost:5000/chocolate-factory:develop-stable \
                        localhost:5000/chocolate-factory:develop
 
-            # Redeploy stable version
-            docker compose -f docker-compose.ci-dev.yml up -d
+            # Redeploy stable version using docker run (no compose file needed)
+            docker run -d \
+              --name chocolate_factory_dev \
+              --network chocolate-factory_backend \
+              -p 8001:8000 \
+              -e ENVIRONMENT=development \
+              -e APP_NAME=chocolate-factory-dev \
+              -e LOG_LEVEL=INFO \
+              -e TZ=Europe/Madrid \
+              -e PYTHONPATH=/app \
+              --env-file .env.shell \
+              -v models_dev_data:/app/models \
+              -v logs_dev_data:/app/logs \
+              --restart unless-stopped \
+              localhost:5000/chocolate-factory:develop
 
             echo "✅ Rolled back to last stable version"
             exit 1

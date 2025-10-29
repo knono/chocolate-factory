@@ -169,8 +169,8 @@ class HourlyOptimizerService:
         self.bucket = "energy_data"
         self.org = "chocolate_factory"
 
-        # ML service para predicciones de producción
-        from .direct_ml import DirectMLService
+        # ML service para predicciones de producción (Sprint 15: moved to domain layer)
+        from domain.ml.direct_ml import DirectMLService
         self.ml_service = DirectMLService()
         self.ml_service.load_models()
 
@@ -373,9 +373,9 @@ class HourlyOptimizerService:
         """Obtiene predicciones clima para 24 horas desde target_date"""
         try:
             # Usar AEMET para predicciones
-            from services.aemet_client import AEMETClient
+            from infrastructure.external_apis import AEMETAPIClient  # Sprint 15
 
-            aemet = AEMETClient()
+            aemet = AEMETAPIClient()
             forecast = await aemet.get_daily_forecast()
 
             # Simplificación: asumir condiciones constantes durante el día

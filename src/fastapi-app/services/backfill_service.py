@@ -15,8 +15,11 @@ from loguru import logger
 
 from .gap_detector import GapDetectionService, DataGap
 from .data_ingestion import DataIngestionService
-from .ree_client import REEClient
+from infrastructure.external_apis import REEAPIClient  # Sprint 15: consolidate API clients
 from .siar_etl import SiarETL
+
+# For backward compatibility with old imports
+REEClient = REEAPIClient
 
 
 @dataclass
@@ -252,8 +255,8 @@ class BackfillService:
         gap_start = datetime.now()
         
         try:
-            from services.aemet_client import AEMETClient
-            async with AEMETClient() as aemet_client:
+            from infrastructure.external_apis import AEMETAPIClient  # Sprint 15
+            async with AEMETAPIClient() as aemet_client:
                 async with DataIngestionService() as ingestion_service:
                     
                     # Procesar por días para evitar timeouts
@@ -329,8 +332,8 @@ class BackfillService:
         gap_start = datetime.now()
 
         try:
-            from services.openweathermap_client import OpenWeatherMapClient
-            async with OpenWeatherMapClient() as owm_client:
+            from infrastructure.external_apis import OpenWeatherMapAPIClient  # Sprint 15
+            async with OpenWeatherMapAPIClient() as owm_client:
                 async with DataIngestionService() as ingestion_service:
 
                     total_records = 0

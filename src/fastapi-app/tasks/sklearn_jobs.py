@@ -1,6 +1,6 @@
 """sklearn ML Training Jobs"""
 import logging
-from services.direct_ml import DirectMLService
+from domain.ml.direct_ml import DirectMLService
 
 logger = logging.getLogger(__name__)
 

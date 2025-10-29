@@ -19,10 +19,13 @@ from enum import Enum
 import pandas as pd
 from loguru import logger
 
-from .ree_client import REEClient
+from infrastructure.external_apis import REEAPIClient  # Sprint 15
 from .siar_etl import SiarETL
 from .data_ingestion import DataIngestionService
 from .gap_detector import GapDetectionService
+
+# For backward compatibility
+REEClient = REEAPIClient
 
 
 class DataSource(Enum):

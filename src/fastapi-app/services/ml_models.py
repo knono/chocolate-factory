@@ -21,7 +21,7 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from services.feature_engineering import ChocolateFeatureEngine
+from domain.ml.feature_engineering import ChocolateFeatureEngine
 
 logger = logging.getLogger(__name__)
 

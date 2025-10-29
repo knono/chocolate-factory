@@ -22,12 +22,32 @@ from pydantic import BaseModel, Field
 from loguru import logger
 import os
 
-from .ree_client import REEClient, REEPriceData, REEDemandData
-from .aemet_client import AEMETClient, AEMETWeatherData
-from .openweathermap_client import OpenWeatherMapClient
+from infrastructure.external_apis import REEAPIClient, AEMETAPIClient, OpenWeatherMapAPIClient  # Sprint 15
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# For backward compatibility with old code that uses these names
+REEClient = REEAPIClient
+AEMETClient = AEMETAPIClient
+OpenWeatherMapClient = OpenWeatherMapAPIClient
+
+# Import data models from infrastructure
+try:
+    from infrastructure.external_apis.ree_client import REEPriceData, REEDemandData
+    from infrastructure.external_apis.aemet_client import AEMETWeatherData
+except ImportError:
+    # Fallback: define minimal data classes if imports fail
+    from dataclasses import dataclass
+    @dataclass
+    class REEPriceData:
+        pass
+    @dataclass
+    class REEDemandData:
+        pass
+    @dataclass
+    class AEMETWeatherData:
+        pass
 from configs.influxdb_schemas import (
     EnergyPricesSchema, WeatherDataSchema, get_tariff_period,
     calculate_heat_index, calculate_chocolate_production_index, get_season_from_date

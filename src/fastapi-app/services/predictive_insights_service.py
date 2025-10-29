@@ -271,7 +271,7 @@ class PredictiveInsightsService:
             # 2. Check for weather extremes (next 72h from AEMET forecast)
             query_weather_forecast = f'''
             from(bucket: "{settings.INFLUXDB_BUCKET}")
-                |> range(start: now(), stop: +72h)
+                |> range(start: now(), stop: 72h)
                 |> filter(fn: (r) => r["_measurement"] == "weather_forecast")
                 |> filter(fn: (r) => r["_field"] == "temperature")
                 |> filter(fn: (r) => r["data_source"] == "aemet")

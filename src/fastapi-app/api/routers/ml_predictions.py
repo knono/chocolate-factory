@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from services.direct_ml import DirectMLService
+from domain.ml.direct_ml import DirectMLService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/predict", tags=["ML Predictions"])

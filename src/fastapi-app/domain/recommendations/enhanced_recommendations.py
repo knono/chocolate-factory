@@ -18,8 +18,8 @@ import asyncio
 import pandas as pd
 import numpy as np
 
-from .enhanced_ml_service import EnhancedMLService
-from .data_ingestion import DataIngestionService
+from domain.ml.enhanced_ml_service import EnhancedMLService  # Sprint 15
+from services.data_ingestion import DataIngestionService
 
 logger = logging.getLogger(__name__)
 
