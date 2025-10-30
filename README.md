@@ -21,9 +21,9 @@ Energy optimization system combining machine learning price forecasting, automat
 - Prophet ML: 168-hour price forecasting (MAE: 0.033 €/kWh, R²: 0.49)
 - Optimization Scoring: Deterministic business rules (NOT predictive ML) - real data, formula-based
 - ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
-- ROI: 1,661€/year energy savings (85.33% vs fixed schedule)
-- Testing: 102 tests (100% passing, 19% coverage, 36 E2E tests)
-- Clean Architecture: 12 routers, 45 endpoints (96.5% reduction in main.py)
+- ROI: 1,661€/year energy savings (theoretical estimate)
+- Testing: 134 tests (91 passing, 32% coverage, 36 E2E tests)
+- Clean Architecture: 12 routers, 45 endpoints
 - CI/CD: Automated testing + smoke tests + rollback on failure
 - Observability: Tailscale health monitoring (uptime tracking, critical nodes alerts)
 
@@ -221,6 +221,7 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 | 14 | Oct 2025 | Hybrid ML Training Optimization | SIAR (88k) + REE fine-tune, deterministic scoring (circular formula) |
 | 15 | Oct 2025 | Architecture Cleanup & Consolidation | API clients consolidated, services 30→20, legacy archived, main.py bugs fixed |
 | 16 | Oct 2025 | Documentation Integrity & Transparency | ML claims corrected, ROI labeled theoretical, 87-line disclaimers section, 20+ limitations documented |
+| 17 | Oct 2025 | Test Coverage + Business Rules | Coverage 19%→32%, 134 tests, business rules documented (machinery, production, optimization) |
 
 ### ML Models
 
@@ -421,7 +422,7 @@ Docker bind mounts ensure data survives container restarts:
 - **Access**: Localhost (dev) | Tailscale network (prod) | Public internet (blocked)
 
 ### Quality
-- **Tests**: 102 (100% passing, 19% coverage) - Recommend 40%+ for production
+- **Tests**: 134 (91 passing, 32% coverage) - Recommend 40%+ for production
 - **Monitoring**: Health checks only, no alerting
 - **ROI**: 1,661€/year theoretical estimate (not measured from production)
 
@@ -451,6 +452,6 @@ Provided as-is for educational and research purposes.
 
 Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-**Current Status**: Sprint 16 completed (Oct 30 2025)
+**Current Status**: Sprint 17 completed (Oct 30 2025)
 
 </div>
