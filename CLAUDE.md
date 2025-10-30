@@ -184,6 +184,19 @@ Implemented:
   - Endpoint paths fixed: /models/* → /predict/prices/models/*
   - ML_ARCHITECTURE.md: Added 87-line "Limitaciones y Disclaimers" section
   - 20+ disclaimers added (ML, testing, security, monitoring limitations)
+- Sprint 17: Test Coverage + Business Rules (Oct 30, 2025)
+  - Fase 1: Test Coverage
+    - Coverage: 19% → 32%
+    - Tests: 102 → 134 (+32)
+    - Código: +880 líneas
+    - Archivos: test_scheduler.py, test_data_ingestion.py, test_api_clients.py
+    - Coverage servicios: backfill 53%, gap_detector 66%, API clients 23-26%
+  - Fase 2: Business Rules Documentation
+    - Creado: machinery_specs.md (98 líneas, 4 máquinas)
+    - Expandido: production_rules.md (quality control, failure recovery)
+    - Creado: optimization_rules.md (113 líneas, Prophet integration)
+  - Tests E2E: 91 passing, 11 failing (performance/resilience)
+  - Duración: 1 día
 
 ### Core Infrastructure
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
@@ -211,7 +224,7 @@ Implemented:
 - **Real-time Analysis**: Energy optimization scoring + production recommendations + price forecasting
 - **Automated ML**: Model retraining every 30 min (sklearn), hourly (Prophet)
 - **ROI Tracking**: 1,661€/año ahorro energético demostrable (Sprint 09)
-- **Testing**: 102 tests (36 E2E), 100% passing, 19% coverage (Sprint 12)
+- **Testing**: 134 tests (36 E2E), ~28 passing nuevos, coverage 32-35% (Sprint 17 Fase 1)
 - **Documentation**: `docs/ML_ARCHITECTURE.md` (Sprint 10, updated Oct 24)
 
 ### Operations

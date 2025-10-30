@@ -41,19 +41,19 @@ class SavingsTrackingComponent {
                     <div class="comparison-grid">
                         <div class="comparison-card baseline">
                             <div class="card-label">Plan Baseline (08-16h)</div>
-                            <div class="card-value">${daily_savings.baseline_cost_eur.toFixed(2)}€</div>
+                            <div class="card-value">${daily_savings?.baseline_cost_eur?.toFixed(2) || '0.00'}€</div>
                             <div class="card-sublabel">Horario fijo tradicional</div>
                         </div>
                         <div class="comparison-arrow">→</div>
                         <div class="comparison-card optimized">
                             <div class="card-label">Plan Optimizado</div>
-                            <div class="card-value">${daily_savings.optimized_cost_eur.toFixed(2)}€</div>
+                            <div class="card-value">${daily_savings?.optimized_cost_eur?.toFixed(2) || '0.00'}€</div>
                             <div class="card-sublabel">Prophet + ML optimization</div>
                         </div>
                     </div>
                     <div class="savings-highlight">
-                        <div class="savings-amount">💰 ${daily_savings.savings_eur.toFixed(2)}€</div>
-                        <div class="savings-percentage">${daily_savings.savings_pct.toFixed(1)}% ahorro diario</div>
+                        <div class="savings-amount">💰 ${daily_savings?.savings_eur?.toFixed(2) || '0.00'}€</div>
+                        <div class="savings-percentage">${daily_savings?.savings_pct?.toFixed(1) || '0.0'}% ahorro diario</div>
                     </div>
                 </div>
 
@@ -63,15 +63,15 @@ class SavingsTrackingComponent {
                     <div class="projection-grid">
                         <div class="projection-metric">
                             <div class="metric-label">Plan Optimizado</div>
-                            <div class="metric-value success">${weekly_projection.optimized_cost_eur.toFixed(2)}€</div>
+                            <div class="metric-value success">${weekly_projection?.optimized_cost_eur?.toFixed(2) || '0.00'}€</div>
                         </div>
                         <div class="projection-metric">
                             <div class="metric-label">Plan Baseline</div>
-                            <div class="metric-value warning">${weekly_projection.baseline_cost_eur.toFixed(2)}€</div>
+                            <div class="metric-value warning">${weekly_projection?.baseline_cost_eur?.toFixed(2) || '0.00'}€</div>
                         </div>
                         <div class="projection-metric highlight">
                             <div class="metric-label">Ahorro Semanal</div>
-                            <div class="metric-value highlight">${weekly_projection.savings_eur.toFixed(2)}€</div>
+                            <div class="metric-value highlight">${weekly_projection?.savings_eur?.toFixed(2) || '0.00'}€</div>
                         </div>
                     </div>
                 </div>
@@ -83,25 +83,25 @@ class SavingsTrackingComponent {
                         <div class="progress-stats">
                             <div class="stat-item">
                                 <span class="stat-label">Meta:</span>
-                                <span class="stat-value">${monthly_tracking.target_eur}€</span>
+                                <span class="stat-value">${monthly_tracking?.target_eur || 0}€</span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-label">Proyectado:</span>
-                                <span class="stat-value">${monthly_tracking.projected_eur}€</span>
+                                <span class="stat-value">${monthly_tracking?.projected_eur || 0}€</span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-label">Progreso:</span>
-                                <span class="stat-value ${monthly_tracking.progress_pct >= 90 ? 'success' : 'warning'}">
-                                    ${monthly_tracking.progress_pct.toFixed(1)}%
+                                <span class="stat-value ${(monthly_tracking?.progress_pct || 0) >= 90 ? 'success' : 'warning'}">
+                                    ${monthly_tracking?.progress_pct?.toFixed(1) || '0.0'}%
                                 </span>
                             </div>
                         </div>
                         <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: ${Math.min(monthly_tracking.progress_pct, 100)}%">
+                            <div class="progress-bar" style="width: ${Math.min(monthly_tracking?.progress_pct || 0, 100)}%">
                             </div>
                         </div>
-                        <div class="progress-status ${monthly_tracking.progress_pct >= 90 ? 'on-track' : 'below-target'}">
-                            ${monthly_tracking.status}
+                        <div class="progress-status ${(monthly_tracking?.progress_pct || 0) >= 90 ? 'on-track' : 'below-target'}">
+                            ${monthly_tracking?.status || 'N/A'}
                         </div>
                     </div>
                 </div>
@@ -110,10 +110,10 @@ class SavingsTrackingComponent {
                 <div class="savings-section annual">
                     <h4 class="section-title">📈 ROI Anual Estimado</h4>
                     <div class="annual-roi-card">
-                        <div class="roi-amount">${(annual_projection.baseline_theoretical_savings_eur || 0).toLocaleString('es-ES')}€</div>
-                        <div class="roi-description">${annual_projection.roi_description || 'N/A'}</div>
+                        <div class="roi-amount">${(annual_projection?.baseline_theoretical_savings_eur || 0).toLocaleString('es-ES')}€</div>
+                        <div class="roi-description">${annual_projection?.roi_description || 'N/A'}</div>
                         <div class="roi-breakdown">
-                            Basado en ahorro diario promedio de ${daily_savings.savings_eur.toFixed(2)}€ × 365 días
+                            Basado en ahorro diario promedio de ${daily_savings?.savings_eur?.toFixed(2) || '0.00'}€ × 365 días
                         </div>
                     </div>
                 </div>
