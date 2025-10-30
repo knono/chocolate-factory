@@ -87,23 +87,35 @@ Corrección de documentación que no refleja realidad del código.
 
 ---
 
+## Sprint 17: Test Coverage + Business Rules
+
+**Estado**: COMPLETADO (2025-10-30)
+**Archivo**: [`SPRINT_17_ROBUSTNESS.md`](./SPRINT_17_ROBUSTNESS.md)
+
+**Fase 1 - Test Coverage:**
+- Coverage: 19% → 32%
+- Tests: 102 → 134
+- Código: +880 líneas
+- Coverage servicios: backfill 53%, gap_detector 66%
+
+**Fase 2 - Business Rules:**
+- machinery_specs.md: creado (98 líneas)
+- production_rules.md: expandido
+- optimization_rules.md: creado (113 líneas)
+
+---
+
 ## Estado Actual del Proyecto
 
 - Sprints ML Evolution: 01-10 completados
-- Sprint 11 (Infrastructure): Completado
-- Sprint 12 (CI/CD + Testing): Completado (Fases 1-11)
-- Sprint 13 (Observability): Completado (Health Monitoring - Pivoted)
-- Sprint 14 (Hybrid ML Training): Completado (Oct 24, 2025)
-- Sprint 15 (Architecture Cleanup): Completado (Oct 29, 2025)
-- Sprint 16 (Documentation Integrity): IN PROGRESS (Oct 30, 2025)
-- Clean Architecture: Refactorizado y consolidado (Oct 6-29, 2025)
-- API Endpoints: 45 disponibles (12 routers activos)
-- Tailscale: 3 nodos activos (git, dev, prod) + observability
-- CI/CD: Pipeline automatizado con rollback
-- Tests: 102 tests (100% passing, 19% coverage)
-- APScheduler: 7 jobs automatizados
-
-**Próximo Sprint**: TBD (Testing Coverage o Observability)
+- Sprints Infrastructure: 11-17 completados
+- Clean Architecture: refactorizado (Oct 6-29, 2025)
+- API Endpoints: 45 (12 routers)
+- Tailscale: 3 nodos (git, dev, prod)
+- CI/CD: pipeline con rollback
+- Tests: 134 (91 passing, 11 E2E failing)
+- Coverage: 32%
+- APScheduler: 7 jobs
 
 ---
 

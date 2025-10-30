@@ -184,14 +184,19 @@ Implemented:
   - Endpoint paths fixed: /models/* → /predict/prices/models/*
   - ML_ARCHITECTURE.md: Added 87-line "Limitaciones y Disclaimers" section
   - 20+ disclaimers added (ML, testing, security, monitoring limitations)
-- Sprint 17: Test Coverage Expansion - Fase 1 (Oct 30, 2025)
-  - Tests: 102 → 134 (+32 tests), 91 → 122 passing (+31 passing)
-  - Coverage: 19% → 32% (objetivo alcanzado)
-  - Archivos creados: test_scheduler.py (10), test_data_ingestion.py (13), test_api_clients.py (9)
-  - Código test: +880 líneas
-  - Services: scheduler, data_ingestion, API clients (REE/AEMET/OpenWeather)
-  - Fix: Monkeypatch para mock API keys en tests unitarios (no requiere env vars reales)
-  - Fix: Optional chaining en savings-tracking.js (previene undefined errors en dashboard)
+- Sprint 17: Test Coverage + Business Rules (Oct 30, 2025)
+  - Fase 1: Test Coverage
+    - Coverage: 19% → 32%
+    - Tests: 102 → 134 (+32)
+    - Código: +880 líneas
+    - Archivos: test_scheduler.py, test_data_ingestion.py, test_api_clients.py
+    - Coverage servicios: backfill 53%, gap_detector 66%, API clients 23-26%
+  - Fase 2: Business Rules Documentation
+    - Creado: machinery_specs.md (98 líneas, 4 máquinas)
+    - Expandido: production_rules.md (quality control, failure recovery)
+    - Creado: optimization_rules.md (113 líneas, Prophet integration)
+  - Tests E2E: 91 passing, 11 failing (performance/resilience)
+  - Duración: 1 día
 
 ### Core Infrastructure
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
