@@ -1,10 +1,10 @@
 # Sprint 17 - Robustness: Test Coverage + Business Rules
 
-**Status**: IN PROGRESS (Fase 1 completada al 70%)
+**Status**: IN PROGRESS (Fase 1 ✅ COMPLETADA, Fase 2 iniciando)
 **Start Date**: 2025-10-30
-**Target Duration**: 3 días
+**Target Duration**: 5 días (3 días Fase 1 + 2 días Fase 2)
 **Type**: Infrastructure + Documentation
-**Last Update**: 2025-10-30 19:50 UTC
+**Last Update**: 2025-10-30 21:45 UTC
 
 ## Objetivo
 
@@ -17,7 +17,50 @@ Aumentar robustez del sistema:
 
 ## Progreso Actual (2025-10-30)
 
-### Fase 1: Test Coverage - Services Críticos ✅ COMPLETADO
+### Fase 1: Test Coverage - Services Críticos ✅ COMPLETADO (21:45 UTC)
+
+### Fase 2: E2E Pipeline Tests 🔄 EN PROGRESO (21:45-22:00 UTC)
+
+**Objetivo**: Arreglar 4 tests E2E de `test_full_pipeline.py` que validan flujos completos de negocio.
+
+**Diagnóstico Completado**:
+- ✅ Causa identificada: **API response structure cambió** pero tests no se actualizaron
+- Todos los fallos son por nombres de claves en JSON response
+
+**Fixes Aplicados**:
+
+1. ✅ `test_ree_ingestion_to_dashboard_display`
+   - Fix: `current_data` → `current_info`
+   - Fix: `current["current_price"]` → `current["energy"]["price_eur_kwh"]`
+
+2. ✅ `test_weather_ingestion_to_ml_prediction`
+   - Fix: `current_data` → `current_info`
+   - Fix: `current["current_weather"]` → `current["weather"]`
+
+3. ✅ `test_hourly_optimization_flow`
+   - Fix: `data["hourly_timeline"]` → `data["optimization"]["hourly_timeline"]`
+
+4. ✅ `test_backfill_recovery_system`
+   - Fix: `summary["ree"]` → `summary["ree_prices"]`
+   - Fix: `summary["weather"]` → `summary["weather_data"]`
+   - Fix: `total_gap_hours` → `gap_hours`
+
+**Resultado**: ✅ **5/5 tests passing** (100% éxito)
+
+**Tests arreglados**:
+- ✅ test_ree_ingestion_to_dashboard_display
+- ✅ test_weather_ingestion_to_ml_prediction
+- ✅ test_hourly_optimization_flow
+- ✅ test_backfill_recovery_system (+ fix adicional en línea 319)
+- ✅ test_prophet_forecasting_pipeline (ya pasaba)
+
+**Tiempo total**: 15 minutos diagnóstico + fixes
+
+**Fase 2 COMPLETADA** ✅ (22:00 UTC)
+
+---
+
+## Fase 1 Completada: Test Coverage - Services Críticos ✅
 
 **Baseline**: 102 tests, coverage 19%
 **Final**: 134 tests (+32), coverage estimado 32-35%

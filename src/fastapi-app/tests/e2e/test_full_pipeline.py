@@ -60,13 +60,15 @@ class TestREEIngestionPipeline:
         assert response.status_code == 200, f"Dashboard failed: {response.text}"
 
         data = response.json()
-        assert "current_data" in data, "Missing current_data"
+        assert "current_info" in data, "Missing current_info"
 
-        current = data["current_data"]
+        current = data["current_info"]
 
         # Step 2: Validar datos de precio REE
-        assert "current_price" in current, "Missing current_price"
-        price = current["current_price"]
+        assert "energy" in current, "Missing energy data"
+        energy_data = current["energy"]
+        assert "price_eur_kwh" in energy_data, "Missing price_eur_kwh"
+        price = energy_data["price_eur_kwh"]
 
         assert price is not None, "Current price is None"
         assert isinstance(price, (int, float)), f"Price should be numeric, got {type(price)}"
@@ -108,11 +110,11 @@ class TestWeatherToMLPipeline:
         assert response.status_code == 200, f"Dashboard failed: {response.text}"
 
         data = response.json()
-        current = data.get("current_data", {})
+        current = data.get("current_info", {})
 
         # Step 2: Validar datos de clima
-        assert "current_weather" in current, "Missing weather data"
-        weather = current["current_weather"]
+        assert "weather" in current, "Missing weather data"
+        weather = current["weather"]
 
         assert "temperature" in weather, "Missing temperature"
         assert "humidity" in weather, "Missing humidity"
@@ -222,8 +224,9 @@ class TestHourlyOptimizationPipeline:
         data = response.json()
 
         # Step 2: Validar timeline horaria
-        assert "hourly_timeline" in data, "Missing hourly_timeline"
-        timeline = data["hourly_timeline"]
+        assert "optimization" in data, "Missing optimization data"
+        assert "hourly_timeline" in data["optimization"], "Missing hourly_timeline"
+        timeline = data["optimization"]["hourly_timeline"]
 
         assert len(timeline) == 24, f"Expected 24 hours, got {len(timeline)}"
 
@@ -282,19 +285,19 @@ class TestBackfillRecoveryPipeline:
         summary = response.json()
 
         # Step 2: Validar estructura de respuesta
-        assert "ree" in summary, "Missing REE gap info"
-        assert "weather" in summary, "Missing weather gap info"
+        assert "ree_prices" in summary, "Missing REE gap info"
+        assert "weather_data" in summary, "Missing weather gap info"
 
-        ree_gaps = summary["ree"]
-        weather_gaps = summary["weather"]
+        ree_gaps = summary["ree_prices"]
+        weather_gaps = summary["weather_data"]
 
         print(f"✅ Backfill System: Operational")
-        print(f"📊 REE gaps: {ree_gaps.get('total_gap_hours', 0)} hours")
-        print(f"📊 Weather gaps: {weather_gaps.get('total_gap_hours', 0)} hours")
+        print(f"📊 REE gaps: {ree_gaps.get('gap_hours', 0)} hours")
+        print(f"📊 Weather gaps: {weather_gaps.get('gap_hours', 0)} hours")
 
         # Step 3: Si hay gaps pequeños, validar estrategia
-        total_gaps = (ree_gaps.get('total_gap_hours', 0) +
-                     weather_gaps.get('total_gap_hours', 0))
+        total_gaps = (ree_gaps.get('gap_hours', 0) +
+                     weather_gaps.get('gap_hours', 0))
 
         if total_gaps > 0:
             print(f"⚠️  Detected {total_gaps} hours of gaps")
@@ -313,7 +316,7 @@ class TestBackfillRecoveryPipeline:
         detailed = response_detailed.json()
 
         # Sistema debe devolver análisis incluso si no hay gaps
-        assert "analysis" in detailed or "gaps" in detailed, \
+        assert "ree_data_gaps" in detailed or "weather_data_gaps" in detailed or "summary" in detailed, \
             "Gap detection should return analysis"
 
         print(f"✅ Gap detection pipeline: Functional")
