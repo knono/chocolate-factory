@@ -1,9 +1,10 @@
 # Sprint 17 - Robustness: Test Coverage + Business Rules
 
-**Status**: PLANNED
+**Status**: IN PROGRESS (Fase 1 completada al 70%)
 **Start Date**: 2025-10-30
 **Target Duration**: 3 días
 **Type**: Infrastructure + Documentation
+**Last Update**: 2025-10-30 19:50 UTC
 
 ## Objetivo
 
@@ -11,6 +12,41 @@ Aumentar robustez del sistema:
 - Test coverage: 19% → 40%
 - Business rules: documentadas y completas
 - Foco en servicios críticos (backfill, gap detection, schedulers)
+
+---
+
+## Progreso Actual (2025-10-30)
+
+### Fase 1: Test Coverage - Services Críticos ✅ COMPLETADO
+
+**Baseline**: 102 tests, coverage 19%
+**Final**: 134 tests (+32), coverage estimado 32-35%
+
+**Tests creados**:
+
+1. **`test_scheduler.py`** - 10 tests, 300 líneas
+   - Job registration (7 jobs verificados)
+   - Job intervals (REE/Weather 5min, sklearn 30min, Prophet 24h)
+   - Execution success/failure handling
+
+2. **`test_data_ingestion.py`** - 13 tests, 330 líneas
+   - InfluxDB config (defaults, custom)
+   - Service init (con/sin config, context manager)
+   - Validation (temperatura -30/50°C, humedad 0/100%)
+   - Stats (creation, success rate 0/100/parcial)
+
+3. **`test_api_clients.py`** - 9 tests, 250 líneas
+   - REE: init, base_url, methods (3 passing)
+   - AEMET: requires_api_key, methods, two-step (1 passing, 2 env)
+   - OpenWeatherMap: requires_api_key, methods, no_historical (1 passing, 2 env)
+
+**Archivos originales mantenidos estables**:
+- `test_backfill_service.py` - 7 tests (53% coverage)
+- `test_gap_detector.py` - 9 tests (66% coverage)
+
+**Total añadido**: 880 líneas código test, 32 tests nuevos
+
+**Nota**: ~~4 tests API clients requerían env vars~~ → **FIXED** (2025-10-30 20:20 UTC) - Usamos `monkeypatch` para mock API keys en tests unitarios.
 
 ---
 
@@ -408,6 +444,37 @@ Checklist:
 - 12:00-13:00: Lunch
 - 13:00-15:00: production_rules.md expandido
 - 15:00-17:00: optimization_rules.md creado
+
+---
+
+## Soluciones Técnicas Aplicadas (2025-10-30)
+
+### Fix: API Keys en Tests Unitarios
+
+**Problema**: 4 tests unitarios fallaban porque los clientes AEMET/OpenWeather validaban API keys en `__init__`:
+```python
+# aemet_client.py:79, openweather_client.py:80
+if not self.api_key:
+    raise ValueError("AEMET_API_KEY is required")
+```
+
+**Solución**: Usar `monkeypatch` de pytest para inyectar mock API keys:
+```python
+async def test_aemet_client_methods_exist(self, monkeypatch):
+    # Set test API key in both env and settings
+    monkeypatch.setenv('AEMET_API_KEY', 'test-mock-api-key-12345')
+    monkeypatch.setattr('core.config.settings.AEMET_API_KEY', 'test-mock-api-key-12345')
+
+    client = AEMETAPIClient()
+    assert hasattr(client, 'get_current_weather')
+```
+
+**Archivos modificados**:
+- `tests/unit/test_api_clients.py` (4 métodos actualizados)
+
+**Resultado**: 9/9 tests API clients passing ✅
+
+**Nota importante**: Docker Secrets se mantienen intactos - este fix solo afecta a tests unitarios, NO a producción.
 
 ---
 
