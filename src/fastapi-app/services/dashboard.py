@@ -10,7 +10,7 @@ Servicio para consolidar información del dashboard Node-RED:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
@@ -129,8 +129,38 @@ class DashboardService:
 
             current_price = None
             if ree_data and len(ree_data) > 0:
-                # Get most recent price (last item in list)
-                latest = ree_data[-1]
+                # Get current hour price (not last item, but closest to current time)
+                now = datetime.now(timezone.utc)
+                current_hour = now.replace(minute=0, second=0, microsecond=0)
+
+                # Find price for current hour
+                latest = None
+                logger.info(f"🔍 Looking for current hour price: now={now}, current_hour={current_hour}")
+
+                for i, price_data in enumerate(ree_data):
+                    price_time = price_data["timestamp"]
+                    # Convert to UTC if it has timezone info
+                    if isinstance(price_time, str):
+                        price_time = datetime.fromisoformat(price_time.replace('Z', '+00:00'))
+                    if not price_time.tzinfo:
+                        price_time = price_time.replace(tzinfo=timezone.utc)
+
+                    if i < 3:  # Log first 3 entries for debugging
+                        logger.info(f"   Entry {i}: time={price_time}, price={price_data['price_eur_kwh']}")
+
+                    # Check if this is current hour or closest past hour
+                    if price_time <= now:
+                        latest = price_data
+                    else:
+                        break  # Don't use future prices
+
+                # Fallback to last available if none found
+                if not latest:
+                    logger.warning(f"⚠️ No past price found, using last available")
+                    latest = ree_data[-1]
+                else:
+                    logger.info(f"✅ Selected price for {latest['timestamp']}: {latest['price_eur_kwh']} €/kWh")
+
                 current_price = {
                     "price_eur_kwh": latest["price_eur_kwh"],
                     "price_eur_mwh": latest["price_eur_kwh"] * 1000,
@@ -182,6 +212,8 @@ class DashboardService:
             
         except Exception as e:
             logger.error(f"❌ Error getting current info: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return {}
     
     async def _get_ml_predictions(self, current_info: Dict[str, Any]) -> Dict[str, Any]:
