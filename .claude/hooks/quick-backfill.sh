@@ -72,9 +72,7 @@ case "$TOOL" in
             print_warning "Gaps detectados - REE: ${REE_GAP}h, Weather: ${WEATHER_GAP}h"
             print_info "Ejecutando auto backfill..."
 
-            curl -s -X POST "$API_BASE/gaps/backfill/auto" \
-                -H "Content-Type: application/json" \
-                -d '{"max_gap_hours": 6.0}' >/dev/null 2>&1
+            curl -s -X POST "$API_BASE/gaps/backfill/auto?max_gap_hours=6.0" >/dev/null 2>&1
 
             print_success "Backfill automático completado"
         else
@@ -94,9 +92,7 @@ case "$TOOL" in
 
                 if (( $(echo "$TOTAL_GAP > 3" | bc -l 2>/dev/null || echo 0) )); then
                     print_info "Gap detectado post-config: ${TOTAL_GAP}h total"
-                    curl -s -X POST "$API_BASE/gaps/backfill/auto" \
-                        -H "Content-Type: application/json" \
-                        -d '{"max_gap_hours": 3.0}' >/dev/null 2>&1
+                    curl -s -X POST "$API_BASE/gaps/backfill/auto?max_gap_hours=3.0" >/dev/null 2>&1
                     print_success "Auto backfill post-config ejecutado"
                 fi
                 ;;

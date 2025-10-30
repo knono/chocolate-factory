@@ -58,7 +58,7 @@ curl -X POST "$API_BASE$endpoint"
 
 **Files Verified**:
 - `.claude/hooks/backfill.sh` - ✅ Updated and working
-- `.claude/hooks/quick-backfill.sh` - ✅ Already compatible (was using correct format)
+- `.claude/hooks/quick-backfill.sh` - ⚠️ **Updated Oct 30, 2025** (was incorrectly sending JSON body)
 
 ## API Changes
 
@@ -162,6 +162,51 @@ curl -X POST "http://localhost:8000/gaps/backfill/auto?max_gap_hours=14.0"
 
 ---
 
+## UPDATE: October 30, 2025
+
+### Issue Discovered
+The `quick-backfill.sh` hook was incorrectly marked as compatible during the original migration. It was still sending JSON bodies to the `/gaps/backfill/auto` endpoint instead of using query parameters.
+
+### Fix Applied
+**File**: `.claude/hooks/quick-backfill.sh`
+
+**Lines 75-77** (SessionStart backfill):
+```bash
+# BEFORE (incorrect - JSON body)
+curl -s -X POST "$API_BASE/gaps/backfill/auto" \
+    -H "Content-Type: application/json" \
+    -d '{"max_gap_hours": 6.0}' >/dev/null 2>&1
+
+# AFTER (correct - query parameter)
+curl -s -X POST "$API_BASE/gaps/backfill/auto?max_gap_hours=6.0" >/dev/null 2>&1
+```
+
+**Lines 95-96** (post-config backfill):
+```bash
+# BEFORE (incorrect - JSON body)
+curl -s -X POST "$API_BASE/gaps/backfill/auto" \
+    -H "Content-Type: application/json" \
+    -d '{"max_gap_hours": 3.0}' >/dev/null 2>&1
+
+# AFTER (correct - query parameter)
+curl -s -X POST "$API_BASE/gaps/backfill/auto?max_gap_hours=3.0" >/dev/null 2>&1
+```
+
+### Testing Results ✅
+```bash
+# SessionStart hook test
+echo '{"tool":"SessionStart"}' | ./.claude/hooks/quick-backfill.sh
+# Output: ✅ Backfill automático completado
+
+# Backfill check mode test
+./.claude/hooks/backfill.sh check
+# Output: ✅ Sistema operativo, gap analysis displayed correctly
+```
+
+**Status**: ✅ **HOOKS FULLY OPERATIONAL** (October 30, 2025)
+
+---
+
 **Completed by**: Claude Code
-**Date**: October 7, 2025
+**Date**: October 7, 2025 (original), October 30, 2025 (hook fix)
 **Status**: ✅ **PRODUCTION READY**

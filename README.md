@@ -220,6 +220,7 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 | 13 | Oct 2025 | Health Monitoring (Pivoted) | 6 endpoints, uptime tracking, critical nodes alerts, event logs |
 | 14 | Oct 2025 | Hybrid ML Training Optimization | SIAR (88k) + REE fine-tune, deterministic scoring (circular formula) |
 | 15 | Oct 2025 | Architecture Cleanup & Consolidation | API clients consolidated, services 30→20, legacy archived, main.py bugs fixed |
+| 16 | Oct 2025 | Documentation Integrity & Transparency | ML claims corrected, ROI labeled theoretical, 87-line disclaimers section, 20+ limitations documented |
 
 ### ML Models
 
@@ -450,6 +451,6 @@ Provided as-is for educational and research purposes.
 
 Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-**Current Status**: Sprint 16 completed (Documentation Integrity & Transparency, Oct 30 2025)
+**Current Status**: Sprint 16 completed (Oct 30 2025)
 
 </div>

@@ -471,78 +471,80 @@ class DataIngestionService:
         
         return stats
     
-    def _transform_aemet_weather_to_influx_point(self, weather_data: AEMETWeatherData) -> Point:
-        """Transform AEMET weather data to InfluxDB point"""
-        
+    def _transform_aemet_weather_to_influx_point(self, weather_data: Dict[str, Any]) -> Point:
+        """Transform AEMET weather data (dict) to InfluxDB point"""
+
         # Create tags
         tags = {
-            "station_id": weather_data.station_id,
-            "data_source": "aemet",
+            "station_id": weather_data.get("station_id", "unknown"),
+            "data_source": weather_data.get("source", "aemet"),
             "data_type": "current",
-            "season": get_season_from_date(weather_data.timestamp)
+            "season": get_season_from_date(weather_data.get("timestamp"))
         }
-        
+
         # Add optional tags if available
-        if weather_data.station_name:
-            tags["station_name"] = weather_data.station_name
-        if weather_data.province:
-            tags["province"] = weather_data.province
-        
+        if weather_data.get("station_name"):
+            tags["station_name"] = weather_data["station_name"]
+        if weather_data.get("province"):
+            tags["province"] = weather_data["province"]
+
         # Create fields with available data
         fields = {}
-        
+
         # Temperature fields
-        if weather_data.temperature is not None:
-            fields["temperature"] = weather_data.temperature
-        if weather_data.temperature_max is not None:
-            fields["temperature_max"] = weather_data.temperature_max
-        if weather_data.temperature_min is not None:
-            fields["temperature_min"] = weather_data.temperature_min
-        
+        if weather_data.get("temperature") is not None:
+            fields["temperature"] = weather_data["temperature"]
+        if weather_data.get("temp_max") is not None:
+            fields["temperature_max"] = weather_data["temp_max"]
+        if weather_data.get("temp_min") is not None:
+            fields["temperature_min"] = weather_data["temp_min"]
+
         # Humidity fields
-        if weather_data.humidity is not None:
-            fields["humidity"] = weather_data.humidity
-        if weather_data.humidity_max is not None:
-            fields["humidity_max"] = weather_data.humidity_max
-        if weather_data.humidity_min is not None:
-            fields["humidity_min"] = weather_data.humidity_min
-        
+        if weather_data.get("humidity") is not None:
+            fields["humidity"] = weather_data["humidity"]
+        if weather_data.get("humidity_max") is not None:
+            fields["humidity_max"] = weather_data["humidity_max"]
+        if weather_data.get("humidity_min") is not None:
+            fields["humidity_min"] = weather_data["humidity_min"]
+
         # Pressure fields
-        if weather_data.pressure is not None:
-            fields["pressure"] = weather_data.pressure
-        if weather_data.pressure_max is not None:
-            fields["pressure_max"] = weather_data.pressure_max
-        if weather_data.pressure_min is not None:
-            fields["pressure_min"] = weather_data.pressure_min
-        
+        if weather_data.get("pressure") is not None:
+            fields["pressure"] = weather_data["pressure"]
+        if weather_data.get("pressure_max") is not None:
+            fields["pressure_max"] = weather_data["pressure_max"]
+        if weather_data.get("pressure_min") is not None:
+            fields["pressure_min"] = weather_data["pressure_min"]
+
         # Wind fields
-        if weather_data.wind_speed is not None:
-            fields["wind_speed"] = weather_data.wind_speed
-        if weather_data.wind_direction is not None:
-            fields["wind_direction"] = weather_data.wind_direction
-        if weather_data.wind_gust is not None:
-            fields["wind_gust"] = weather_data.wind_gust
-        
+        if weather_data.get("wind_speed") is not None:
+            fields["wind_speed"] = weather_data["wind_speed"]
+        if weather_data.get("wind_direction") is not None:
+            fields["wind_direction"] = weather_data["wind_direction"]
+        if weather_data.get("wind_gust") is not None:
+            fields["wind_gust"] = weather_data["wind_gust"]
+
         # Other meteorological fields
-        if weather_data.precipitation is not None:
-            fields["precipitation"] = weather_data.precipitation
-        if weather_data.solar_radiation is not None:
-            fields["solar_radiation"] = weather_data.solar_radiation
-        if weather_data.altitude is not None:
-            fields["altitude"] = weather_data.altitude
-        
+        if weather_data.get("precipitation") is not None:
+            fields["precipitation"] = weather_data["precipitation"]
+        if weather_data.get("solar_radiation") is not None:
+            fields["solar_radiation"] = weather_data["solar_radiation"]
+        if weather_data.get("altitude") is not None:
+            fields["altitude"] = weather_data["altitude"]
+
         # Calculate derived fields for chocolate production
-        if weather_data.temperature is not None and weather_data.humidity is not None:
-            fields["heat_index"] = calculate_heat_index(
-                weather_data.temperature, weather_data.humidity
-            )
+        temp = weather_data.get("temperature")
+        hum = weather_data.get("humidity")
+        pres = weather_data.get("pressure")
+
+        if temp is not None and hum is not None:
+            fields["heat_index"] = calculate_heat_index(temp, hum)
             fields["chocolate_production_index"] = calculate_chocolate_production_index(
-                weather_data.temperature, weather_data.humidity, weather_data.pressure
+                temp, hum, pres
             )
-        
+
         # Create InfluxDB point
         point = Point("weather_data")
-        point.time(weather_data.timestamp, WritePrecision.S)
+        point.time(weather_data["timestamp"], WritePrecision.S)
         
         # Add tags
         for tag_key, tag_value in tags.items():
@@ -554,39 +556,46 @@ class DataIngestionService:
         
         return point
     
-    def _validate_weather_data(self, weather_data: AEMETWeatherData) -> Tuple[bool, List[str]]:
-        """Validate AEMET weather data for quality and reasonableness"""
+    def _validate_weather_data(self, weather_data: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """Validate AEMET weather data (dict) for quality and reasonableness"""
         errors = []
-        
+
         # Temperature range validation (reasonable limits for Spain)
-        if weather_data.temperature is not None:
-            if weather_data.temperature < -20 or weather_data.temperature > 50:
-                errors.append(f"Temperature out of reasonable range: {weather_data.temperature}°C")
-        
+        temp = weather_data.get("temperature")
+        if temp is not None:
+            if temp < -20 or temp > 50:
+                errors.append(f"Temperature out of reasonable range: {temp}°C")
+
         # Humidity validation
-        if weather_data.humidity is not None:
-            if not (0 <= weather_data.humidity <= 100):
-                errors.append(f"Humidity out of range: {weather_data.humidity}%")
-        
+        hum = weather_data.get("humidity")
+        if hum is not None:
+            if not (0 <= hum <= 100):
+                errors.append(f"Humidity out of range: {hum}%")
+
         # Pressure validation
-        if weather_data.pressure is not None:
-            if weather_data.pressure < 900 or weather_data.pressure > 1100:
-                errors.append(f"Pressure out of reasonable range: {weather_data.pressure} hPa")
-        
+        pres = weather_data.get("pressure")
+        if pres is not None:
+            if pres < 900 or pres > 1100:
+                errors.append(f"Pressure out of reasonable range: {pres} hPa")
+
         # Wind speed validation
-        if weather_data.wind_speed is not None:
-            if weather_data.wind_speed < 0 or weather_data.wind_speed > 200:
-                errors.append(f"Wind speed out of range: {weather_data.wind_speed} km/h")
-        
+        wind = weather_data.get("wind_speed")
+        if wind is not None:
+            if wind < 0 or wind > 200:
+                errors.append(f"Wind speed out of range: {wind} km/h")
+
         # Data completeness check
-        if weather_data.station_id is None or weather_data.station_id == "":
+        station_id = weather_data.get("station_id")
+        if not station_id or station_id == "":
             errors.append("Missing station ID")
-        
+
         # Timestamp validation
-        now = datetime.now(timezone.utc)
-        if weather_data.timestamp > now + timedelta(hours=1):
-            errors.append(f"Future timestamp beyond reasonable range: {weather_data.timestamp}")
-        
+        timestamp = weather_data.get("timestamp")
+        if timestamp:
+            now = datetime.now(timezone.utc)
+            if timestamp > now + timedelta(hours=1):
+                errors.append(f"Future timestamp beyond reasonable range: {timestamp}")
+
         return len(errors) == 0, errors
     
     async def ingest_aemet_weather(self, 
@@ -641,7 +650,8 @@ class DataIngestionService:
                         try:
                             current_weather = await aemet_client.get_current_weather(station_id)
                             if current_weather:
-                                weather_data.append(current_weather)
+                                # get_current_weather returns a list, use extend not append
+                                weather_data.extend(current_weather)
                         except Exception as e:
                             logger.warning(f"Failed to fetch current weather for station {station_id}: {e}")
                             stats.failed_writes += 1
@@ -657,12 +667,14 @@ class DataIngestionService:
             valid_points = []
             for weather_record in weather_data:
                 is_valid, validation_errors = self._validate_weather_data(weather_record)
-                
+
                 if not is_valid:
                     stats.validation_errors += 1
-                    logger.warning(f"Validation failed for {weather_record.station_id} at {weather_record.timestamp}: {validation_errors}")
+                    station_id = weather_record.get('station_id', 'unknown')
+                    timestamp = weather_record.get('timestamp', 'unknown')
+                    logger.warning(f"Validation failed for {station_id} at {timestamp}: {validation_errors}")
                     continue
-                
+
                 try:
                     point = self._transform_aemet_weather_to_influx_point(weather_record)
                     valid_points.append(point)

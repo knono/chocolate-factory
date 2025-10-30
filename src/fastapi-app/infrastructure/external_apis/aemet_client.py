@@ -340,6 +340,106 @@ class AEMETAPIClient:
         except (ValueError, TypeError):
             return None
 
+    async def get_daily_weather(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        station_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get daily historical weather data (valores climatológicos diarios).
+
+        Args:
+            start_date: Start date for data retrieval
+            end_date: End date for data retrieval
+            station_id: Weather station ID (defaults to Linares, Jaén)
+
+        Returns:
+            List of daily weather records
+
+        API Endpoint:
+            /api/valores/climatologicos/diarios/datos/fechaini/{fechaIniStr}/fechafin/{fechaFinStr}/estacion/{idema}
+
+        Format dates: YYYY-MM-DDTHH:MM:SSUTC (e.g., 2025-10-29T00:00:00UTC)
+        """
+        station = station_id or settings.AEMET_DEFAULT_STATION
+
+        # Format dates as required by AEMET API
+        fecha_ini = start_date.strftime("%Y-%m-%dT%H:%M:%SUTC")
+        fecha_fin = end_date.strftime("%Y-%m-%dT%H:%M:%SUTC")
+
+        endpoint = f"valores/climatologicos/diarios/datos/fechaini/{fecha_ini}/fechafin/{fecha_fin}/estacion/{station}"
+
+        logger.info(f"📊 Fetching AEMET daily weather: {station} from {fecha_ini} to {fecha_fin}")
+
+        try:
+            data = await self._make_request(endpoint)
+            weather_records = self._parse_daily_weather_response(data, station)
+
+            if weather_records:
+                logger.info(f"✅ Retrieved {len(weather_records)} AEMET daily weather records")
+            else:
+                logger.warning(f"⚠️ No daily weather data found for station {station} in range {fecha_ini} - {fecha_fin}")
+
+            return weather_records
+
+        except Exception as e:
+            logger.error(f"❌ Failed to fetch AEMET daily weather: {e}")
+            raise
+
+    def _parse_daily_weather_response(
+        self,
+        data: Any,
+        station_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Parse AEMET API daily weather response (valores climatológicos diarios).
+
+        Args:
+            data: Raw API response (list of daily records)
+            station_id: Station ID
+
+        Returns:
+            List of parsed daily weather records
+        """
+        records = []
+
+        # AEMET returns list of daily observations
+        if not isinstance(data, list):
+            data = [data]
+
+        for item in data:
+            try:
+                # Parse date (fecha is the observation date)
+                fecha_str = item.get("fecha")  # Format: YYYY-MM-DD
+                if fecha_str:
+                    # Use noon (12:00) as representative time for daily values
+                    timestamp = datetime.fromisoformat(f"{fecha_str}T12:00:00+00:00")
+                else:
+                    continue  # Skip records without date
+
+                # Extract daily weather variables
+                record = {
+                    "timestamp": timestamp,
+                    "station_id": station_id,
+                    "temperature": self._safe_float(item.get("tmed")),  # Temperatura media (°C)
+                    "temp_max": self._safe_float(item.get("tmax")),  # Temperatura máxima (°C)
+                    "temp_min": self._safe_float(item.get("tmin")),  # Temperatura mínima (°C)
+                    "humidity": self._safe_float(item.get("hrMedia")),  # Humedad relativa media (%)
+                    "pressure": self._safe_float(item.get("presMax")),  # Presión máxima (hPa)
+                    "wind_speed": self._safe_float(item.get("velmedia")),  # Velocidad media viento (km/h)
+                    "wind_direction": self._safe_float(item.get("dir")),  # Dirección viento (grados)
+                    "precipitation": self._safe_float(item.get("prec")),  # Precipitación (mm)
+                    "source": "aemet_daily"
+                }
+
+                records.append(record)
+
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to parse daily weather record: {e}")
+
+        return records
+
     async def get_historical_weather(
         self,
         station_id: str,
@@ -347,7 +447,7 @@ class AEMETAPIClient:
         end_date: datetime
     ) -> List[Dict[str, Any]]:
         """
-        Get historical weather data (placeholder for future implementation).
+        Get historical weather data (alias for get_daily_weather).
 
         Args:
             station_id: Weather station ID
@@ -356,9 +456,5 @@ class AEMETAPIClient:
 
         Returns:
             List of historical weather records
-
-        Note:
-            AEMET historical data requires different endpoint and permissions.
         """
-        logger.warning("⚠️ Historical weather endpoint not yet implemented")
-        return []
+        return await self.get_daily_weather(start_date, end_date, station_id)

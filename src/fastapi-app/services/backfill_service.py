@@ -185,45 +185,46 @@ class BackfillService:
     
     async def _backfill_weather_gaps(self, gaps: List[DataGap]) -> List[BackfillResult]:
         """
-        Backfill específico para gaps de Weather con estrategia inteligente
+        Backfill específico para gaps de Weather usando AEMET API
 
-        Estrategia basada en antigüedad del gap:
-        - Gaps recientes (<48h): OpenWeatherMap (datos en tiempo real)
-        - Gaps históricos (≥48h): AEMET API (datos consolidados oficiales)
+        IMPORTANTE: OpenWeatherMap Free tier NO soporta datos históricos, solo actuales.
+        Por lo tanto, SIEMPRE usamos AEMET API para backfill de gaps históricos.
 
-        Razón: AEMET necesita 24-48h para consolidar datos diarios oficiales.
+        Estrategia adaptada al delay de AEMET:
+        - Gaps recientes (<72h): AEMET observaciones horarias (datos disponibles inmediatos)
+        - Gaps antiguos (≥72h): AEMET valores climatológicos diarios (requieren ~3 días procesamiento)
+        - OpenWeatherMap solo se usa para ingesta en tiempo real (no backfill)
         """
         results = []
 
         try:
-            # Determinar estrategia basada en antigüedad del gap
             now = datetime.now(timezone.utc)
-            RECENT_GAP_THRESHOLD_HOURS = 48  # Umbral para considerar gap "reciente"
 
             for gap in gaps:
                 gap_start = datetime.now()
-                hours_since_gap_end = (now - gap.end_time).total_seconds() / 3600
+
+                # Calcular antigüedad del gap
+                gap_age_hours = (now - gap.end_time).total_seconds() / 3600
 
                 logger.info(f"🌤️ Rellenando gap Weather: {gap.start_time} - {gap.end_time}")
-                logger.info(f"   📊 Antigüedad del gap: {hours_since_gap_end:.1f}h desde el final del gap")
+                logger.info(f"   ⏰ Antigüedad gap: {gap_age_hours:.1f}h")
 
                 try:
-                    # ESTRATEGIA INTELIGENTE: Basada en antigüedad del gap
-                    if hours_since_gap_end < RECENT_GAP_THRESHOLD_HOURS:
-                        # Gap reciente: Usar OpenWeatherMap (datos en tiempo real)
-                        logger.info(f"🔄 Gap reciente (<48h) - usando OpenWeatherMap API")
-                        result = await self._backfill_weather_openweather(gap)
+                    # Seleccionar estrategia según antigüedad del gap
+                    if gap_age_hours < 72:
+                        # Gap reciente: usar observaciones horarias (siempre disponibles)
+                        logger.info(f"   📅 Usando AEMET observaciones horarias (gap <72h)")
+                        result = await self._backfill_weather_aemet_hourly(gap)
                     else:
-                        # Gap histórico: Usar AEMET API (datos consolidados oficiales)
-                        logger.info(f"📅 Gap histórico (≥48h) - usando AEMET API oficial")
+                        # Gap antiguo: usar valores climatológicos diarios
+                        logger.info(f"   📅 Usando AEMET valores climatológicos diarios (gap ≥72h)")
                         result = await self._backfill_weather_aemet(gap)
 
                     # Si AEMET falla con gap grande (>30 días), notificar para descarga SIAR manual
                     if result.success_rate < 50 and gap.gap_duration_hours > 720:  # 30 días
                         logger.warning(f"⚠️ AEMET falló con gap grande ({gap.gap_duration_hours:.1f}h). "
-                                     f"Considerar descarga manual SIAR para {gap_month}/{gap_year}")
-                        # Aquí podrías agregar notificación por email/webhook si la configuras
-                    
+                                     f"Considerar descarga manual SIAR si necesario")
+
                     results.append(result)
                     
                 except Exception as gap_error:
@@ -322,40 +323,46 @@ class BackfillService:
                 errors=[str(e)]
             )
 
-    async def _backfill_weather_openweather(self, gap: DataGap) -> BackfillResult:
+    async def _backfill_weather_aemet_hourly(self, gap: DataGap) -> BackfillResult:
         """
-        Backfill usando OpenWeatherMap para gaps recientes (<48h)
+        Backfill usando observaciones horarias de AEMET (para gaps recientes <72h)
 
-        OpenWeatherMap proporciona datos en tiempo real y históricos recientes,
-        ideal para gaps que aún no han sido consolidados por AEMET.
+        AEMET tiene un delay de ~3 días para valores climatológicos diarios,
+        pero las observaciones horarias están disponibles inmediatamente.
+
+        Endpoint: /api/observacion/convencional/datos/estacion/{idema}
+        Retorna: últimas 24h de observaciones de la estación
         """
         gap_start = datetime.now()
 
         try:
-            from infrastructure.external_apis import OpenWeatherMapAPIClient  # Sprint 15
-            async with OpenWeatherMapAPIClient() as owm_client:
+            from infrastructure.external_apis import AEMETAPIClient
+            async with AEMETAPIClient() as aemet_client:
                 async with DataIngestionService() as ingestion_service:
+
+                    logger.info(f"🌤️ Procesando observaciones AEMET hourly gap: {gap.start_time} - {gap.end_time}")
 
                     total_records = 0
                     total_written = 0
                     errors = []
 
+                    # AEMET observaciones horarias solo devuelve últimas 24h
+                    # Para gaps más grandes, necesitamos llamar múltiples veces o usar diarios
                     try:
-                        logger.info(f"🌤️ Procesando datos OpenWeatherMap gap: {gap.start_time} - {gap.end_time}")
-
-                        # OpenWeatherMap: Obtener datos actuales (solo datos recientes, no históricos)
-                        # Nota: OWM free tier no proporciona datos históricos, solo actuales
-                        # Este método obtiene datos del momento actual, no del gap específico
-                        write_result = await ingestion_service.ingest_openweathermap_weather()
+                        # Usar el método de ingesta existente para observaciones actuales
+                        write_result = await ingestion_service.ingest_aemet_weather(
+                            station_ids=["5279X"],  # Linares, Jaén
+                            start_date=None,  # Sin fechas = modo current weather
+                            end_date=None
+                        )
 
                         total_records = write_result.total_records
                         total_written = write_result.successful_writes
 
-                        logger.info(f"✅ OpenWeatherMap current data obtained: {total_written}/{total_records} records")
-                        logger.warning(f"⚠️ OpenWeatherMap Free tier no soporta datos históricos. Solo datos actuales obtenidos.")
+                        logger.info(f"✅ AEMET hourly gap processed: {total_written}/{total_records} records")
 
                     except Exception as gap_error:
-                        error_msg = f"Error procesando gap OpenWeatherMap: {gap_error}"
+                        error_msg = f"Error procesando gap AEMET hourly: {gap_error}"
                         errors.append(error_msg)
                         logger.warning(error_msg)
 
@@ -372,12 +379,12 @@ class BackfillService:
                         records_written=total_written,
                         success_rate=success_rate,
                         duration_seconds=duration,
-                        method_used="openweathermap_recent",
+                        method_used="aemet_hourly_observations",
                         errors=errors
                     )
 
         except Exception as e:
-            logger.error(f"Error en backfill OpenWeatherMap: {e}")
+            logger.error(f"Error en backfill AEMET hourly: {e}")
 
             return BackfillResult(
                 measurement="weather_data",
@@ -388,9 +395,44 @@ class BackfillService:
                 records_written=0,
                 success_rate=0,
                 duration_seconds=(datetime.now() - gap_start).total_seconds(),
-                method_used="openweathermap_recent",
+                method_used="aemet_hourly_observations",
                 errors=[str(e)]
             )
+
+    async def _backfill_weather_openweather(self, gap: DataGap) -> BackfillResult:
+        """
+        Backfill usando OpenWeatherMap para gaps recientes (<48h)
+
+        LIMITATION: OpenWeatherMap Free tier solo proporciona datos ACTUALES,
+        no datos históricos. No puede llenar gaps pasados, solo obtener el dato del momento presente.
+
+        Este método está limitado a:
+        - Obtener datos meteorológicos del momento actual
+        - NO puede recuperar datos de horas/días pasados
+        - NO puede llenar el gap solicitado con datos históricos
+
+        Para backfill real de gaps históricos, usar AEMET API.
+        """
+        gap_start = datetime.now()
+        errors = ["OpenWeatherMap Free tier no soporta datos históricos. No se puede llenar este gap. Use AEMET para gaps históricos."]
+
+        logger.warning(f"⚠️ OpenWeatherMap no puede llenar gap {gap.start_time} - {gap.end_time}")
+        logger.warning(f"⚠️ OpenWeatherMap Free tier solo proporciona datos actuales, no históricos")
+        logger.info(f"💡 Sugerencia: Use AEMET API para backfill de gaps históricos")
+
+        # No intentar backfill - OpenWeatherMap Free tier no lo soporta
+        return BackfillResult(
+            measurement="weather_data",
+            gap_start=gap.start_time,
+            gap_end=gap.end_time,
+            records_requested=gap.expected_records,
+            records_obtained=0,
+            records_written=0,
+            success_rate=0,
+            duration_seconds=(datetime.now() - gap_start).total_seconds(),
+            method_used="openweathermap_not_supported",
+            errors=errors
+        )
 
     def _generate_backfill_summary(self, ree_results: List[BackfillResult], 
                                  weather_results: List[BackfillResult],

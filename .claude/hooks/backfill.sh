@@ -149,26 +149,27 @@ execute_backfill() {
     echo "⏳ Iniciando backfill..."
 
     # Execute backfill
-    RESULT=$(curl -s -X POST "$API_BASE$endpoint" \
-        -H "Content-Type: application/json")
+    RESULT=$(curl -s -X POST "$API_BASE$endpoint")
 
-    # Check if result contains error
-    if echo "$RESULT" | grep -q "error\|Error\|ERROR"; then
-        print_error "Error en backfill:"
-        echo "$RESULT" | jq -r '.' 2>/dev/null || echo "$RESULT"
+    # Check if result has HTTP error (not just the word "error" in JSON)
+    STATUS=$(echo "$RESULT" | jq -r '.status // "unknown"' 2>/dev/null)
+
+    if [ "$STATUS" = "unknown" ] || [ -z "$RESULT" ]; then
+        print_error "Error en backfill: respuesta inválida"
+        echo "$RESULT"
         exit 1
     fi
 
     # Parse successful result
+    echo
     echo "$RESULT" | jq -r '
-        if .status then
-            "✅ Estado: " + .status
-        else
-            .
-        end
+        "✅ Estado: " + .status + "\n" +
+        "📊 Gaps procesados: " + (.summary.total_gaps_processed | tostring) + "\n" +
+        "📝 Records escritos: " + (.records.total_written | tostring) + "/" + (.records.total_requested | tostring) + "\n" +
+        "⏱️  Duración: " + (.summary.total_duration_seconds | tostring) + "s"
     ' 2>/dev/null || {
         print_status "Backfill completado"
-        echo "$RESULT"
+        echo "$RESULT" | jq '.'
     }
 }
 

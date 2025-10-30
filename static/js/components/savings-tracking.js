@@ -110,8 +110,8 @@ class SavingsTrackingComponent {
                 <div class="savings-section annual">
                     <h4 class="section-title">📈 ROI Anual Estimado</h4>
                     <div class="annual-roi-card">
-                        <div class="roi-amount">${annual_projection.estimated_savings_eur.toLocaleString('es-ES')}€</div>
-                        <div class="roi-description">${annual_projection.roi_description}</div>
+                        <div class="roi-amount">${(annual_projection.baseline_theoretical_savings_eur || 0).toLocaleString('es-ES')}€</div>
+                        <div class="roi-description">${annual_projection.roi_description || 'N/A'}</div>
                         <div class="roi-breakdown">
                             Basado en ahorro diario promedio de ${daily_savings.savings_eur.toFixed(2)}€ × 365 días
                         </div>

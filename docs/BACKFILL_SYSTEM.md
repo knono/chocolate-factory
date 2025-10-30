@@ -125,28 +125,30 @@ async def _backfill_ree_gaps(gaps):
 
 ### Weather Data Backfill
 
-**Dual strategy based on gap age:**
+**Adaptive strategy based on gap age:**
 
-#### 48-Hour Strategy (Intelligent Temporal Decision)
+#### 72-Hour Strategy (Adapted to AEMET OpenData)
 
 ```python
-RECENT_GAP_THRESHOLD_HOURS = 48
+GAP_AGE_THRESHOLD_HOURS = 72
 
-hours_since_gap_end = (datetime.now(timezone.utc) - gap.end_time).total_seconds() / 3600
+gap_age_hours = (datetime.now(timezone.utc) - gap.end_time).total_seconds() / 3600
 
-if hours_since_gap_end < 48:
-    # Recent gap: Use OpenWeatherMap current data
-    # AEMET needs 24-48h to consolidate official data
-    result = await self._backfill_weather_openweather(gap)
+if gap_age_hours < 72:
+    # Recent gap: AEMET hourly observations
+    # Endpoint: /observacion/convencional/datos/estacion/{idema}
+    result = await self._backfill_weather_aemet_hourly(gap)
 else:
-    # Historical gap: Use AEMET consolidated data
+    # Historical gap: AEMET daily climatological values
+    # Endpoint: /valores/climatologicos/diarios/datos/fechaini/.../fechafin/.../estacion/{idema}
     result = await self._backfill_weather_aemet(gap)
 ```
 
-**Why 48 hours?**
-- AEMET API requires 24-48h to consolidate daily official data
-- Attempts to fetch data <48h from AEMET result in connection errors
-- OpenWeatherMap provides current data but NOT historical (free tier)
+**Why 72 hours?**
+- AEMET `/valores/climatologicos/diarios` requires ~3 days processing delay
+- API returns 404 "No hay datos que satisfagan esos criterios" for recent dates
+- `/observacion/convencional` provides last 24h observations immediately
+- OpenWeatherMap Free tier does NOT support historical data (current only)
 
 #### Current Month vs Historical Strategy
 
@@ -167,9 +169,22 @@ else:
     result = await self._backfill_weather_siar(gap)
 ```
 
-**AEMET Current Month:**
+**AEMET Hourly Observations (<72h):**
+```python
+async def _backfill_weather_aemet_hourly(gap):
+    # Uses current weather endpoint (last 24h available)
+    write_result = await ingestion_service.ingest_aemet_weather(
+        station_ids=["5279X"],  # Linares, Jaén
+        start_date=None,  # None = current observations mode
+        end_date=None
+    )
+    return write_result
+```
+
+**AEMET Daily Values (≥72h):**
 ```python
 async def _backfill_weather_aemet(gap):
+    # Uses climatological values endpoint (requires 3-day delay)
     write_result = await ingestion_service.ingest_aemet_weather(
         station_ids=["5279X"],  # Linares, Jaén
         start_date=gap.start_time,
@@ -307,10 +322,20 @@ curl -X POST "http://localhost:8000/gaps/backfill?days_back=3"
 
 **AEMET API failures:**
 ```bash
-# Check if gap is <48h (AEMET limitation)
+# Check gap age
 curl http://localhost:8000/gaps/summary | jq '.weather_data.gap_hours'
 
-# If <48h, wait for AEMET consolidation or use preventive OWM ingestion
+# If gap <72h: uses hourly observations (immediate)
+# If gap ≥72h: uses daily climatological values (3-day delay)
+
+# Test AEMET endpoints directly:
+# Hourly observations (last 24h):
+docker compose exec fastapi-app curl -s \
+  "https://opendata.aemet.es/opendata/api/observacion/convencional/datos/estacion/5279X?api_key=${AEMET_API_KEY}"
+
+# Daily values (requires 3-day delay):
+docker compose exec fastapi-app curl -s \
+  "https://opendata.aemet.es/opendata/api/valores/climatologicos/diarios/datos/fechaini/2025-10-01T00:00:00UTC/fechafin/2025-10-02T00:00:00UTC/estacion/5279X?api_key=${AEMET_API_KEY}"
 ```
 
 **Rate limiting errors:**
@@ -348,9 +373,9 @@ curl http://localhost:8000/gaps/summary | jq '.weather_data.gap_hours'
 - Rate limit: 2s between requests
 
 **Weather Backfill:**
-- Use 48h strategy for recent gaps
+- Use 72h strategy: hourly observations (<72h), daily values (≥72h)
 - SIAR ETL for historical gaps (>current month)
-- AEMET for current month gaps
+- AEMET for current month gaps (respecting 3-day delay)
 
 ---
 
@@ -358,30 +383,86 @@ curl http://localhost:8000/gaps/summary | jq '.weather_data.gap_hours'
 
 ### Recommended Setup (Production)
 
-**Option 1: Accept 48h AEMET Gap** (Default)
-- ✅ Official quality data
-- ✅ No additional cost
-- ✅ Consistent data source
-- ⏳ Temporary 48h gap
+**Current Implementation** (Default)
+- ✅ AEMET hourly observations for gaps <72h (immediate availability)
+- ✅ AEMET daily climatological for gaps ≥72h (3-day delay)
+- ✅ Official quality data, consistent source
+- ✅ Automatic switching based on gap age
 
-**Option 2: Preventive OWM Ingestion** (Recommended)
-```python
-# Add to scheduler_config.py
-scheduler.add_job(
-    ingest_current_weather_preventive,
-    trigger="interval",
-    hours=1,
-    id="openweather_preventive",
-    name="OpenWeather Preventive Ingestion (hourly)"
-)
+**Gap Behavior:**
+- System offline <24h: Backfill retrieves last 24h AEMET observations
+- System offline >72h: Backfill uses daily climatological values
+- Gap window: ~2h typical (last observation to current time)
 
-async def ingest_current_weather_preventive():
-    async with DataIngestionService() as service:
-        result = await service.ingest_openweathermap_weather()
-        logger.info(f"Preventive OWM: {result.successful_writes} records")
+---
+
+## AEMET OpenData API
+
+### Endpoints Used
+
+**Hourly Observations** (immediate availability):
+```
+GET /observacion/convencional/datos/estacion/{idema}
+```
+- Returns: Last 24h observations from station
+- Fields: ta (temp), hr (humidity), pres (pressure), vv (wind speed), prec (precipitation)
+- Update frequency: Hourly
+- Station 5279X: Linares VOR, Jaén
+
+**Daily Climatological Values** (3-day processing delay):
+```
+GET /valores/climatologicos/diarios/datos/fechaini/{fecha_ini}/fechafin/{fecha_fin}/estacion/{idema}
+```
+- Returns: Daily aggregated values for date range
+- Fields: tmed, tmax, tmin, hrMedia, presMax, velmedia, prec
+- Date format: YYYY-MM-DDTHH:MM:SSUTC
+- Limitation: Data available ~72h after observation date
+
+### Response Format
+
+Both endpoints return metadata first:
+```json
+{
+  "descripcion": "exito",
+  "estado": 200,
+  "datos": "https://opendata.aemet.es/opendata/sh/{hash}",
+  "metadatos": "https://opendata.aemet.es/opendata/sh/{hash}"
+}
 ```
 
-**Result:** Gap reduced from 48h to 1-2h maximum
+Then fetch actual data from `datos` URL (list of observations/values).
+
+### Error Responses
+
+**404 - No data available**:
+```json
+{
+  "descripcion": "No hay datos que satisfagan esos criterios",
+  "estado": 404
+}
+```
+Common cause: Requesting daily values for dates <72h old.
+
+**401 - Invalid API key**:
+```json
+{
+  "descripcion": "API key invalido",
+  "estado": 401
+}
+```
+
+### Implementation
+
+- Client: `src/fastapi-app/infrastructure/external_apis/aemet_client.py`
+  - `get_current_weather()`: Hourly observations endpoint
+  - `get_daily_weather()`: Daily climatological endpoint
+- Token caching: 6-day validity, disk persistence
+- Rate limiting: 20 req/min (3s delay)
+
+### Documentation
+
+- API Spec: https://opendata.aemet.es/AEMET_OpenData_specification.json
+- Portal: https://opendata.aemet.es/dist/index.html
 
 ---
 
@@ -389,5 +470,6 @@ async def ingest_current_weather_preventive():
 
 - Gap Detection: `src/fastapi-app/services/gap_detector.py`
 - Backfill Engine: `src/fastapi-app/services/backfill_service.py`
+- AEMET Client: `src/fastapi-app/infrastructure/external_apis/aemet_client.py`
 - Scheduler Jobs: `src/fastapi-app/tasks/scheduler_config.py`
 - Router: `src/fastapi-app/api/routers/gaps.py`
