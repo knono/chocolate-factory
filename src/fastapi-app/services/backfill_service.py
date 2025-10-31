@@ -203,22 +203,23 @@ class BackfillService:
             for gap in gaps:
                 gap_start = datetime.now()
 
-                # Calcular antigüedad del gap
-                gap_age_hours = (now - gap.end_time).total_seconds() / 3600
+                # Calcular antigüedad del gap (desde INICIO, no desde fin)
+                gap_age_hours = (now - gap.start_time).total_seconds() / 3600
 
                 logger.info(f"🌤️ Rellenando gap Weather: {gap.start_time} - {gap.end_time}")
-                logger.info(f"   ⏰ Antigüedad gap: {gap_age_hours:.1f}h")
+                logger.info(f"   ⏰ Antigüedad gap: {gap_age_hours:.1f}h (duración: {gap.gap_duration_hours:.1f}h)")
 
                 try:
-                    # Seleccionar estrategia según antigüedad del gap
-                    if gap_age_hours < 72:
-                        # Gap reciente: usar observaciones horarias (siempre disponibles)
-                        logger.info(f"   📅 Usando AEMET observaciones horarias (gap <72h)")
-                        result = await self._backfill_weather_aemet_hourly(gap)
-                    else:
-                        # Gap antiguo: usar valores climatológicos diarios
-                        logger.info(f"   📅 Usando AEMET valores climatológicos diarios (gap ≥72h)")
+                    # Seleccionar estrategia según antigüedad del gap INICIO
+                    # Si el gap empezó hace >72h O tiene duración >72h, usar método diario
+                    if gap_age_hours >= 72 or gap.gap_duration_hours >= 72:
+                        # Gap antiguo o muy largo: usar valores climatológicos diarios
+                        logger.info(f"   📅 Usando AEMET valores climatológicos diarios (gap antiguo o largo)")
                         result = await self._backfill_weather_aemet(gap)
+                    else:
+                        # Gap reciente y corto: usar observaciones horarias (últimas 24h disponibles)
+                        logger.info(f"   📅 Usando AEMET observaciones horarias (gap reciente <72h)")
+                        result = await self._backfill_weather_aemet_hourly(gap)
 
                     # Si AEMET falla con gap grande (>30 días), notificar para descarga SIAR manual
                     if result.success_rate < 50 and gap.gap_duration_hours > 720:  # 30 días
