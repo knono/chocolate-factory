@@ -428,7 +428,7 @@ Configurable hourly forecast (1-168 hours).
 **Response:**
 Same structure as weekly, limited to N predictions.
 
-### POST /models/price-forecast/train
+### POST /predict/prices/train
 Train Prophet model with historical REE data.
 
 **Parameters:**
@@ -454,7 +454,7 @@ Train Prophet model with historical REE data.
 }
 ```
 
-### GET /models/price-forecast/status
+### GET /predict/prices/status
 Prophet model status and metrics.
 
 **Response:**

@@ -122,7 +122,7 @@ on:
 
 jobs:
   dev-deployment:
-    - Run tests (102 tests)
+    - Run tests (134 tests)
     - Build Docker image
     - Deploy to development (port 8001)
     - Smoke tests
@@ -172,7 +172,7 @@ on:
 
 jobs:
   prod-deployment:
-    - Run tests (102 tests)
+    - Run tests (134 tests)
     - Build Docker image
     - Deploy to production (port 8000)
     - Smoke tests
@@ -249,7 +249,7 @@ git push origin develop
 ```yaml
 # Both dev and prod pipelines
 1. Checkout code
-2. Run tests (102 tests, pytest)
+2. Run tests (134 tests, pytest)
 3. Build Docker image
 4. Push to registry
 5. Deploy to environment

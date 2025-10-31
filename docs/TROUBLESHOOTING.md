@@ -6,7 +6,7 @@
 |-------|-------|-----|
 | No data in InfluxDB | `/init/status`, verify containers | Run `/init/all`, check scheduler |
 | AEMET API failures | Check token validity, API status | Use SIAR ETL alternative |
-| Prophet model issues | `/predict/prices/models/price-forecast/status` | Force manual training POST `/predict/prices/models/price-forecast/train` |
+| Prophet model issues | `/predict/prices/status` | Force manual training POST `/predict/prices/train` |
 | Scheduler not running | `/scheduler/status` | Restart FastAPI container |
 | Weather data gaps | `/influxdb/verify` | Execute backfill system |
 
@@ -169,7 +169,7 @@ curl -X POST http://localhost:8000/init/all
 **Check model status:**
 ```bash
 # Check Prophet model status and metrics
-curl -s http://localhost:8000/predict/prices/models/price-forecast/status | jq
+curl -s http://localhost:8000/predict/prices/status | jq
 
 # Expected output:
 # {
@@ -189,10 +189,10 @@ curl -s http://localhost:8000/predict/prices/models/price-forecast/status | jq
 **Manual training:**
 ```bash
 # Force Prophet model retraining
-curl -X POST http://localhost:8000/predict/prices/models/price-forecast/train
+curl -X POST http://localhost:8000/predict/prices/train
 
 # Verify training completed
-curl -s http://localhost:8000/predict/prices/models/price-forecast/status | jq '.model_info.last_training'
+curl -s http://localhost:8000/predict/prices/status | jq '.model_info.last_training'
 ```
 
 **Get predictions:**
@@ -409,7 +409,7 @@ log "✅ Verification completed"
 - [ ] Time ranges: Data within query window
 
 ### ML Models
-- [ ] Prophet model status: `curl http://localhost:8000/predict/prices/models/price-forecast/status`
+- [ ] Prophet model status: `curl http://localhost:8000/predict/prices/status`
 - [ ] Model files exist: `docker exec chocolate_factory_brain ls /app/models/`
 - [ ] Training jobs scheduled: Check scheduler status for ML jobs
 

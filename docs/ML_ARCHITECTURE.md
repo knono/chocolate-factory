@@ -32,9 +32,9 @@ El sistema ML de Chocolate Factory integra **3 tipos de modelos** para optimizac
 **Estado Actual**:
 - ✅ 3 servicios ML en producción (no unificados)
 - ✅ Feature engineering automático
-- ✅ Entrenamiento automático cada 30 minutos (APScheduler)
+- ✅ Entrenamiento automático: sklearn 30min, Prophet 24h (7 APScheduler jobs total)
 - ✅ Predicciones integradas en dashboard
-- ✅ ROI tracking: 1,661€/año ahorro real
+- ✅ ROI tracking: 1,661€/año (estimación teórica - Sprint 16 disclaimers)
 
 ---
 
@@ -174,8 +174,8 @@ El sistema ML de Chocolate Factory integra **3 tipos de modelos** para optimizac
 **Endpoints asociados**:
 - `/predict/prices/weekly` (7 días completos)
 - `/predict/prices/hourly?hours=N` (1-168h configurable)
-- `/models/price-forecast/train` (entrenamiento manual)
-- `/models/price-forecast/status` (métricas)
+- `/predict/prices/train` (entrenamiento manual)
+- `/predict/prices/status` (métricas)
 
 **UPDATE OCT 28**: Agregadas variables exógenas (holidays españoles, demanda proxy)
 - Nuevo método `_add_prophet_features()`: is_peak_hour, is_weekend, is_holiday
@@ -214,8 +214,8 @@ model = Prophet(
 - Timestamp ISO format
 
 **Entrenamiento**:
-- Automático: Cada hora a los :30
-- Manual: POST `/models/price-forecast/train`
+- Automático: APScheduler job cada 24h
+- Manual: POST `/predict/prices/train`
 
 **Storage**: `/app/models/price_forecast_prophet_YYYYMMDD_HHMMSS.pkl`
 
@@ -817,8 +817,8 @@ tests/ml/
 ### Limitaciones de Testing
 
 **Cobertura de Tests**:
-- ⚠️ **19% coverage**: 81% del código sin testear
-- ✅ **102 tests**: 100% passing (36 E2E)
+- ⚠️ **32% coverage** (Sprint 17): 68% del código sin testear
+- ✅ **134 tests**: 123 passing, 11 E2E failing (performance/resilience)
 - ❌ **Recomendado**: 40%+ coverage para producción con confianza
 - ⚠️ **Áreas sin cobertura**: Error handling, edge cases, failure scenarios
 
