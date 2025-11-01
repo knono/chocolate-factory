@@ -253,10 +253,15 @@ curl -X POST "http://localhost:8000/gaps/backfill?days_back=7"
 ```
 
 #### `POST /gaps/backfill/auto?max_gap_hours=N`
-Automatic intelligent backfill (default: 6.0h threshold)
+Automatic intelligent backfill (default: 3.5h threshold)
 ```bash
-curl -X POST "http://localhost:8000/gaps/backfill/auto?max_gap_hours=12"
+curl -X POST "http://localhost:8000/gaps/backfill/auto?max_gap_hours=3.5"
 ```
+
+**Threshold Configuration:**
+- Current: 3.5 hours (optimized for AEMET 12h window)
+- Location: `.claude/hooks/backfill.sh:121`
+- Rationale: Balance between sensitivity and AEMET data availability
 
 #### `POST /gaps/backfill/range`
 Date range specific backfill with data_source filter
@@ -463,6 +468,51 @@ Common cause: Requesting daily values for dates <72h old.
 
 - API Spec: https://opendata.aemet.es/AEMET_OpenData_specification.json
 - Portal: https://opendata.aemet.es/dist/index.html
+
+---
+
+## Limitaciones Actuales
+
+### AEMET: Ventana de 12 horas
+
+AEMET `/observacion/convencional` retorna solo últimas 12 horas (12 registros).
+Delay publicación: 2-3h.
+
+**Pérdida de datos por apagado:**
+
+| Apagado | Gap | Backfill activa | Pérdida |
+|---------|-----|-----------------|---------|
+| 3h      | 3.0h| No (<3.5h)      | ~2h     |
+| 5h      | 5.0h| Sí              | 0h      |
+| 8h      | 8.0h| Sí              | ~4h     |
+| 48h     | 48h | Sí              | ~36h    |
+
+**Configuración actual:**
+- Threshold: 3.5h (`.claude/hooks/backfill.sh:121`)
+- Sweet spot: gaps 3.5h-12h = 100% recuperación
+- Gaps >12h: pérdida parcial (inicio del gap no disponible)
+
+---
+
+## Solución Futura: OpenWeatherMap One Call API 3.0
+
+**Capacidades:**
+- Históricos desde 1979 (45+ años)
+- 1000 calls/día gratis
+- 100% recuperación gaps hasta 5 días
+
+**Caveats:**
+- Requiere tarjeta crédito (no se cobra si <1000 calls/día)
+- Configurar hard limit 1000 calls en dashboard para evitar cargos
+- Requiere atribución "Powered by OpenWeather"
+- Licencia: Open Database License (ODbL)
+
+**Uso estimado:**
+- Apagado 8h: 8 calls
+- Weekend 48h: 48 calls
+- Budget: 1000 calls/día suficiente
+
+**Implementación:** Sprint pendiente (ver `.claude/sprints/infrastructure/SPRINT_XX_OWM_ONECALL_3.md`)
 
 ---
 

@@ -227,17 +227,17 @@ class OpenWeatherMapAPIClient:
 
     async def get_forecast(
         self,
+        hours: int = 24,
         lat: Optional[float] = None,
-        lon: Optional[float] = None,
-        hours: int = 24
+        lon: Optional[float] = None
     ) -> List[Dict[str, Any]]:
         """
         Get weather forecast (5-day/3-hour).
 
         Args:
-            lat: Latitude
-            lon: Longitude
             hours: Number of hours to forecast (max 120)
+            lat: Latitude (defaults to Linares, Jaén)
+            lon: Longitude (defaults to Linares, Jaén)
 
         Returns:
             List of forecast records

@@ -375,17 +375,23 @@ class HourlyOptimizerService:
             # Usar AEMET para predicciones
             from infrastructure.external_apis import AEMETAPIClient  # Sprint 15
 
-            aemet = AEMETAPIClient()
-            forecast = await aemet.get_daily_forecast()
+            async with AEMETAPIClient() as aemet:
+                forecast = await aemet.get_daily_weather(
+                    station_id="3195",  # Madrid-Retiro (default)
+                    start_date=target_date,
+                    end_date=target_date + timedelta(days=1)
+                )
 
             # Simplificación: asumir condiciones constantes durante el día
             # (AEMET da predicción diaria, no horaria)
-            if forecast and "temperature" in forecast:
+            if forecast and len(forecast) > 0:
+                # Tomar el primer registro del forecast
+                first_record = forecast[0]
                 hourly_data = [{
                     "hour": h,
-                    "temperature": forecast.get("temperature", 22.0),
-                    "humidity": forecast.get("humidity", 55.0),
-                    "pressure": forecast.get("pressure", 1013.0)
+                    "temperature": first_record.get("temperature", 22.0),
+                    "humidity": first_record.get("humidity", 55.0),
+                    "pressure": first_record.get("pressure", 1013.0)
                 } for h in range(24)]
             else:
                 # Fallback: condiciones ideales

@@ -118,7 +118,7 @@ execute_backfill() {
 
     case $mode in
         "auto")
-            endpoint="/gaps/backfill/auto?max_gap_hours=6.0"
+            endpoint="/gaps/backfill/auto?max_gap_hours=3.5"
             description="Backfill automático inteligente"
             ;;
         "full")
