@@ -92,10 +92,10 @@ app.add_middleware(
 app.add_middleware(
     TailscaleAuthMiddleware,
     enabled=settings.TAILSCALE_AUTH_ENABLED,
-    admin_users=settings.TAILSCALE_ADMINS,
+    admin_users=settings.tailscale_admins_list,
     bypass_local=(settings.ENVIRONMENT == "development")
 )
-logger.info(f"🔐 Tailscale Auth: enabled={settings.TAILSCALE_AUTH_ENABLED}, admins={len(settings.TAILSCALE_ADMINS)}")
+logger.info(f"🔐 Tailscale Auth: enabled={settings.TAILSCALE_AUTH_ENABLED}, admins={len(settings.tailscale_admins_list)}")
 
 # Mount static files
 if settings.STATIC_FILES_DIR.exists():

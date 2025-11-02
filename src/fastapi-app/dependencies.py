@@ -223,6 +223,39 @@ def get_dashboard_service():
 
 
 # =================================================================
+# TELEGRAM ALERT SERVICE (Sprint 18)
+# =================================================================
+
+_telegram_alert_service_instance: Optional[object] = None
+
+
+def get_telegram_alert_service():
+    """
+    Get Telegram Alert Service instance (lazy singleton).
+
+    Returns:
+        TelegramAlertService: Telegram alert service (None if disabled)
+    """
+    global _telegram_alert_service_instance
+
+    if _telegram_alert_service_instance is None:
+        if settings.TELEGRAM_ALERTS_ENABLED:
+            from services.telegram_alert_service import TelegramAlertService
+            _telegram_alert_service_instance = TelegramAlertService(
+                bot_token=settings.TELEGRAM_BOT_TOKEN,
+                chat_id=settings.TELEGRAM_CHAT_ID,
+                enabled=True
+            )
+            logger.info("✅ Telegram Alert Service initialized")
+        else:
+            logger.info("ℹ️  Telegram alerts disabled")
+            # Return None when disabled
+            return None
+
+    return _telegram_alert_service_instance
+
+
+# =================================================================
 # SCHEDULER (APScheduler)
 # =================================================================
 

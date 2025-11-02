@@ -1,11 +1,24 @@
 # Sprint 18 - Tailscale Auth + Telegram Alerting
 
-**Status**: PENDIENTE
-**Start Date**: 2025-11-01 (estimado)
+**Status**: EN PROGRESO
+**Start Date**: 2025-11-02
 **Completion Date**: TBD
 **Duration**: 5 días
 **Type**: Security + Observability
-**Last Update**: 2025-10-31
+**Last Update**: 2025-11-02 19:30
+
+---
+
+## ESTADO ACTUAL (2025-11-02 20:00)
+
+**Fase 1: ✅ COMPLETADA - Admin access /vpn funcional**
+- Problema resuelto: Uvicorn no confiaba en proxy headers de nginx
+- Solución: `--proxy-headers --forwarded-allow-ips 192.168.100.0/24`
+- Verificado: Admin accede /vpn, viewer bloqueado correctamente
+
+**Fase 2: 40% - 2/5 alertas implementadas**
+- sklearn/Prophet alertas ✅
+- Falta: REE, backfill, gap_detector, health_monitoring
 
 ## Objetivo
 
@@ -396,9 +409,66 @@ class TelegramAlertService:
 
 ---
 
+## Problemas Técnicos y Soluciones (Fase 1)
+
+### Problema 1: Admin no puede acceder /vpn (2025-11-02)
+
+**Síntoma**:
+```
+Forbidden: shared-node-192.168.100.8 (role=viewer) attempted admin route /static/vpn.html
+```
+
+**Diagnóstico**:
+1. Nginx (sidecar `192.168.100.8`) veía IP real Tailscale (`100.106.17.48`)
+2. Nginx configuraba headers: `X-Real-IP`, `X-Forwarded-For`
+3. FastAPI middleware recibía: `X-Real-IP=None`, `client.host=192.168.100.8`
+4. Uvicorn por defecto NO confía en proxy headers
+
+**Causa raíz**: Uvicorn ignora headers de proxy sin configuración explícita.
+
+**Solución**:
+
+1. **Modificar `docker/fastapi.Dockerfile`** (línea 72):
+```dockerfile
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000",
+     "--proxy-headers", "--forwarded-allow-ips", "192.168.100.0/24"]
+```
+
+2. **Modificar `docker/sidecar-nginx.conf`** (líneas 201-203):
+```nginx
+location ~ ^/(static|css|js|images|fonts)/ {
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+**Flags críticos**:
+- `--proxy-headers`: Habilita lectura de X-Forwarded-For, X-Real-IP
+- `--forwarded-allow-ips 192.168.100.0/24`: Confía en headers desde nginx sidecar
+
+**Resultado**:
+```
+Admin access granted: maldonadohervas@gmail.com → /vpn
+INFO: 100.106.17.48:0 - "GET /vpn HTTP/1.0" 307 Temporary Redirect
+```
+
+**Verificación**:
+```bash
+# Nginx ve IP correcta
+docker exec chocolate-factory tail /var/log/nginx/access.log
+# 100.106.17.48 (via -) - ...
+
+# FastAPI recibe IP correcta
+docker logs chocolate_factory_brain | grep "Admin access granted"
+# Admin access granted: maldonadohervas@gmail.com → /vpn
+```
+
+---
+
 ## Checklist Final Sprint 18
 
-- [ ] Fase 1 completada (Tailscale Auth)
+- [x] Fase 1 completada (Tailscale Auth)
 - [ ] Fase 2 completada (Telegram Alerts)
 - [ ] Fase 3 completada (Docs + Tests)
 - [ ] Tests passing: 14 nuevos (8 auth + 6 alerts)

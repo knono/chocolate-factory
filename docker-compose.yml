@@ -37,6 +37,9 @@ services:
       - INFLUXDB_TOKEN=${influxdb_token}
       - INFLUXDB_ORG=${INFLUXDB_ORG}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      # Sprint 18: Tailscale Authentication
+      - TAILSCALE_AUTH_ENABLED=${TAILSCALE_AUTH_ENABLED:-true}
+      - TAILSCALE_ADMINS=${TAILSCALE_ADMINS}
     volumes:
       - ./data:/app/data
       - ./src/configs:/app/configs

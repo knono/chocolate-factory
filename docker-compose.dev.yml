@@ -58,6 +58,9 @@ services:
       - INFLUXDB_TOKEN=${influxdb_token}
       - INFLUXDB_ORG=chocolate_factory
       - INFLUXDB_BUCKET=energy_data
+      # Sprint 18: Tailscale Authentication
+      - TAILSCALE_AUTH_ENABLED=${TAILSCALE_AUTH_ENABLED:-true}
+      - TAILSCALE_ADMINS=${TAILSCALE_ADMINS}
     volumes:
       # Código fuente para hot reload (mapeo directo)
       - ./src/fastapi-app/main.py:/app/main.py
