@@ -176,6 +176,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_ML: str = "10/minute"
 
     # =================================================================
+    # TAILSCALE AUTHENTICATION (Sprint 18)
+    # =================================================================
+    TAILSCALE_AUTH_ENABLED: bool = True
+    TAILSCALE_ADMINS: List[str] = []  # Populated from env: "admin1@example.com,admin2@example.com"
+
+    # =================================================================
     # CACHE SETTINGS (Sprint 05)
     # =================================================================
     CACHE_ENABLED: bool = True
@@ -270,6 +276,15 @@ class Settings(BaseSettings):
         anthropic_key = get_secret("anthropic_api_key", "ANTHROPIC_API_KEY")
         if anthropic_key:
             self.ANTHROPIC_API_KEY = anthropic_key
+
+        # Parse Tailscale admins from comma-separated string (Sprint 18)
+        tailscale_admins_str = os.environ.get("TAILSCALE_ADMINS", "")
+        if tailscale_admins_str:
+            self.TAILSCALE_ADMINS = [
+                admin.strip()
+                for admin in tailscale_admins_str.split(",")
+                if admin.strip()
+            ]
 
         # Validate that required secrets were loaded
         if not self.INFLUXDB_TOKEN:
