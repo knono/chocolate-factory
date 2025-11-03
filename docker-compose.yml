@@ -37,6 +37,13 @@ services:
       - INFLUXDB_TOKEN=${influxdb_token}
       - INFLUXDB_ORG=${INFLUXDB_ORG}
       - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      # Sprint 18: Tailscale Authentication
+      - TAILSCALE_AUTH_ENABLED=${TAILSCALE_AUTH_ENABLED:-true}
+      - TAILSCALE_ADMINS=${TAILSCALE_ADMINS}
+      # Sprint 18: Telegram Alerts
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - TELEGRAM_ALERTS_ENABLED=${TELEGRAM_ALERTS_ENABLED:-true}
     volumes:
       - ./data:/app/data
       - ./src/configs:/app/configs

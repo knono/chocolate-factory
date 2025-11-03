@@ -750,10 +750,11 @@ class SchedulerService:
         
         try:
             logger.info("🤖 Starting auto backfill detection job")
-            
+
             # Import backfill service
-            from services.backfill_service import backfill_service
-            
+            from dependencies import get_backfill_service
+            backfill_service = get_backfill_service()
+
             # Verificar si hay gaps significativos (más de 3 horas)
             result = await backfill_service.check_and_execute_auto_backfill(max_gap_hours=3.0)
             

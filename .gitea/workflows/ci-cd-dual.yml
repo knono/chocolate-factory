@@ -302,6 +302,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Decrypt secrets for potential rollback
+        run: |
+          # Install SOPS if not present
+          if ! command -v sops &> /dev/null; then
+            echo "📦 Installing SOPS..."
+            SOPS_VERSION="3.8.1"
+            wget -q "https://github.com/mozilla/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -O /tmp/sops
+            sudo mv /tmp/sops /usr/local/bin/sops
+            sudo chmod +x /usr/local/bin/sops
+          fi
+
+          # Install age if not present
+          if ! command -v age &> /dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq age
+          fi
+
+          # Decrypt secrets for rollback scenario
+          echo "🔓 Decrypting secrets for potential rollback..."
+          echo "${{ secrets.SOPS_AGE_KEY }}" > /tmp/age-key.txt
+          export SOPS_AGE_KEY_FILE=/tmp/age-key.txt
+          sops --decrypt secrets.enc.yaml > .env
+          rm /tmp/age-key.txt
+          echo "✅ Secrets ready"
+
       - name: Setup Python for tests
         uses: actions/setup-python@v4
         with:
@@ -354,21 +378,56 @@ jobs:
             docker tag localhost:5000/chocolate-factory:develop-stable \
                        localhost:5000/chocolate-factory:develop
 
-            # Redeploy stable version using docker run (no compose file needed)
-            docker run -d \
-              --name chocolate_factory_dev \
-              --network chocolate-factory_backend \
-              -p 8001:8000 \
-              -e ENVIRONMENT=development \
-              -e APP_NAME=chocolate-factory-dev \
-              -e LOG_LEVEL=INFO \
-              -e TZ=Europe/Madrid \
-              -e PYTHONPATH=/app \
-              --env-file .env.shell \
-              -v models_dev_data:/app/models \
-              -v logs_dev_data:/app/logs \
-              --restart unless-stopped \
-              localhost:5000/chocolate-factory:develop
+            # Recreate compose file for rollback
+            cat > docker-compose.rollback-dev.yml << 'EOF'
+          services:
+            fastapi-app-dev:
+              image: localhost:5000/chocolate-factory:develop
+              container_name: chocolate_factory_dev
+              ports:
+                - "8001:8000"
+              environment:
+                - ENVIRONMENT=development
+                - APP_NAME=chocolate-factory-dev
+                - LOG_LEVEL=INFO
+                - TZ=Europe/Madrid
+                - PYTHONPATH=/app
+                - REE_API_TOKEN=${ree_api_token}
+                - AEMET_API_KEY=${aemet_api_key}
+                - OPENWEATHERMAP_API_KEY=${openweathermap_api_key}
+                - ANTHROPIC_API_KEY=${anthropic_api_key}
+                - INFLUXDB_URL=http://chocolate_factory_storage:8086
+                - INFLUXDB_TOKEN=${influxdb_token}
+                - INFLUXDB_ORG=chocolate_factory
+                - INFLUXDB_BUCKET=energy_data
+              volumes:
+                - models_dev_data:/app/models
+                - logs_dev_data:/app/logs
+              networks:
+                - chocolate-factory_backend
+              restart: unless-stopped
+          volumes:
+            models_dev_data:
+            logs_dev_data:
+          networks:
+            chocolate-factory_backend:
+              external: true
+          EOF
+
+            # Convert .env YAML to shell format
+            pip3 install -q PyYAML
+            python3 << 'PYTHON'
+          import yaml
+          with open('.env', 'r') as f:
+              data = yaml.safe_load(f)
+          with open('.env.shell', 'w') as f:
+              for key, value in data.items():
+                  if value is not None:
+                      f.write(f"{key}={value}\n")
+          PYTHON
+
+            # Deploy rollback
+            docker compose --env-file .env.shell -f docker-compose.rollback-dev.yml up -d
 
             echo "✅ Rolled back to last stable version"
             exit 1
@@ -559,6 +618,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Decrypt secrets for potential rollback
+        run: |
+          # Install SOPS if not present
+          if ! command -v sops &> /dev/null; then
+            echo "📦 Installing SOPS..."
+            SOPS_VERSION="3.8.1"
+            wget -q "https://github.com/mozilla/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -O /tmp/sops
+            sudo mv /tmp/sops /usr/local/bin/sops
+            sudo chmod +x /usr/local/bin/sops
+          fi
+
+          # Install age if not present
+          if ! command -v age &> /dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq age
+          fi
+
+          # Decrypt secrets for rollback scenario
+          echo "🔓 Decrypting secrets for potential rollback..."
+          echo "${{ secrets.SOPS_AGE_KEY }}" > /tmp/age-key.txt
+          export SOPS_AGE_KEY_FILE=/tmp/age-key.txt
+          sops --decrypt secrets.enc.yaml > .env
+          rm /tmp/age-key.txt
+          echo "✅ Secrets ready"
+
       - name: Setup Python for tests
         uses: actions/setup-python@v4
         with:
@@ -613,8 +696,56 @@ jobs:
             docker tag localhost:5000/chocolate-factory:production-stable \
                        localhost:5000/chocolate-factory:production
 
-            # Redeploy stable production version
-            docker compose -f docker-compose.ci-prod.yml up -d
+            # Recreate compose file for rollback
+            cat > docker-compose.rollback-prod.yml << 'EOF'
+          services:
+            fastapi-app-prod:
+              image: localhost:5000/chocolate-factory:production
+              container_name: chocolate_factory_brain
+              ports:
+                - "8000:8000"
+              environment:
+                - ENVIRONMENT=production
+                - APP_NAME=chocolate-factory-prod
+                - LOG_LEVEL=INFO
+                - TZ=Europe/Madrid
+                - PYTHONPATH=/app
+                - REE_API_TOKEN=${ree_api_token}
+                - AEMET_API_KEY=${aemet_api_key}
+                - OPENWEATHERMAP_API_KEY=${openweathermap_api_key}
+                - ANTHROPIC_API_KEY=${anthropic_api_key}
+                - INFLUXDB_URL=http://chocolate_factory_storage:8086
+                - INFLUXDB_TOKEN=${influxdb_token}
+                - INFLUXDB_ORG=chocolate_factory
+                - INFLUXDB_BUCKET=energy_data
+              volumes:
+                - models_prod_data:/app/models
+                - logs_prod_data:/app/logs
+              networks:
+                - chocolate-factory_backend
+              restart: unless-stopped
+          volumes:
+            models_prod_data:
+            logs_prod_data:
+          networks:
+            chocolate-factory_backend:
+              external: true
+          EOF
+
+            # Convert .env YAML to shell format
+            pip3 install -q PyYAML
+            python3 << 'PYTHON'
+          import yaml
+          with open('.env', 'r') as f:
+              data = yaml.safe_load(f)
+          with open('.env.shell', 'w') as f:
+              for key, value in data.items():
+                  if value is not None:
+                      f.write(f"{key}={value}\n")
+          PYTHON
+
+            # Deploy rollback
+            docker compose --env-file .env.shell -f docker-compose.rollback-prod.yml up -d
 
             # Wait and verify rollback
             sleep 10

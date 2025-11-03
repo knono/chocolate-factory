@@ -105,17 +105,56 @@ Corrección de documentación que no refleja realidad del código.
 
 ---
 
+## Sprint 18: Tailscale Auth + Telegram Alerting
+
+**Estado**: COMPLETADO (2025-11-03)
+**Archivo**: [`SPRINT_18_TAILSCALE_AUTH_ALERTING.md`](./SPRINT_18_TAILSCALE_AUTH_ALERTING.md)
+
+**Fase 1 - Tailscale Authentication:**
+- Middleware autenticación por headers Tailscale
+- Admin access control para `/vpn` y rutas sensibles
+- Problema resuelto: Uvicorn proxy headers trust
+- Solución: `--proxy-headers --forwarded-allow-ips 192.168.100.0/24`
+- Variables: `TAILSCALE_ADMINS`, `TAILSCALE_AUTH_ENABLED`
+
+**Fase 2 - Telegram Alerting:**
+- Sistema alertas proactivo vía Telegram bot
+- 5 alertas implementadas:
+  - REE ingestion failures (>3/hora)
+  - Backfill completion/failure
+  - Gap detection (>12h)
+  - Health monitoring (nodos offline >5min)
+  - ML training failures (sklearn/Prophet)
+- Rate limiting: 15 min por topic
+- Severities: INFO, WARNING, CRITICAL
+- Dependency injection en servicios críticos
+
+**Archivos modificados:**
+- `services/ree_service.py`: tracking fallos + alertas
+- `services/backfill_service.py`: alertas success/failure
+- `services/gap_detector.py`: alertas gaps críticos
+- `tasks/health_monitoring_jobs.py`: alertas nodos offline
+- `scripts/decrypt-and-convert.sh`: conversión UPPERCASE
+- `docker-compose.yml`, `docker-compose.dev.yml`: variables Telegram
+
+**Testing:**
+- Endpoint `/test-telegram` (dev + prod)
+- Verificado: alertas llegan correctamente
+
+---
+
 ## Estado Actual del Proyecto
 
 - Sprints ML Evolution: 01-10 completados
-- Sprints Infrastructure: 11-17 completados
+- Sprints Infrastructure: 11-18 completados
 - Clean Architecture: refactorizado (Oct 6-29, 2025)
-- API Endpoints: 45 (12 routers)
+- API Endpoints: 45+ (12 routers)
 - Tailscale: 3 nodos (git, dev, prod)
 - CI/CD: pipeline con rollback
 - Tests: 134 (91 passing, 11 E2E failing)
 - Coverage: 32%
 - APScheduler: 7 jobs
+- Telegram Alerts: 5 alertas activas
 
 ---
 

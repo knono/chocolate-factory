@@ -176,6 +176,19 @@ class Settings(BaseSettings):
     RATE_LIMIT_ML: str = "10/minute"
 
     # =================================================================
+    # TAILSCALE AUTHENTICATION (Sprint 18)
+    # =================================================================
+    TAILSCALE_AUTH_ENABLED: bool = True
+    TAILSCALE_ADMINS: str = ""  # Comma-separated list, parsed in model_post_init
+
+    # =================================================================
+    # TELEGRAM ALERTING (Sprint 18)
+    # =================================================================
+    TELEGRAM_BOT_TOKEN: str = ""  # Will be loaded from secret
+    TELEGRAM_CHAT_ID: str = ""  # Will be loaded from secret
+    TELEGRAM_ALERTS_ENABLED: bool = False
+
+    # =================================================================
     # CACHE SETTINGS (Sprint 05)
     # =================================================================
     CACHE_ENABLED: bool = True
@@ -238,6 +251,11 @@ class Settings(BaseSettings):
         return self.ML_MODELS_DIR.exists()
 
     @property
+    def tailscale_admins_list(self) -> List[str]:
+        """Get parsed list of Tailscale admin emails."""
+        return getattr(self, '_tailscale_admins_list', [])
+
+    @property
     def influxdb_url_docker(self) -> str:
         """Get InfluxDB URL for Docker network."""
         return self.INFLUXDB_URL
@@ -270,6 +288,27 @@ class Settings(BaseSettings):
         anthropic_key = get_secret("anthropic_api_key", "ANTHROPIC_API_KEY")
         if anthropic_key:
             self.ANTHROPIC_API_KEY = anthropic_key
+
+        # Load Telegram secrets (Sprint 18)
+        telegram_token = get_secret("telegram_bot_token", "TELEGRAM_BOT_TOKEN")
+        if telegram_token:
+            self.TELEGRAM_BOT_TOKEN = telegram_token
+
+        telegram_chat_id = get_secret("telegram_chat_id", "TELEGRAM_CHAT_ID")
+        if telegram_chat_id:
+            self.TELEGRAM_CHAT_ID = telegram_chat_id
+
+        # Parse Tailscale admins from comma-separated string (Sprint 18)
+        # Convert string to list for middleware compatibility
+        if self.TAILSCALE_ADMINS:
+            # Store as list internally for middleware
+            self._tailscale_admins_list = [
+                admin.strip()
+                for admin in self.TAILSCALE_ADMINS.split(",")
+                if admin.strip()
+            ]
+        else:
+            self._tailscale_admins_list = []
 
         # Validate that required secrets were loaded
         if not self.INFLUXDB_TOKEN:

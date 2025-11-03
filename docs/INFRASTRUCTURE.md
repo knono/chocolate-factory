@@ -1,7 +1,7 @@
 # Infrastructure Documentation
 
-**Version**: 1.0
-**Last Updated**: 2025-10-23
+**Version**: 1.1
+**Last Updated**: 2025-11-03
 
 ---
 
@@ -12,6 +12,8 @@
 3. [Backup System](#backup-system)
 4. [CI/CD Pipeline](#cicd-pipeline)
 5. [Docker Compose Reference](#docker-compose-reference)
+6. [Tailscale Authentication](#tailscale-authentication-sprint-18)
+7. [Telegram Alerting](#telegram-alerting-sprint-18)
 
 ---
 
@@ -753,6 +755,218 @@ docker compose -f docker-compose.prod.yml up -d --no-deps fastapi-app-prod
 ```bash
 docker compose -f docker-compose.dev.yml down -v
 docker compose -f docker-compose.prod.yml down -v
+```
+
+---
+
+## Tailscale Authentication (Sprint 18)
+
+### Overview
+
+Application-level authentication using Tailscale network access + user headers.
+
+**Access Levels**:
+- **Admin**: Full access including `/vpn` dashboard
+- **Viewer**: All routes except `/vpn`
+
+**Detection Methods**:
+1. Tailscale-User-Login header (users in your Tailnet)
+2. Tailscale IP range (100.64.0.0/10) for node shares
+3. Docker internal IPs (via nginx proxy in sidecar)
+
+### Configuration
+
+**Environment Variables** (`.env`):
+```bash
+TAILSCALE_AUTH_ENABLED=true
+TAILSCALE_ADMINS=admin@example.com,owner@example.com
+```
+
+**Uvicorn Proxy Trust** (`docker/fastapi.Dockerfile`):
+```dockerfile
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000",
+     "--proxy-headers", "--forwarded-allow-ips", "192.168.100.0/24"]
+```
+
+**Nginx Headers** (`docker/sidecar-nginx.conf`):
+```nginx
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+### Protected Routes
+
+Admin-only routes:
+- `/vpn` - VPN dashboard
+- `/static/vpn.html` - VPN dashboard HTML
+
+Public routes (no auth):
+- `/health`, `/ready`, `/version`
+- `/docs`, `/redoc`, `/openapi.json`
+- `/static/index.html`, `/static/css/*`, `/static/js/*`
+
+### Implementation
+
+**Middleware** (`api/middleware/tailscale_auth.py`):
+- 403 lines
+- Role-based access control
+- Audit logging (X-Authenticated-User, X-User-Role headers)
+- Localhost bypass in development mode
+
+**Tests** (`tests/unit/test_tailscale_auth.py`):
+- 12 test cases
+- 252 lines
+- Coverage: admin/viewer access, node shares, IP detection
+
+### Troubleshooting
+
+**Admin cannot access /vpn**:
+```bash
+# Check Uvicorn flags
+docker logs chocolate_factory_brain | grep uvicorn
+
+# Verify nginx headers
+docker exec chocolate-factory tail /var/log/nginx/access.log
+
+# Check admin list
+grep TAILSCALE_ADMINS .env
+```
+
+**Headers not reaching FastAPI**:
+```bash
+# Verify proxy trust configuration
+docker inspect chocolate_factory_brain | grep -A5 CMD
+```
+
+---
+
+## Telegram Alerting (Sprint 18)
+
+### Overview
+
+Proactive alerting system for critical failures via Telegram bot.
+
+**Alert Types**:
+1. REE ingestion failures (>3 consecutive in 1h)
+2. Backfill completion/failure
+3. Gap detection (>12h)
+4. Critical nodes offline (>5min)
+5. ML training failures (sklearn/Prophet)
+
+**Rate Limiting**: Max 1 alert per topic per 15min (prevents spam)
+
+### Setup
+
+**1. Create Telegram Bot**:
+```bash
+# In Telegram:
+# 1. Open @BotFather
+# 2. Send /newbot
+# 3. Follow prompts
+# 4. Copy bot token
+```
+
+**2. Get Chat ID**:
+```bash
+# Send /start to your bot first
+curl https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+
+# Extract chat.id from JSON response
+```
+
+**3. Configure Environment**:
+```bash
+# Add to .sops/secrets.yaml
+telegram_bot_token: "1234567890:ABCdef..."
+telegram_chat_id: "123456789"
+telegram_alerts_enabled: "true"
+
+# Encrypt with SOPS
+sops --encrypt --age <AGE_PUBLIC_KEY> .sops/secrets.yaml >| secrets.enc.yaml
+
+# Regenerate .env
+bash scripts/decrypt-and-convert.sh
+
+# Verify variables
+grep TELEGRAM .env
+```
+
+**4. Restart Containers**:
+```bash
+docker compose -f docker-compose.yml up -d fastapi-app
+docker compose -f docker-compose.dev.yml up -d fastapi-app-dev
+```
+
+### Testing
+
+**Test Endpoint**:
+```bash
+# Development
+curl -X POST http://localhost:8001/test-telegram
+
+# Production
+curl -X POST http://localhost:8000/test-telegram
+```
+
+**Expected Response**:
+```json
+{
+  "status": "success",
+  "message": "Test alert sent successfully",
+  "telegram_enabled": true,
+  "timestamp": "2025-11-03T09:18:16.976113"
+}
+```
+
+### Implementation
+
+**Service** (`services/telegram_alert_service.py`):
+- 190 lines
+- Rate limiting (15min per topic)
+- Severity levels: INFO (ℹ️), WARNING (⚠️), CRITICAL (🚨)
+- Statistics tracking
+
+**Integration** (5 services):
+- `services/ree_service.py` - REE ingestion failures
+- `services/backfill_service.py` - Backfill completion/failure
+- `services/gap_detector.py` - Gap detection >12h
+- `tasks/health_monitoring_jobs.py` - Critical nodes offline
+- `tasks/sklearn_jobs.py`, `tasks/ml_jobs.py` - ML training failures
+
+**Dependency Injection** (`dependencies.py`):
+```python
+def get_telegram_alert_service():
+    if settings.TELEGRAM_ALERTS_ENABLED:
+        return TelegramAlertService(
+            bot_token=settings.TELEGRAM_BOT_TOKEN,
+            chat_id=settings.TELEGRAM_CHAT_ID,
+            enabled=True
+        )
+    return None
+```
+
+### Troubleshooting
+
+**Alerts not received**:
+```bash
+# Check configuration
+docker logs chocolate_factory_brain | grep -i telegram
+
+# Verify bot token
+curl https://api.telegram.org/bot<TOKEN>/getMe
+
+# Check rate limiting
+docker logs chocolate_factory_brain | grep "Rate limiting"
+```
+
+**Variables not loaded**:
+```bash
+# Verify .env generation
+grep TELEGRAM .env | wc -l  # Should show 6 lines (3 snake_case + 3 UPPERCASE)
+
+# Check Docker Compose interpolation
+docker compose config | grep TELEGRAM
 ```
 
 ---

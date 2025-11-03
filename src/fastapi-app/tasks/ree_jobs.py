@@ -10,6 +10,7 @@ from datetime import date
 
 from services.ree_service import REEService
 from infrastructure.influxdb import get_influxdb_client
+from dependencies import get_telegram_alert_service
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,8 @@ async def ree_ingestion_job():
 
     try:
         influx = get_influxdb_client()
-        ree_service = REEService(influx)
+        telegram = get_telegram_alert_service()
+        ree_service = REEService(influx, telegram_service=telegram)
 
         result = await ree_service.ingest_prices(date.today())
 

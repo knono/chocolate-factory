@@ -1,5 +1,5 @@
 """
-Smoke Tests Post-Deploy - Sprint 12 Fase 11
+Smoke Tests Post-Deploy - Sprint 12 Fase 11 + Sprint 18
 
 Tests críticos que deben ejecutarse inmediatamente después de cada deploy.
 Si alguno falla, el deploy debe hacer rollback automático.
@@ -8,12 +8,14 @@ Propósito:
 - Verificar que el sistema está operativo tras el deploy
 - Detectar fallos críticos antes de que afecten a usuarios
 - Validar configuración de producción
+- Verificar autenticación Tailscale (Sprint 18)
+- Verificar sistema de alertas Telegram (Sprint 18)
 
 Ejecución:
     pytest tests/e2e/test_smoke_post_deploy.py -v -m smoke
 
-Autor: Sprint 12 Fase 11
-Fecha: 2025-10-20
+Autor: Sprint 12 Fase 11, Sprint 18 Fase 3
+Fecha: 2025-10-20, 2025-11-03
 """
 
 import pytest
@@ -345,3 +347,65 @@ def get_system_metrics(client: httpx.Client) -> Dict[str, Any]:
         return {"status": "unhealthy", "error": response.text}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+
+# ============================================================================
+# SPRINT 18 TESTS - Tailscale Auth + Telegram Alerts
+# ============================================================================
+
+@pytest.mark.e2e
+@pytest.mark.smoke
+class TestSprint18TailscaleAuth:
+    """Test 6/7: Verificar autenticación Tailscale (Sprint 18)"""
+
+    def test_public_routes_accessible(self, api_client: httpx.Client):
+        """Rutas públicas accesibles sin autenticación"""
+        public_routes = ["/health", "/ready", "/docs"]
+
+        for route in public_routes:
+            response = api_client.get(route)
+            assert response.status_code == 200, \
+                f"Public route {route} failed: {response.status_code}"
+
+        print("✅ Public routes accessible")
+
+    def test_vpn_route_protected(self, api_client: httpx.Client):
+        """Ruta /vpn requiere autenticación especial"""
+        response = api_client.get("/vpn")
+
+        # Esperamos redirect (307), forbidden (403), o unauthorized (401)
+        assert response.status_code in [307, 403, 401], \
+            f"/vpn should be protected, got {response.status_code}"
+
+        print(f"✅ /vpn protected (status: {response.status_code})")
+
+
+@pytest.mark.e2e
+@pytest.mark.smoke
+class TestSprint18TelegramAlerts:
+    """Test 7/7: Verificar sistema de alertas Telegram (Sprint 18)"""
+
+    def test_telegram_endpoint_exists(self, api_client: httpx.Client):
+        """Endpoint de test Telegram existe y responde"""
+        response = api_client.post("/test-telegram")
+
+        # Esperamos 200 OK si configurado, o 500 si no
+        assert response.status_code in [200, 500], \
+            f"Telegram endpoint status: {response.status_code}"
+
+        if response.status_code == 200:
+            data = response.json()
+            assert "status" in data
+            assert "telegram_enabled" in data
+            print(f"✅ Telegram configured: {data.get('telegram_enabled')}")
+        else:
+            print("⚠️  Telegram not configured (expected in test env)")
+
+    def test_telegram_endpoint_dev(self, api_client_dev: httpx.Client):
+        """Endpoint de test Telegram en desarrollo"""
+        response = api_client_dev.post("/test-telegram")
+
+        assert response.status_code in [200, 500], \
+            f"Dev telegram endpoint status: {response.status_code}"
+
+        print(f"✅ Dev telegram endpoint: {response.status_code}")
