@@ -22,10 +22,11 @@ Energy optimization system combining machine learning price forecasting, automat
 - Optimization Scoring: Deterministic business rules (NOT predictive ML) - real data, formula-based
 - ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
 - ROI: 1,661€/year energy savings (theoretical estimate)
-- Testing: 134 tests (91 passing, 32% coverage, 36 E2E tests)
-- Clean Architecture: 12 routers, 45 endpoints
+- Testing: 157 tests (148 passing, coverage ~32%, 40 E2E tests)
+- Clean Architecture: 12 routers, 46 endpoints
 - CI/CD: Automated testing + smoke tests + rollback on failure
-- Observability: Tailscale health monitoring (uptime tracking, critical nodes alerts)
+- Security: Tailscale auth (admin/viewer roles), Telegram alerts (5 types)
+- Observability: Health monitoring + proactive alerting
 
 **Components**:
 - FastAPI application with ML models (Prophet, sklearn RandomForest)
@@ -143,6 +144,12 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 - No direct internet port exposure
 - Tailscale sidecar as single external gateway
 
+**Authentication (Sprint 18)**:
+- Tailscale header-based auth (`Tailscale-User-Login`)
+- Role-based access: admin (full) vs viewer (limited)
+- Protected routes: `/vpn` (admin only)
+- Localhost bypass in development mode
+
 **Reverse Proxy (Nginx)**:
 - Whitelist approach: `/dashboard` and static resources only
 - Administrative endpoints blocked (`/docs`, `/predict`, `/models`)
@@ -153,10 +160,15 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 - Identity-based access
 - Automatic SSL/TLS certificates
 
+**Alerting (Sprint 18)**:
+- Telegram bot integration (5 alert types)
+- Rate limiting: 15min per topic
+- Proactive failure notifications
+
 **Secrets Management**:
 - SOPS + age encryption for commitable secrets
 - Fallback to `.env` for local development
-- 14 credentials managed (InfluxDB, API keys, Tailscale)
+- 16 credentials managed (InfluxDB, API keys, Tailscale, Telegram)
 
 ### Technology Stack
 
@@ -222,6 +234,7 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 | 15 | Oct 2025 | Architecture Cleanup & Consolidation | API clients consolidated, services 30→20, legacy archived, main.py bugs fixed |
 | 16 | Oct 2025 | Documentation Integrity & Transparency | ML claims corrected, ROI labeled theoretical, 87-line disclaimers section, 20+ limitations documented |
 | 17 | Oct 2025 | Test Coverage + Business Rules | Coverage 19%→32%, 134 tests, business rules documented (machinery, production, optimization) |
+| 18 | Nov 2025 | Tailscale Auth + Telegram Alerting | Middleware auth (admin/viewer), 5 alert types, 15min rate limiting, `/test-telegram` endpoint |
 
 ### ML Models
 
@@ -418,12 +431,13 @@ Docker bind mounts ensure data survives container restarts:
 
 ### Security
 - **Network**: Tailscale VPN (zero-trust, encrypted) ✅
-- **Application**: No auth/authz at API level
+- **Authentication**: Tailscale headers (admin/viewer roles) ✅ Sprint 18
+- **Alerting**: Telegram bot (5 alert types, rate limited) ✅ Sprint 18
 - **Access**: Localhost (dev) | Tailscale network (prod) | Public internet (blocked)
 
 ### Quality
-- **Tests**: 134 (91 passing, 32% coverage) - Recommend 40%+ for production
-- **Monitoring**: Health checks only, no alerting
+- **Tests**: 157 (148 passing, 32% coverage) - Recommend 40%+ for production
+- **Monitoring**: Health checks + Telegram alerts (Sprint 18)
 - **ROI**: 1,661€/year theoretical estimate (not measured from production)
 
 ---
@@ -452,6 +466,6 @@ Provided as-is for educational and research purposes.
 
 Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-**Current Status**: Sprint 17 completed (Oct 30 2025)
+**Current Status**: Sprint 18 completed (Nov 3 2025)
 
 </div>

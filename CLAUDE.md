@@ -94,6 +94,18 @@ src/fastapi-app/
 
 ## Development Status
 
+### Recent Completion: Sprint 18 - Tailscale Auth + Telegram Alerting
+**Status**: COMPLETED (November 2-3, 2025)
+**Documentation**: [`.claude/sprints/infrastructure/SPRINT_18_TAILSCALE_AUTH_ALERTING.md`](.claude/sprints/infrastructure/SPRINT_18_TAILSCALE_AUTH_ALERTING.md)
+
+Implemented:
+- Tailscale auth middleware (403 lines): admin vs viewer roles, `/vpn` protected
+- Telegram alerts (190 lines): 5 alert types, 15min rate limiting
+- Configuration: `TAILSCALE_ADMINS`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+- Uvicorn fix: `--proxy-headers --forwarded-allow-ips 192.168.100.0/24`
+- Test endpoint: `POST /test-telegram`
+- Unit tests: 12 test cases (252 lines)
+
 ### Recent Completion: Sprint 13 - Health Monitoring + Event Logs (Pivoted from Analytics)
 **Status**: COMPLETED (October 21, 2025 - Pivoted 18:00, Finished 19:30)
 **Documentation**: [`.claude/sprints/infrastructure/SPRINT_13_TAILSCALE_OBSERVABILITY.md`](.claude/sprints/infrastructure/SPRINT_13_TAILSCALE_OBSERVABILITY.md)
@@ -197,6 +209,13 @@ Implemented:
     - Creado: optimization_rules.md (113 líneas, Prophet integration)
   - Tests E2E: 91 passing, 11 failing (performance/resilience)
   - Duración: 1 día
+- Sprint 18: Tailscale Auth + Telegram Alerting (Nov 2-3, 2025)
+  - Middleware auth: admin/viewer roles, Tailscale IP detection (100.64.0.0/10)
+  - Telegram alerts: REE failures, backfill, gaps >12h, nodes offline >5min, ML failures
+  - Rate limiting: 15min per topic
+  - Uvicorn proxy trust: `--proxy-headers --forwarded-allow-ips`
+  - SOPS integration: snake_case + UPPERCASE variables
+  - Tests: 12 unit tests (auth middleware)
 
 ### Core Infrastructure
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
@@ -406,6 +425,12 @@ curl -X POST http://localhost:8000/chat/ask \
 - `GET /health-monitoring/nodes` - Detailed node information
 - `GET /health-monitoring/uptime/{hostname}` - Uptime metrics for specific node
 - `GET /health-monitoring/logs?severity=INFO&event_type=all&page=1` - Event logs with pagination (20 events/page)
+
+### Telegram Alerting (Sprint 18) ✅
+- `POST /test-telegram` - Test alert endpoint (dev + prod)
+  - Sends test message to configured Telegram chat
+  - Verifies bot token, chat ID, and API connectivity
+  - Returns: status, telegram_enabled, timestamp
 
 ### Weekly Forecast System (✅ Sprint 06 Enhanced)
 - **7-day Prophet predictions**: Real ML forecasts (not simulated)
