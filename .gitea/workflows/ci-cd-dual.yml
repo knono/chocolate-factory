@@ -354,29 +354,9 @@ jobs:
             docker tag localhost:5000/chocolate-factory:develop-stable \
                        localhost:5000/chocolate-factory:develop
 
-            # Regenerate .env.shell if missing (for rollback)
-            if [ ! -f .env.shell ]; then
-              python3 << 'PYTHON'
-          import yaml
-          with open('.env', 'r') as f:
-              data = yaml.safe_load(f)
-          with open('.env.shell', 'w') as f:
-              for key, value in data.items():
-                  if value is not None:
-                      f.write(f"{key}={value}\n")
-          PYTHON
-            fi
-
-            # Redeploy stable version using docker run
-            docker run -d \
-              --name chocolate_factory_dev \
-              --network chocolate-factory_backend \
-              -p 8001:8000 \
-              --env-file .env.shell \
-              -v models_dev_data:/app/models \
-              -v logs_dev_data:/app/logs \
-              --restart unless-stopped \
-              localhost:5000/chocolate-factory:develop
+            # Redeploy using compose file (already created in deploy step)
+            docker compose -f docker-compose.ci-dev.yml down || true
+            docker compose -f docker-compose.ci-dev.yml up -d
 
             echo "✅ Rolled back to last stable version"
             exit 1
@@ -621,21 +601,9 @@ jobs:
             docker tag localhost:5000/chocolate-factory:production-stable \
                        localhost:5000/chocolate-factory:production
 
-            # Regenerate .env.shell if missing (for rollback)
-            if [ ! -f .env.shell ]; then
-              python3 << 'PYTHON'
-          import yaml
-          with open('.env', 'r') as f:
-              data = yaml.safe_load(f)
-          with open('.env.shell', 'w') as f:
-              for key, value in data.items():
-                  if value is not None:
-                      f.write(f"{key}={value}\n")
-          PYTHON
-            fi
-
-            # Redeploy stable production version
-            docker compose --env-file .env.shell -f docker-compose.ci-prod.yml up -d
+            # Redeploy using compose file (already created in deploy step)
+            docker compose -f docker-compose.ci-prod.yml down || true
+            docker compose -f docker-compose.ci-prod.yml up -d
 
             # Wait and verify rollback
             sleep 10
