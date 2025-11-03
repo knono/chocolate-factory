@@ -355,9 +355,19 @@ jobs:
           export E2E_API_URL="http://chocolate_factory_dev:8000"
 
           # Run smoke tests with custom markers
+          set +e  # Don't exit on error
           pytest tests/e2e/test_smoke_post_deploy.py -v -m smoke \
             --tb=short \
-            --maxfail=3 || echo "SMOKE_FAILED=true" >> $GITHUB_ENV
+            --maxfail=3
+          TEST_EXIT_CODE=$?
+          set -e
+
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "❌ Tests failed with exit code: $TEST_EXIT_CODE"
+            echo "SMOKE_FAILED=true" >> $GITHUB_ENV
+          else
+            echo "✅ All smoke tests passed"
+          fi
 
       - name: Rollback on smoke test failure
         if: env.SMOKE_FAILED == 'true'
@@ -671,9 +681,19 @@ jobs:
           export E2E_API_URL="http://chocolate_factory_brain:8000"
 
           # Run smoke tests against production
+          set +e  # Don't exit on error
           pytest tests/e2e/test_smoke_post_deploy.py -v -m smoke \
             --tb=short \
-            --maxfail=2 || echo "SMOKE_FAILED=true" >> $GITHUB_ENV
+            --maxfail=2
+          TEST_EXIT_CODE=$?
+          set -e
+
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "❌ Tests failed with exit code: $TEST_EXIT_CODE"
+            echo "SMOKE_FAILED=true" >> $GITHUB_ENV
+          else
+            echo "✅ All smoke tests passed"
+          fi
 
       - name: CRITICAL - Rollback production on failure
         if: env.SMOKE_FAILED == 'true'
