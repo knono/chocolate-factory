@@ -39,9 +39,10 @@ class BackfillResult:
 
 class BackfillService:
     """Servicio para backfill inteligente de datos faltantes"""
-    
-    def __init__(self):
-        self.gap_detector = GapDetectionService()
+
+    def __init__(self, telegram_service=None):
+        self.gap_detector = GapDetectionService(telegram_service=telegram_service)
+        self.telegram_service = telegram_service
         
     async def execute_intelligent_backfill(self, days_back: int = 10) -> Dict[str, Any]:
         """Ejecutar backfill completo e inteligente"""
@@ -78,12 +79,46 @@ class BackfillService:
             summary = self._generate_backfill_summary(
                 ree_results, weather_results, total_duration
             )
-            
+
             logger.info(f"✅ Backfill completado en {total_duration:.1f}s")
+
+            # Send success alert
+            if self.telegram_service:
+                try:
+                    from services.telegram_alert_service import AlertSeverity
+
+                    total_records = summary.get("total_records_written", 0)
+                    gap_hours = summary.get("total_gap_hours", 0)
+
+                    await self.telegram_service.send_alert(
+                        message=f"Backfill completed successfully\n"
+                                f"Records written: {total_records}\n"
+                                f"Gap filled: {gap_hours:.1f}h\n"
+                                f"Duration: {total_duration:.1f}s",
+                        severity=AlertSeverity.INFO,
+                        topic="backfill_completion"
+                    )
+                except Exception as alert_error:
+                    logger.warning(f"Failed to send success alert: {alert_error}")
+
             return summary
-            
+
         except Exception as e:
             logger.error(f"❌ Error en backfill inteligente: {e}")
+
+            # Send failure alert
+            if self.telegram_service:
+                try:
+                    from services.telegram_alert_service import AlertSeverity
+
+                    await self.telegram_service.send_alert(
+                        message=f"Backfill failed: {str(e)[:200]}",
+                        severity=AlertSeverity.CRITICAL,
+                        topic="backfill_failure"
+                    )
+                except Exception as alert_error:
+                    logger.warning(f"Failed to send failure alert: {alert_error}")
+
             raise
     
     async def _backfill_ree_gaps(self, gaps: List[DataGap]) -> List[BackfillResult]:
@@ -549,7 +584,3 @@ class BackfillService:
                 "status": "error",
                 "message": str(e)
             }
-
-
-# Instancia global
-backfill_service = BackfillService()

@@ -1,6 +1,6 @@
 """
-ML Training Jobs
-=================
+ML Training Jobs (Sprint 18: Telegram alerts)
+==============================================
 
 Background jobs for ML model training and maintenance.
 """
@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 
 from services.price_forecasting_service import PriceForecastingService
+from dependencies import get_telegram_alert_service
+from services.telegram_alert_service import AlertSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ async def ensure_prophet_model_job():
     Se ejecuta al iniciar la aplicación y periódicamente para asegurar
     que siempre hay un modelo disponible.
     """
+    telegram_service = get_telegram_alert_service()
     logger.info("🔍 Verificando disponibilidad modelo Prophet...")
 
     try:
@@ -42,5 +45,21 @@ async def ensure_prophet_model_job():
         else:
             logger.error(f"❌ Error entrenando modelo: {result.get('error')}")
 
+            # Alert: Prophet training failure
+            if telegram_service:
+                await telegram_service.send_alert(
+                    message=f"Prophet training failed: {result.get('error')}. Forecast unavailable.",
+                    severity=AlertSeverity.CRITICAL,
+                    topic="prophet_training"
+                )
+
     except Exception as e:
         logger.error(f"❌ Error en ensure_prophet_model_job: {e}")
+
+        # Alert: Prophet training exception
+        if telegram_service:
+            await telegram_service.send_alert(
+                message=f"Prophet training exception: {str(e)}. Forecast unavailable.",
+                severity=AlertSeverity.CRITICAL,
+                topic="prophet_training"
+            )

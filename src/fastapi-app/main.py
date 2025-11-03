@@ -41,6 +41,9 @@ from api.routers import (
     price_forecast_router  # Sprint 06 - Prophet forecasting
 )
 
+# Import middleware
+from api.middleware.tailscale_auth import TailscaleAuthMiddleware
+
 # Setup logging (console only to avoid permission issues)
 setup_logging(enable_file_logging=False)
 logger = logging.getLogger(__name__)
@@ -84,6 +87,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# Sprint 18: Tailscale authentication middleware
+app.add_middleware(
+    TailscaleAuthMiddleware,
+    enabled=settings.TAILSCALE_AUTH_ENABLED,
+    admin_users=settings.tailscale_admins_list,
+    bypass_local=(settings.ENVIRONMENT == "development")
+)
+logger.info(f"🔐 Tailscale Auth: enabled={settings.TAILSCALE_AUTH_ENABLED}, admins={len(settings.tailscale_admins_list)}")
 
 # Mount static files
 if settings.STATIC_FILES_DIR.exists():

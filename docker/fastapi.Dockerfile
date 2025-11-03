@@ -66,4 +66,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Comando por defecto
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Sprint 18: Enable proxy headers for Tailscale sidecar auth
+# --proxy-headers: Enable X-Forwarded-For, X-Real-IP, etc.
+# --forwarded-allow-ips: Trust headers from sidecar (192.168.100.8) and Docker network
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "192.168.100.0/24"]

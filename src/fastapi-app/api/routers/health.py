@@ -5,11 +5,12 @@ Health Check Router
 Health and readiness endpoints for Kubernetes/monitoring.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any
 from datetime import datetime
 
 from infrastructure.influxdb import get_influxdb_client
+from dependencies import get_telegram_alert_service
 from core.config import settings
 
 router = APIRouter(prefix="", tags=["Health"])
@@ -70,3 +71,52 @@ async def version_info() -> Dict[str, str]:
         "environment": settings.ENVIRONMENT,
         "python_version": "3.11+"
     }
+
+
+@router.post("/test-telegram")
+async def test_telegram_alert() -> Dict[str, Any]:
+    """
+    Test endpoint to verify Telegram alerts are working.
+
+    Sends a test alert to the configured Telegram chat.
+
+    **Sprint 18 - Testing only**
+    """
+    telegram_service = get_telegram_alert_service()
+
+    if not telegram_service:
+        raise HTTPException(
+            status_code=503,
+            detail="Telegram alerts are disabled. Set TELEGRAM_ALERTS_ENABLED=true in .env"
+        )
+
+    try:
+        from services.telegram_alert_service import AlertSeverity
+
+        success = await telegram_service.send_alert(
+            message="🧪 TEST ALERT\n\n"
+                    "This is a test message from Chocolate Factory.\n"
+                    "If you received this, Telegram alerts are working correctly!\n\n"
+                    f"Timestamp: {datetime.utcnow().isoformat()}",
+            severity=AlertSeverity.INFO,
+            topic="test_alert"
+        )
+
+        if success:
+            return {
+                "status": "success",
+                "message": "Test alert sent successfully",
+                "telegram_enabled": True,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to send Telegram alert. Check logs for details."
+            )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error sending test alert: {str(e)}"
+        )

@@ -24,6 +24,7 @@ Usage:
 import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
+from collections import deque
 
 from influxdb_client import Point, WritePrecision
 
@@ -53,14 +54,20 @@ class REEService:
     MEASUREMENT = "energy_prices"
     BUCKET = settings.INFLUXDB_BUCKET
 
-    def __init__(self, influxdb_client: InfluxDBClientWrapper):
+    def __init__(self, influxdb_client: InfluxDBClientWrapper, telegram_service=None):
         """
         Initialize REE service.
 
         Args:
             influxdb_client: InfluxDB client instance
+            telegram_service: Optional Telegram alert service
         """
         self.influxdb = influxdb_client
+        self.telegram_service = telegram_service
+
+        # Failure tracking for alerts (last 1 hour)
+        self._failure_timestamps = deque(maxlen=10)  # Track last 10 failures
+        self._alert_sent = False  # Track if alert already sent
 
     async def ingest_prices(
         self,
@@ -111,8 +118,15 @@ class REEService:
 
             logger.info(f"✅ Fetched {len(prices)} prices from REE API")
 
+            # Reset alert flag on success
+            self._alert_sent = False
+
         except Exception as e:
             logger.error(f"❌ Failed to fetch REE prices: {e}")
+
+            # Track failure for alerting
+            await self._track_failure()
+
             raise REEDataError(f"Failed to fetch REE prices: {e}")
 
         # Transform to InfluxDB points
@@ -386,3 +400,40 @@ from(bucket: "{self.BUCKET}")
 
         logger.info(f"📊 Detected {len(gaps)} gaps in REE data")
         return gaps
+
+    async def _track_failure(self):
+        """
+        Track REE ingestion failure and send alert if threshold exceeded.
+
+        Sends Telegram alert if >3 consecutive failures within 1 hour.
+        """
+        now = datetime.utcnow()
+        self._failure_timestamps.append(now)
+
+        # Count failures in last hour
+        one_hour_ago = now - timedelta(hours=1)
+        recent_failures = [
+            ts for ts in self._failure_timestamps
+            if ts > one_hour_ago
+        ]
+
+        failure_count = len(recent_failures)
+
+        logger.warning(f"⚠️ REE ingestion failures in last hour: {failure_count}")
+
+        # Send alert if threshold exceeded and not already sent
+        if failure_count >= 3 and not self._alert_sent and self.telegram_service:
+            try:
+                from services.telegram_alert_service import AlertSeverity
+
+                await self.telegram_service.send_alert(
+                    message=f"REE ingestion failed {failure_count} times in last hour. API may be down.",
+                    severity=AlertSeverity.WARNING,
+                    topic="ree_ingestion"
+                )
+
+                self._alert_sent = True
+                logger.info(f"📱 Telegram alert sent for REE failures")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to send Telegram alert: {e}")

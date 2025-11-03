@@ -175,7 +175,8 @@ async def execute_backfill(
         Backfill execution status and results
     """
     try:
-        from services.backfill_service import backfill_service
+        from dependencies import get_backfill_service
+        backfill_service = get_backfill_service()
 
         if background_tasks:
             # Execute in background for large gaps
@@ -223,7 +224,8 @@ async def execute_auto_backfill(max_gap_hours: float = 6.0) -> Dict[str, Any]:
         Auto backfill execution status and results
     """
     try:
-        from services.backfill_service import backfill_service
+        from dependencies import get_backfill_service
+        backfill_service = get_backfill_service()
 
         result = await backfill_service.check_and_execute_auto_backfill(max_gap_hours)
 
@@ -255,7 +257,8 @@ async def execute_range_backfill(
         Range backfill execution status and results
     """
     try:
-        from services.backfill_service import backfill_service
+        from dependencies import get_backfill_service
+        backfill_service = get_backfill_service()
 
         # Parse dates
         start_date = datetime.fromisoformat(request.start_date.replace('Z', '+00:00'))

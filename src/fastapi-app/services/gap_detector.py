@@ -41,10 +41,11 @@ class GapAnalysis(BaseModel):
 
 class GapDetectionService:
     """Servicio para detectar gaps en datos temporales"""
-    
-    def __init__(self):
+
+    def __init__(self, telegram_service=None):
         self.expected_interval_minutes = 60  # Datos cada hora (normal operation)
         self.accelerated_interval_minutes = 5  # Modo acelerado temporal
+        self.telegram_service = telegram_service
         
     async def detect_all_gaps(self, days_back: int = 30) -> GapAnalysis:
         """Detectar todos los gaps en datos de REE y clima"""
@@ -71,8 +72,12 @@ class GapDetectionService:
                 recommended_backfill_strategy=strategy,
                 estimated_backfill_duration=duration
             )
-            
+
             logger.info(f"✅ Análisis completado: {analysis.total_gaps_found} gaps encontrados")
+
+            # Send alert if critical gaps detected (>12h)
+            await self._check_and_alert_critical_gaps(ree_gaps, weather_gaps)
+
             return analysis
             
         except Exception as e:
@@ -361,11 +366,52 @@ class GapDetectionService:
                         break
                 
                 return results
-                
+
         except Exception as e:
             logger.error(f"Error obteniendo últimos timestamps: {e}")
             return {'latest_ree': None, 'latest_weather': None}
 
+    async def _check_and_alert_critical_gaps(
+        self,
+        ree_gaps: List[DataGap],
+        weather_gaps: List[DataGap]
+    ):
+        """
+        Check for critical gaps (>12h) and send Telegram alert.
 
-# Instancia global
-gap_detector = GapDetectionService()
+        Args:
+            ree_gaps: List of detected REE gaps
+            weather_gaps: List of detected weather gaps
+        """
+        if not self.telegram_service:
+            return
+
+        # Find gaps > 12 hours
+        critical_gaps = []
+
+        for gap in ree_gaps:
+            if gap.gap_duration_hours > 12:
+                critical_gaps.append(f"REE: {gap.gap_duration_hours:.1f}h gap")
+
+        for gap in weather_gaps:
+            if gap.gap_duration_hours > 12:
+                critical_gaps.append(f"Weather: {gap.gap_duration_hours:.1f}h gap")
+
+        # Send alert if critical gaps found
+        if critical_gaps:
+            try:
+                from services.telegram_alert_service import AlertSeverity
+
+                gaps_text = "\n".join(critical_gaps[:5])  # Max 5 gaps
+                total_critical = len(critical_gaps)
+
+                await self.telegram_service.send_alert(
+                    message=f"Critical data gaps detected (>{total_critical} gaps >12h):\n\n{gaps_text}",
+                    severity=AlertSeverity.WARNING,
+                    topic="gap_detection"
+                )
+
+                logger.info(f"📱 Telegram alert sent for {total_critical} critical gaps")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to send gap detection alert: {e}")
