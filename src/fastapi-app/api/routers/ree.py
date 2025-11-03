@@ -12,6 +12,7 @@ import logging
 
 from services.ree_service import REEService
 from infrastructure.influxdb import get_influxdb_client
+from dependencies import get_telegram_alert_service
 from core.exceptions import REEDataError
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,8 @@ router = APIRouter(prefix="/ree", tags=["REE - Electricity Prices"])
 def get_ree_service() -> REEService:
     """Dependency injection for REE service."""
     influx = get_influxdb_client()
-    return REEService(influx)
+    telegram = get_telegram_alert_service()
+    return REEService(influx, telegram_service=telegram)
 
 
 @router.post("/ingest")

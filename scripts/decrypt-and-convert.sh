@@ -93,6 +93,20 @@ echo "TAILSCALE_AUTHKEY=${TAILSCALE_AUTHKEY_VALUE}" >> .env
 echo "TAILSCALE_AUTHKEY_DEV=${TAILSCALE_AUTHKEY_DEV_VALUE}" >> .env
 echo "TAILSCALE_AUTHKEY_GIT=${TAILSCALE_AUTHKEY_GIT_VALUE}" >> .env
 echo "" >> .env
+echo "# Tailscale authentication" >> .env
+TAILSCALE_ADMINS_VALUE=$(grep "^tailscale_admins=" .env | cut -d= -f2)
+TAILSCALE_AUTH_ENABLED_VALUE=$(grep "^tailscale_auth_enabled=" .env | cut -d= -f2)
+echo "TAILSCALE_ADMINS=${TAILSCALE_ADMINS_VALUE}" >> .env
+echo "TAILSCALE_AUTH_ENABLED=${TAILSCALE_AUTH_ENABLED_VALUE}" >> .env
+echo "" >> .env
+echo "# Telegram alerts" >> .env
+TELEGRAM_BOT_TOKEN_VALUE=$(grep "^telegram_bot_token=" .env | cut -d= -f2)
+TELEGRAM_CHAT_ID_VALUE=$(grep "^telegram_chat_id=" .env | cut -d= -f2)
+TELEGRAM_ALERTS_ENABLED_VALUE=$(grep "^telegram_alerts_enabled=" .env | cut -d= -f2)
+echo "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN_VALUE}" >> .env
+echo "TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID_VALUE}" >> .env
+echo "TELEGRAM_ALERTS_ENABLED=${TELEGRAM_ALERTS_ENABLED_VALUE}" >> .env
+echo "" >> .env
 echo "# InfluxDB configuration" >> .env
 echo "INFLUXDB_URL_DOCKER=http://chocolate_factory_storage:8086" >> .env
 echo "INFLUXDB_ORG=chocolate_factory" >> .env

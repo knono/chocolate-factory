@@ -256,6 +256,31 @@ def get_telegram_alert_service():
 
 
 # =================================================================
+# BACKFILL SERVICE (Sprint 18 - with Telegram integration)
+# =================================================================
+
+_backfill_service_instance: Optional[object] = None
+
+
+def get_backfill_service():
+    """
+    Get Backfill Service instance (lazy singleton).
+
+    Returns:
+        BackfillService: Backfill service with Telegram alerts
+    """
+    global _backfill_service_instance
+
+    if _backfill_service_instance is None:
+        from services.backfill_service import BackfillService
+        telegram = get_telegram_alert_service()
+        _backfill_service_instance = BackfillService(telegram_service=telegram)
+        logger.info("✅ Backfill Service initialized with Telegram alerts")
+
+    return _backfill_service_instance
+
+
+# =================================================================
 # SCHEDULER (APScheduler)
 # =================================================================
 

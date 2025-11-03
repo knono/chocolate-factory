@@ -1,24 +1,35 @@
 # Sprint 18 - Tailscale Auth + Telegram Alerting
 
-**Status**: EN PROGRESO
+**Status**: ⚠️ EN PROGRESO (Fases 1-2 completadas, Fase 3 pendiente)
 **Start Date**: 2025-11-02
 **Completion Date**: TBD
-**Duration**: 5 días
+**Duration**: 3-4 días estimados
 **Type**: Security + Observability
-**Last Update**: 2025-11-02 19:30
+**Last Update**: 2025-11-03 10:45
 
 ---
 
-## ESTADO ACTUAL (2025-11-02 20:00)
+## ESTADO ACTUAL (2025-11-03 10:45)
 
 **Fase 1: ✅ COMPLETADA - Admin access /vpn funcional**
 - Problema resuelto: Uvicorn no confiaba en proxy headers de nginx
 - Solución: `--proxy-headers --forwarded-allow-ips 192.168.100.0/24`
 - Verificado: Admin accede /vpn, viewer bloqueado correctamente
+- Variables: `TAILSCALE_ADMINS`, `TAILSCALE_AUTH_ENABLED`
 
-**Fase 2: 40% - 2/5 alertas implementadas**
-- sklearn/Prophet alertas ✅
-- Falta: REE, backfill, gap_detector, health_monitoring
+**Fase 2: ✅ COMPLETADA - 5/5 alertas Telegram implementadas**
+- REE ingestion failures ✅
+- Backfill completion/failure ✅
+- Gap detection (>12h) ✅
+- Health monitoring (nodos críticos offline >5min) ✅
+- ML training failures (sklearn/Prophet) ✅
+- Endpoint test: `/test-telegram` (dev + prod) ✅
+- Sistema verificado funcionando correctamente ✅
+
+**Fase 3: ❌ PENDIENTE - Documentación & Testing**
+- [ ] Actualizar CLAUDE.md (Sprint 18, endpoints, alertas)
+- [ ] Actualizar docs/INFRASTRUCTURE.md (secciones Auth + Alerts)
+- [ ] Integration tests (4 tests E2E)
 
 ## Objetivo
 
@@ -302,17 +313,11 @@ Sistema de alertas proactivo vía Telegram bot para detectar fallos críticos (A
      - Simular fallo REE → alert enviada
      - Simular gap >12h → alert enviada
 
-4. **Sprint retrospective**
-   - Crear `.claude/sprints/infrastructure/SPRINT_18_RETROSPECTIVE.md`
-   - Issues encontrados
-   - Lecciones aprendidas
-
 ### Entregables
 
 - [ ] `CLAUDE.md` actualizado
 - [ ] `docs/INFRASTRUCTURE.md` actualizado
 - [ ] Integration tests (4 tests)
-- [ ] Sprint retrospective document
 
 ---
 
@@ -469,10 +474,291 @@ docker logs chocolate_factory_brain | grep "Admin access granted"
 ## Checklist Final Sprint 18
 
 - [x] Fase 1 completada (Tailscale Auth)
-- [ ] Fase 2 completada (Telegram Alerts)
+- [x] Fase 2 completada (Telegram Alerts)
+- [x] Sistema funciona end-to-end
 - [ ] Fase 3 completada (Docs + Tests)
-- [ ] Tests passing: 14 nuevos (8 auth + 6 alerts)
-- [ ] Documentación: 2 docs nuevos
+- [ ] Integration tests E2E (4 tests)
 - [ ] CLAUDE.md actualizado
-- [ ] Sistema funciona end-to-end
-- [ ] Sprint retrospective escrito
+- [ ] docs/INFRASTRUCTURE.md actualizado
+
+---
+
+## Configuración Práctica
+
+### Gestión de Secretos con SOPS
+
+**Flujo completo para añadir/modificar secretos:**
+
+1. **Editar archivo desencriptado** (`.sops/secrets.yaml`):
+```yaml
+# Añadir nuevos secretos
+tailscale_admins: "user@example.com"
+tailscale_auth_enabled: "true"
+telegram_bot_token: "<your_bot_token>"
+telegram_chat_id: "<your_chat_id>"
+telegram_alerts_enabled: "true"
+```
+
+2. **Encriptar con SOPS**:
+```bash
+export SOPS_AGE_KEY_FILE=.sops/age-key.txt
+sops --encrypt --age age1gwyvmk9vecx83l9c0zrjsfx4ts4nw6xqcakvduerzcxk9056dcsspd7k8u \
+  .sops/secrets.yaml >| secrets.enc.yaml
+```
+
+3. **Regenerar `.env`** desde archivo encriptado:
+```bash
+bash scripts/decrypt-and-convert.sh
+```
+
+4. **Verificar variables generadas**:
+```bash
+grep TAILSCALE .env
+grep TELEGRAM .env
+```
+
+**Resultado esperado** (snake_case + UPPERCASE):
+```bash
+tailscale_admins=user@example.com
+tailscale_auth_enabled=true
+TAILSCALE_ADMINS=user@example.com
+TAILSCALE_AUTH_ENABLED=true
+
+telegram_bot_token=<token>
+telegram_chat_id=<chat_id>
+telegram_alerts_enabled=true
+TELEGRAM_BOT_TOKEN=<token>
+TELEGRAM_CHAT_ID=<chat_id>
+TELEGRAM_ALERTS_ENABLED=true
+```
+
+### Script decrypt-and-convert.sh
+
+**Conversión automática snake_case → UPPERCASE:**
+
+El script `scripts/decrypt-and-convert.sh` realiza:
+1. Desencripta `secrets.enc.yaml` → `/tmp/secrets-plain.yaml`
+2. Convierte YAML a formato `.env` (snake_case)
+3. **Genera versiones UPPERCASE** de variables críticas:
+
+```bash
+# Líneas 96-100: Tailscale Auth
+TAILSCALE_ADMINS_VALUE=$(grep "^tailscale_admins=" .env | cut -d= -f2)
+TAILSCALE_AUTH_ENABLED_VALUE=$(grep "^tailscale_auth_enabled=" .env | cut -d= -f2)
+echo "TAILSCALE_ADMINS=${TAILSCALE_ADMINS_VALUE}" >> .env
+echo "TAILSCALE_AUTH_ENABLED=${TAILSCALE_AUTH_ENABLED_VALUE}" >> .env
+
+# Líneas 103-108: Telegram Alerts
+TELEGRAM_BOT_TOKEN_VALUE=$(grep "^telegram_bot_token=" .env | cut -d= -f2)
+TELEGRAM_CHAT_ID_VALUE=$(grep "^telegram_chat_id=" .env | cut -d= -f2)
+TELEGRAM_ALERTS_ENABLED_VALUE=$(grep "^telegram_alerts_enabled=" .env | cut -d= -f2)
+echo "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN_VALUE}" >> .env
+echo "TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID_VALUE}" >> .env
+echo "TELEGRAM_ALERTS_ENABLED=${TELEGRAM_ALERTS_ENABLED_VALUE}" >> .env
+```
+
+**Razón**: Docker Compose lee variables como `${TELEGRAM_BOT_TOKEN}` (UPPERCASE).
+
+### Configuración Telegram Bot
+
+**1. Crear bot con BotFather:**
+```
+1. Abrir Telegram → buscar @BotFather
+2. /newbot
+3. Nombre: Chocolate Factory Alerts
+4. Username: chocolate_factory_alerts_bot
+5. Copiar TOKEN: 1234567890:ABCdef...
+```
+
+**2. Obtener CHAT_ID:**
+```bash
+# Enviar /start al bot primero
+curl https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+```
+
+Extraer `chat.id` del JSON response.
+
+**3. Añadir credenciales a `.sops/secrets.yaml`:**
+```yaml
+telegram_bot_token: "1234567890:ABCdef..."
+telegram_chat_id: "123456789"
+telegram_alerts_enabled: "true"
+```
+
+**4. Encriptar, regenerar .env, y reiniciar contenedores:**
+```bash
+# Encriptar
+sops --encrypt --age age1gwyvmk9vecx83l9c0zrjsfx4ts4nw6xqcakvduerzcxk9056dcsspd7k8u \
+  .sops/secrets.yaml >| secrets.enc.yaml
+
+# Regenerar .env
+bash scripts/decrypt-and-convert.sh
+
+# Reiniciar contenedores
+docker compose -f docker-compose.yml -f docker-compose.override.yml up -d fastapi-app
+docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.dev.yml up -d fastapi-app-dev
+```
+
+**5. Verificar funcionamiento:**
+```bash
+# Test endpoint
+curl -X POST http://localhost:8000/test-telegram
+curl -X POST http://localhost:8001/test-telegram
+
+# Verificar logs
+docker logs chocolate_factory_brain 2>&1 | grep -i telegram
+docker logs chocolate_factory_dev 2>&1 | grep -i telegram
+```
+
+### Variables de Entorno en docker-compose
+
+**docker-compose.yml (producción):**
+```yaml
+environment:
+  # Sprint 18: Tailscale Authentication
+  - TAILSCALE_AUTH_ENABLED=${TAILSCALE_AUTH_ENABLED:-true}
+  - TAILSCALE_ADMINS=${TAILSCALE_ADMINS}
+  # Sprint 18: Telegram Alerts
+  - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+  - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+  - TELEGRAM_ALERTS_ENABLED=${TELEGRAM_ALERTS_ENABLED:-true}
+```
+
+**docker-compose.dev.yml (desarrollo):**
+```yaml
+environment:
+  # Sprint 18: Tailscale Authentication
+  - TAILSCALE_AUTH_ENABLED=${TAILSCALE_AUTH_ENABLED:-true}
+  - TAILSCALE_ADMINS=${TAILSCALE_ADMINS}
+  # Sprint 18: Telegram Alerts
+  - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+  - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+  - TELEGRAM_ALERTS_ENABLED=${TELEGRAM_ALERTS_ENABLED:-true}
+```
+
+### Alertas Implementadas
+
+**1. REE Ingestion Failures** (`services/ree_service.py`):
+- Trigger: >3 fallos consecutivos en 1 hora
+- Severity: WARNING
+- Topic: `ree_ingestion`
+- Rate limit: 15 min
+
+**2. Backfill Completion/Failure** (`services/backfill_service.py`):
+- Trigger: Backfill completo o error
+- Severity: INFO (success) / CRITICAL (failure)
+- Topics: `backfill_completion`, `backfill_failure`
+- Rate limit: 15 min
+
+**3. Gap Detection** (`services/gap_detector.py`):
+- Trigger: Gap >12 horas detectado
+- Severity: WARNING
+- Topic: `gap_detection`
+- Rate limit: 15 min
+
+**4. Health Monitoring** (`tasks/health_monitoring_jobs.py`):
+- Trigger: Nodo crítico offline >5 minutos
+- Severity: CRITICAL
+- Topic: `health_monitoring_{node_id}`
+- Rate limit: 15 min
+
+**5. ML Training Failures** (`tasks/sklearn_jobs.py`, `tasks/ml_jobs.py`):
+- Trigger: Excepción durante training
+- Severity: CRITICAL
+- Topics: `ml_training_sklearn`, `ml_training_prophet`
+- Rate limit: 15 min
+
+### Dependency Injection
+
+**Servicios actualizados para recibir `telegram_service`:**
+
+```python
+# dependencies.py
+def get_telegram_alert_service():
+    if settings.TELEGRAM_ALERTS_ENABLED:
+        return TelegramAlertService(
+            bot_token=settings.TELEGRAM_BOT_TOKEN,
+            chat_id=settings.TELEGRAM_CHAT_ID,
+            enabled=True
+        )
+    return None
+
+def get_backfill_service():
+    telegram = get_telegram_alert_service()
+    return BackfillService(telegram_service=telegram)
+```
+
+**Routers actualizados:**
+- `api/routers/ree.py`: Inyecta telegram en REEService
+- `tasks/ree_jobs.py`: Inyecta telegram en job programado
+- `api/routers/gaps.py`: Usa `get_backfill_service()`
+- `services/scheduler.py`: Usa `get_backfill_service()`
+
+### Testing
+
+**Endpoint de prueba** (`/test-telegram`):
+```bash
+# Dev (puerto 8001)
+curl -X POST http://localhost:8001/test-telegram
+
+# Prod (puerto 8000)
+curl -X POST http://localhost:8000/test-telegram
+```
+
+**Respuesta esperada:**
+```json
+{
+  "status": "success",
+  "message": "Test alert sent successfully",
+  "telegram_enabled": true,
+  "timestamp": "2025-11-03T09:18:16.976113"
+}
+```
+
+**Mensaje en Telegram:**
+```
+ℹ️ INFO
+
+🧪 TEST ALERT
+
+This is a test message from Chocolate Factory.
+If you received this, Telegram alerts are working correctly!
+
+Timestamp: 2025-11-03T09:18:16.976113
+```
+
+---
+
+## Lecciones Aprendidas
+
+### Fase 1: Tailscale Auth
+
+**Problema**: Uvicorn no confiaba en headers de proxy por defecto.
+
+**Solución**: Flags `--proxy-headers --forwarded-allow-ips 192.168.100.0/24` en Dockerfile.
+
+**Aprendizaje**: Configuración de proxy requiere trust explícito de red interna.
+
+### Fase 2: Telegram Alerts
+
+**Problema 1**: Variables no llegaban a contenedores.
+
+**Solución**: Añadir a ambos `docker-compose.yml` y `docker-compose.dev.yml`.
+
+**Problema 2**: Script no generaba versiones UPPERCASE.
+
+**Solución**: Actualizar `decrypt-and-convert.sh` con conversión explícita.
+
+**Aprendizaje**: Docker Compose interpola `${VAR}` (UPPERCASE), pero código Python lee de `config.py` (puede usar cualquier formato). Mantener ambas versiones en `.env` asegura compatibilidad.
+
+### SOPS Workflow
+
+**Secuencia crítica**:
+1. Editar `.sops/secrets.yaml` (desencriptado)
+2. Encriptar → `secrets.enc.yaml`
+3. Regenerar `.env` desde encriptado
+4. Reiniciar contenedores
+
+**Error común**: Editar `.env` directamente (se pierde al regenerar).
+
+**Solución**: Siempre editar `.sops/secrets.yaml` como fuente de verdad.
