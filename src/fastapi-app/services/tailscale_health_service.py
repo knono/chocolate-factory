@@ -360,14 +360,25 @@ class TailscaleHealthService:
             output = response.text
 
             # Parse ping output
-            # Example: "pong from git (100.x.x.x) via DERP(mad) in 23ms"
+            # Examples:
+            #   "pong from git (100.x.x.x) via DERP(mad) in 23ms"
+            #   "pong from git (100.x.x.x) via 192.168.1.1:41641 in 0s"
             latencies = []
             for line in output.split('\n'):
-                if 'in ' in line and 'ms' in line:
+                if 'in ' in line:
                     try:
-                        # Extract latency value
-                        ms_str = line.split('in ')[1].split('ms')[0].strip()
-                        latencies.append(float(ms_str))
+                        # Extract latency value and unit
+                        latency_part = line.split('in ')[1].strip()
+
+                        # Handle milliseconds (e.g., "23ms")
+                        if 'ms' in latency_part:
+                            ms_str = latency_part.split('ms')[0].strip()
+                            latencies.append(float(ms_str))
+                        # Handle seconds (e.g., "0s" for <1ms local connections)
+                        elif 's' in latency_part and 'ms' not in latency_part:
+                            s_str = latency_part.split('s')[0].strip()
+                            # Convert seconds to milliseconds
+                            latencies.append(float(s_str) * 1000)
                     except (IndexError, ValueError) as e:
                         logger.debug(f"Failed to parse latency from line: {line} - {e}")
                         continue
