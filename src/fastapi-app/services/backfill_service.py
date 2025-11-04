@@ -150,11 +150,10 @@ class BackfillService:
                                     ).replace(tzinfo=timezone.utc)
                                     
                                     day_end = day_start + timedelta(days=1) - timedelta(minutes=1)
-                                    
-                                    # Usar get_pvpc_prices con rango de fechas
+
+                                    # Usar get_pvpc_prices con target_date (API solo acepta fecha única)
                                     daily_data = await ree_client.get_pvpc_prices(
-                                        start_date=day_start, 
-                                        end_date=day_end
+                                        target_date=current_date
                                     )
                                     
                                     if daily_data:

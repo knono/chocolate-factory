@@ -216,6 +216,13 @@ Implemented:
   - Uvicorn proxy trust: `--proxy-headers --forwarded-allow-ips`
   - SOPS integration: snake_case + UPPERCASE variables
   - Tests: 12 unit tests (auth middleware)
+- Sprint 19: Test Coverage Expansion (Nov 4, 2025) - PARCIAL
+  - Fase 1: Backfill tests 11/14 passing (79%) - bloqueado por mock REEAPIClient
+  - Fase 2: Gap detector tests 10/10 passing (100%) - coverage 66%→74%
+  - Fase 3: API clients tests 1/10 passing (10%) - bloqueado por httpx AsyncClient mocking
+  - Tests creados: 34 (backfill 14, gap 10, API clients 10)
+  - Tests passing: 22/34 (65%)
+  - Bloqueadores técnicos: context manager async mocking complejo
 
 ### Core Infrastructure
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
@@ -243,7 +250,7 @@ Implemented:
 - **Real-time Analysis**: Energy optimization scoring + production recommendations + price forecasting
 - **Automated ML**: Model retraining every 30 min (sklearn), hourly (Prophet)
 - **ROI Tracking**: 1,661€/año ahorro energético demostrable (Sprint 09)
-- **Testing**: 134 tests (36 E2E), ~28 passing nuevos, coverage 32-35% (Sprint 17 Fase 1)
+- **Testing**: 168 tests total, 156 passing (93%), coverage ~33% (Sprints 17-19)
 - **Documentation**: `docs/ML_ARCHITECTURE.md` (Sprint 10, updated Oct 24)
 
 ### Operations
@@ -717,9 +724,10 @@ Technical fixes applied:
 - **A/B Testing**: Not implemented
 
 ### Testing & Quality
-- **Test Coverage**: 19% (81% of code untested)
-- **Recommended**: 40%+ coverage for production confidence
-- **Focus Areas**: Error handling, edge cases, failure scenarios
+- **Test Coverage**: 33% (67% code untested)
+- **Tests**: 168 total, 156 passing (93%), 12 failing (async mocking issues)
+- **Recommended**: 40%+ coverage for production
+- **Gaps**: Async context manager mocking, integration tests
 
 ### Security Model
 - **Network Level**: Tailscale VPN zero-trust mesh (WireGuard encrypted) ✅
