@@ -4,11 +4,13 @@ Gaps Router - Data Gap Detection and Backfill Endpoints
 Endpoints for detecting and filling data gaps in InfluxDB.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 import logging
+
+from dependencies import get_gap_detector, get_backfill_service
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +94,10 @@ async def get_data_summary() -> Dict[str, Any]:
 
 
 @router.get("/detect")
-async def detect_data_gaps(days_back: int = 7) -> Dict[str, Any]:
+async def detect_data_gaps(
+    days_back: int = 7,
+    gap_detector = Depends(get_gap_detector)
+) -> Dict[str, Any]:
     """
     🔍 Detect data gaps in InfluxDB
 
@@ -103,9 +108,7 @@ async def detect_data_gaps(days_back: int = 7) -> Dict[str, Any]:
         Detailed gap analysis with recommended backfill strategy
     """
     try:
-        from services.gap_detector import gap_detector
-
-        # Perform gap analysis
+        # Perform gap analysis (triggers Telegram alert if gaps >12h)
         analysis = await gap_detector.detect_all_gaps(days_back)
 
         # Convert gaps to serializable format

@@ -13,6 +13,7 @@ from .ree_jobs import ree_ingestion_job
 from .weather_jobs import weather_ingestion_job
 from .ml_jobs import ensure_prophet_model_job
 from .sklearn_jobs import sklearn_training_job  # sklearn training
+from .gap_detection_jobs import automatic_gap_detection  # Sprint 18
 from .health_monitoring_jobs import (  # Sprint 13 (pivoted)
     collect_health_metrics,
     log_health_status,
@@ -109,5 +110,16 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
         replace_existing=True
     )
     logger.info("   ✅ Critical nodes check: every 2 minutes")
+
+    # Automatic gap detection (every 2 hours) - Sprint 18
+    scheduler.add_job(
+        func=automatic_gap_detection,
+        trigger="interval",
+        hours=2,
+        id="gap_detection",
+        name="Automatic Gap Detection with Alerts",
+        replace_existing=True
+    )
+    logger.info("   ✅ Gap detection: every 2 hours (Telegram alerts for gaps >12h)")
 
     logger.info(f"✅ Registered {len(scheduler.get_jobs())} jobs")

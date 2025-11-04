@@ -281,6 +281,31 @@ def get_backfill_service():
 
 
 # =================================================================
+# GAP DETECTION SERVICE (Sprint 18 - with Telegram integration)
+# =================================================================
+
+_gap_detector_instance: Optional[object] = None
+
+
+def get_gap_detector():
+    """
+    Get Gap Detection Service instance (lazy singleton).
+
+    Returns:
+        GapDetectionService: Gap detector with Telegram alerts
+    """
+    global _gap_detector_instance
+
+    if _gap_detector_instance is None:
+        from services.gap_detector import GapDetectionService
+        telegram = get_telegram_alert_service()
+        _gap_detector_instance = GapDetectionService(telegram_service=telegram)
+        logger.info("✅ Gap Detection Service initialized with Telegram alerts")
+
+    return _gap_detector_instance
+
+
+# =================================================================
 # SCHEDULER (APScheduler)
 # =================================================================
 
