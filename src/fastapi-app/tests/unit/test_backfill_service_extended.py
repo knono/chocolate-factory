@@ -164,10 +164,15 @@ class TestREEBackfill:
             for i in range(1, 4)
         ]
 
-        mock_ree_client.get_prices.return_value = {
-            f'2025-11-0{i}': [{'hour': 10, 'price': 0.15}] * 6
-            for i in range(1, 4)
-        }
+        # Mock REE API to return data for each day
+        mock_ree_client.get_pvpc_prices.return_value = [
+            {
+                'timestamp': datetime(2025, 11, 1, 10 + j, 0, tzinfo=timezone.utc),
+                'price_eur_kwh': 0.15,
+                'price_eur_mwh': 150.0,
+                'source': 'ree_pvpc'
+            } for j in range(6)
+        ]
 
         with patch('services.backfill_service.DataIngestionService', return_value=mock_data_ingestion), \
              patch('services.backfill_service.REEAPIClient', return_value=mock_ree_client):
@@ -229,7 +234,7 @@ class TestREEBackfill:
         - No crash occurs
         """
         # Mock empty API response
-        mock_ree_client.get_prices.return_value = {}
+        mock_ree_client.get_pvpc_prices.return_value = []
 
         with patch('services.backfill_service.DataIngestionService', return_value=mock_data_ingestion), \
              patch('services.backfill_service.REEAPIClient', return_value=mock_ree_client):

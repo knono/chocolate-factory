@@ -78,17 +78,26 @@ Intelligent Backfill (5 tests):
 
 **Resultado**: 11/14 passing (79%)
 
-**Problema pendiente**:
-Mocking de REEAPIClient no intercepta todas las llamadas. Tests que configuran `side_effect` o `return_value` personalizados fallan porque la API real es llamada y retorna 25 registros (24 horas de datos).
+**Problema técnico BLOQUEANTE**:
+El patch `patch('services.backfill_service.REEAPIClient', return_value=mock_ree_client)` NO intercepta API real. Logs muestran "25 registros REE escritos" = día completo real (00:00-23:00).
 
-Tests afectados usan:
-```python
-with patch('services.backfill_service.REEAPIClient', return_value=mock_ree_client):
-```
+**Correcciones aplicadas**:
+- L232: `get_prices` → `get_pvpc_prices.return_value = []`
+- L167: `get_prices` → `get_pvpc_prices.return_value = [...]`
+- Build --no-cache ejecutado
 
-El mock funciona para test #1 (return_value por defecto) pero no para tests que modifican el comportamiento (side_effect, empty list, partial data).
+**Root cause**:
+`async with REEAPIClient()` (backfill_service.py:129) crea instancia real, no mock.
 
-**Root cause**: Context manager `async with REEAPIClient()` probablemente no usa el mock correctamente o el fixture `mock_ree_client.__aenter__` no retorna el objeto mockeado apropiadamente.
+**Causas posibles**:
+1. Patch en lugar equivocado (`services.backfill_service` vs `infrastructure.external_apis`)
+2. Import evaluado antes del patch
+3. Alias `REEClient = REEAPIClient` (L22) interfiere
+4. AsyncMock context manager mal configurado
+
+**Próximos pasos**:
+- Patch en `infrastructure.external_apis.REEAPIClient`
+- O inyección de dependencias en lugar de context manager
 
 ### Entregables
 
