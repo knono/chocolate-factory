@@ -153,13 +153,56 @@ Backfill Strategy (3 tests):
 
 ## Fase 3: API Clients Tests (1 día)
 
+**Status**: PARCIALMENTE COMPLETADA (2025-11-04) - 1/10 passing
+
 ### Target
 
 `infrastructure/external_apis/*.py`: 23-26% → 60% coverage
 
+### Progreso 2025-11-04
+
+**Archivo creado**: `tests/unit/test_api_clients_extended.py` (491 líneas, 10 tests)
+
+**Resultado**: 1/10 passing (10%)
+
+**Problema técnico BLOQUEANTE**:
+Mocking de httpx.AsyncClient context manager extremadamente complejo. El patrón `async with REEAPIClient() as client` requiere mockear correctamente:
+1. `httpx.AsyncClient()` constructor
+2. `__aenter__` async method
+3. `__aexit__` async method
+4. `client.get()` async method
+5. `client.aclose()` async method
+
+Error persistente: `TypeError: object MagicMock can't be used in 'await' expression` en `__aexit__` (línea 85/91 de clientes).
+
+**Correcciones intentadas**:
+- Añadido `mock_client.aclose = AsyncMock()`
+- Configurado `MockAsyncClient.return_value.__aenter__.return_value = mock_client`
+- Docker rebuild --no-cache ejecutado
+- Archivo copiado manualmente al contenedor
+
+**Test passing** (1/10):
+- test_aemet_token_caching ✅ (usa file mocking, no httpx async)
+
+**Tests failing** (9/10):
+- test_ree_client_retry_on_timeout ❌
+- test_ree_client_invalid_json_response ❌
+- test_ree_client_parse_empty_response ❌
+- test_aemet_get_current_weather_success ❌
+- test_aemet_get_current_weather_404 ❌
+- test_aemet_get_daily_weather_recent_fails ❌
+- test_openweather_current_success ❌
+- test_openweather_api_key_invalid ❌
+- test_openweather_rate_limit_exceeded ❌
+
+**Próximos pasos**:
+1. Refactorizar tests usando respx library (pytest plugin para httpx mocking)
+2. O simplificar tests a nivel unit sin usar context manager completo
+3. O crear integration tests en lugar de unit tests con mocks complejos
+
 ### Tests a crear
 
-**Archivo**: `tests/unit/test_api_clients_extended.py`
+**Archivo**: `tests/unit/test_api_clients_extended.py` (✅ creado, ❌ failing)
 
 **REE Client** (3 tests):
 
@@ -217,11 +260,11 @@ Backfill Strategy (3 tests):
 
 ### Entregables
 
-- [ ] `tests/unit/test_api_clients_extended.py` (10 tests, ~350 líneas)
-- [ ] Coverage ree_client.py: 60%+
-- [ ] Coverage aemet_client.py: 60%+
-- [ ] Coverage openweather_client.py: 60%+
-- [ ] Tests passing: 10/10
+- [x] `tests/unit/test_api_clients_extended.py` (10 tests, 491 líneas) - ✅ Creado
+- [ ] Coverage ree_client.py: 60%+ - ❌ Pendiente (tests failing)
+- [ ] Coverage aemet_client.py: 60%+ - ❌ Pendiente (tests failing)
+- [ ] Coverage openweather_client.py: 60%+ - ❌ Pendiente (tests failing)
+- [ ] Tests passing: 10/10 - ❌ Solo 1/10 (10%)
 
 ---
 
@@ -438,9 +481,9 @@ Archivos excluidos de coverage target:
 
 ## Checklist Final Sprint 19
 
-- [ ] Fase 1: Backfill tests (6 tests)
-- [ ] Fase 2: Gap detector tests (4 tests)
-- [ ] Fase 3: API clients tests (10 tests)
+- [x] Fase 1: Backfill tests (14 tests) - ⚠️ BLOQUEADA (11/14 passing, problema mock REEAPIClient)
+- [x] Fase 2: Gap detector tests (10 tests) - ✅ COMPLETADA (10/10 passing, coverage 74%)
+- [x] Fase 3: API clients tests (10 tests) - ⚠️ PARCIAL (1/10 passing, problema httpx async mocking)
 - [ ] Fase 4: Scheduler tests (5 tests)
 - [ ] Fase 5: E2E tests fix (11 arreglados)
 - [ ] Fase 6: Docs actualizada
@@ -448,3 +491,9 @@ Archivos excluidos de coverage target:
 - [ ] Tests 159/159 passing
 - [ ] Coverage report HTML generado
 - [ ] CLAUDE.md actualizado
+
+**Progreso real (2025-11-04)**:
+- Tests creados: 34 (14 backfill + 10 gap + 10 API clients)
+- Tests passing: 22/34 (65%)
+- Cobertura gap_detector.py: 66% → 74% ✅
+- Bloqueadores técnicos: 2 (mock REEAPIClient context manager, httpx AsyncClient mocking)

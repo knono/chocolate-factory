@@ -22,7 +22,7 @@ Energy optimization system combining machine learning price forecasting, automat
 - Optimization Scoring: Deterministic business rules (NOT predictive ML) - real data, formula-based
 - ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
 - ROI: 1,661€/year energy savings (theoretical estimate)
-- Testing: 157 tests (148 passing, coverage ~32%, 40 E2E tests)
+- Testing: 168 tests (156 passing 93%, coverage 33%, 12 failing async mocking)
 - Clean Architecture: 12 routers, 46 endpoints
 - CI/CD: Automated testing + smoke tests + rollback on failure
 - Security: Tailscale auth (admin/viewer roles), Telegram alerts (5 types)
@@ -235,6 +235,7 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 | 16 | Oct 2025 | Documentation Integrity & Transparency | ML claims corrected, ROI labeled theoretical, 87-line disclaimers section, 20+ limitations documented |
 | 17 | Oct 2025 | Test Coverage + Business Rules | Coverage 19%→32%, 134 tests, business rules documented (machinery, production, optimization) |
 | 18 | Nov 2025 | Tailscale Auth + Telegram Alerting | Middleware auth (admin/viewer), 5 alert types, 15min rate limiting, `/test-telegram` endpoint |
+| 19 | Nov 2025 | Test Coverage Expansion (parcial) | 34 tests created, 22 passing (65%), coverage 32%→33%, gap detector 74%, blocked by async mocking |
 
 ### ML Models
 
@@ -436,7 +437,8 @@ Docker bind mounts ensure data survives container restarts:
 - **Access**: Localhost (dev) | Tailscale network (prod) | Public internet (blocked)
 
 ### Quality
-- **Tests**: 157 (148 passing, 32% coverage) - Recommend 40%+ for production
+- **Tests**: 168 (156 passing 93%, 33% coverage) - Recommend 40%+ for production
+- **Failing**: 12 tests (async context manager mocking issues)
 - **Monitoring**: Health checks + Telegram alerts (Sprint 18)
 - **ROI**: 1,661€/year theoretical estimate (not measured from production)
 
@@ -466,6 +468,6 @@ Provided as-is for educational and research purposes.
 
 Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-**Current Status**: Sprint 18 completed (Nov 3 2025)
+**Current Status**: Sprint 19 partial (Nov 4 2025) - Sprint 18 completed
 
 </div>
