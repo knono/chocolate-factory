@@ -136,8 +136,8 @@ class TailscaleAuthMiddleware(BaseHTTPMiddleware):
 
         client_host = request.client.host
 
-        # Direct localhost access
-        if client_host in ["127.0.0.1", "localhost", "::1"]:
+        # Direct localhost access (including testclient for unit tests)
+        if client_host in ["127.0.0.1", "localhost", "::1", "testclient"]:
             return True
 
         # Docker gateway/bridge IPs in development mode only

@@ -101,8 +101,8 @@ class TestInfluxDBConfig:
 
         # Assert
         assert config.timeout == 30000
-        assert config.org == "chocolate-factory"
-        assert config.bucket == "energy-data"
+        assert config.org == "chocolate_factory"  # Fixed: underscore not hyphen
+        assert config.bucket == "energy_data"  # Fixed: underscore not hyphen
 
 
     def test_config_creation_with_custom_values(self):
@@ -166,8 +166,8 @@ class TestDataIngestionServiceInit:
 
         # Assert
         assert service.config is not None
-        assert service.config.org == "chocolate-factory"
-        assert service.config.bucket == "energy-data"
+        assert service.config.org == "chocolate_factory"  # Fixed: underscore not hyphen
+        assert service.config.bucket == "energy_data"  # Fixed: underscore not hyphen
 
 
     def test_service_context_manager_enter(self, mock_influx_config, mock_influx_client):

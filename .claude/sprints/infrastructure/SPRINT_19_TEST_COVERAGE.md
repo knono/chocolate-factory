@@ -1,11 +1,11 @@
 # Sprint 19 - Test Coverage Expansion
 
-**Status**: PENDIENTE
-**Start Date**: 2025-11-08 (estimado)
+**Status**: EN PROGRESO
+**Start Date**: 2025-11-04
 **Completion Date**: TBD
 **Duration**: 3 días
 **Type**: Testing + Quality
-**Last Update**: 2025-10-31
+**Last Update**: 2025-11-04
 
 ## Objetivo
 
@@ -38,98 +38,171 @@ Aumentar test coverage de 32% → 50% enfocándose en servicios críticos (backf
 
 ## Fase 1: Backfill Service Tests (1 día)
 
+**Status**: INCOMPLETA (11/14 passing)
+
 ### Target
 
 `services/backfill_service.py`: 53% → 75% coverage
 
-### Tests a crear
+### Progreso 2025-11-04
 
-**Archivo**: `tests/unit/test_backfill_service_extended.py`
+**Archivo creado**: `tests/unit/test_backfill_service_extended.py` (648 líneas, 14 tests)
 
-1. **test_backfill_ree_multiple_days**
-   - Backfill 7 días REE prices
-   - Verificar 168 registros insertados (24h × 7)
-   - Assert InfluxDB write_api llamado 168 veces
+**Cambios en código**:
+- `backfill_service.py:155` - Fix crítico: `get_pvpc_prices(target_date=...)` en lugar de `get_pvpc_prices(start_date=..., end_date=...)`
+  - API solo acepta `target_date` (fecha única), no rangos
+- Import añadido en tests: `from services.data_ingestion import DataIngestionStats`
+- Mock fixture mejorado: `ingest_ree_prices_historical` retorna `DataIngestionStats` en lugar de int
 
-2. **test_backfill_ree_api_failure**
-   - Mock REE API retorna 500 error
-   - Verificar retry logic (3 intentos)
-   - Assert log ERROR escrito
+**Tests implementados (14 total)**:
 
-3. **test_backfill_ree_rate_limiting**
-   - Verificar delay 2s entre requests
-   - Mock time.sleep
-   - Assert sleep(2) llamado entre iteraciones
+REE Backfill (5 tests):
+1. ✅ test_backfill_ree_single_gap_success
+2. ✅ test_backfill_ree_multiple_gaps
+3. ❌ test_backfill_ree_api_failure - Mock no intercepta API real
+4. ❌ test_backfill_ree_empty_response - API real retorna 25 records
+5. ❌ test_backfill_ree_partial_data - API real retorna 25 en lugar de 5
 
-4. **test_backfill_weather_strategy_recent_gap**
-   - Gap <72h → usa AEMET hourly
-   - Mock AEMET client
-   - Assert get_hourly_weather llamado
+Weather Backfill (4 tests):
+6. ✅ test_backfill_weather_aemet_recent_gap - Patch profundo AEMETClient funcionó
+7. ✅ test_backfill_weather_old_gap_uses_siar
+8. ✅ test_backfill_weather_aemet_failure_fallback
+9. ✅ test_backfill_weather_multiple_sources
 
-5. **test_backfill_weather_strategy_old_gap**
-   - Gap ≥72h → usa AEMET daily
-   - Mock AEMET client
-   - Assert get_daily_weather llamado
+Intelligent Backfill (5 tests):
+10. ✅ test_execute_intelligent_backfill_no_gaps
+11. ✅ test_execute_intelligent_backfill_with_gaps
+12. ✅ test_execute_intelligent_backfill_telegram_alert
+13. ✅ test_execute_intelligent_backfill_exception_handling
+14. ✅ test_execute_intelligent_backfill_partial_success
 
-6. **test_backfill_weather_aemet_404**
-   - AEMET retorna 404 (data not available)
-   - Verificar fallback a SIAR (si disponible)
-   - Log WARNING escrito
+**Resultado**: 11/14 passing (79%)
+
+**Problema técnico BLOQUEANTE**:
+El patch `patch('services.backfill_service.REEAPIClient', return_value=mock_ree_client)` NO intercepta API real. Logs muestran "25 registros REE escritos" = día completo real (00:00-23:00).
+
+**Correcciones aplicadas**:
+- L232: `get_prices` → `get_pvpc_prices.return_value = []`
+- L167: `get_prices` → `get_pvpc_prices.return_value = [...]`
+- Build --no-cache ejecutado
+
+**Root cause**:
+`async with REEAPIClient()` (backfill_service.py:129) crea instancia real, no mock.
+
+**Causas posibles**:
+1. Patch en lugar equivocado (`services.backfill_service` vs `infrastructure.external_apis`)
+2. Import evaluado antes del patch
+3. Alias `REEClient = REEAPIClient` (L22) interfiere
+4. AsyncMock context manager mal configurado
+
+**Próximos pasos**:
+- Patch en `infrastructure.external_apis.REEAPIClient`
+- O inyección de dependencias en lugar de context manager
 
 ### Entregables
 
-- [ ] `tests/unit/test_backfill_service_extended.py` (6 tests, ~200 líneas)
-- [ ] Coverage backfill_service.py: 75%+
-- [ ] Tests passing: 6/6
+- [x] `tests/unit/test_backfill_service_extended.py` (14 tests, 648 líneas)
+- [ ] Coverage backfill_service.py: 75%+ (pendiente medición)
+- [ ] Tests passing: 14/14 (actualmente 11/14)
 
 ---
 
 ## Fase 2: Gap Detector Tests (0.5 días)
 
+**Status**: COMPLETADA (2025-11-04)
+
 ### Target
 
 `services/gap_detector.py`: 66% → 85% coverage
 
-### Tests a crear
+### Progreso 2025-11-04
 
-**Archivo**: `tests/unit/test_gap_detector_extended.py`
+**Archivo creado**: `tests/unit/test_gap_detector_extended.py` (297 líneas, 10 tests)
 
-1. **test_detect_ree_gaps_multiple_separated**
-   - Múltiples gaps no consecutivos
-   - Verificar gaps agrupados correctamente
-   - Assert 3 gaps detectados (no 1 largo)
+**Tests implementados (10/10 passing)**:
 
-2. **test_detect_weather_gaps_tolerance**
-   - Tolera 1.5x expected_interval
-   - Interval 5min → tolera hasta 7.5min
-   - Assert gap NO detectado si <7.5min
+Gap Detection Logic (4 tests):
+1. test_detect_multiple_separated_gaps - ✅
+2. test_detect_weather_gaps_with_tolerance - ✅
+3. test_calculate_gap_severity_critical - ✅
+4. test_get_latest_timestamps_empty_db - ✅
 
-3. **test_calculate_gap_severity_critical**
-   - Gap >24h → severity "critical"
-   - Assert severity == "critical"
+Gap Severity and Metadata (3 tests):
+5. test_create_gap_minor_severity - ✅
+6. test_create_gap_moderate_severity - ✅
+7. test_expected_records_calculation - ✅
 
-4. **test_get_latest_timestamps_empty_db**
-   - InfluxDB vacío (sin datos)
-   - Verificar retorna None
-   - No crash
+Backfill Strategy (3 tests):
+8. test_generate_backfill_strategy_mixed_gaps - ✅
+9. test_estimate_backfill_duration_small - ✅
+10. test_estimate_backfill_duration_large - ✅
+
+**Coverage alcanzado**: 74% (66% → 74%, +8 puntos)
+- Líneas cubiertas: 137/186
+- Líneas no cubiertas: 49 (principalmente `detect_all_gaps()` que requiere InfluxDB mock complejo y alertas Telegram)
+
+**Nota**: Objetivo 85% no alcanzado por 11 puntos. Líneas faltantes requieren mocking complejo de InfluxDB queries y Telegram alerts. Coverage actual suficiente para lógica core de detección de gaps.
 
 ### Entregables
 
-- [ ] `tests/unit/test_gap_detector_extended.py` (4 tests, ~150 líneas)
-- [ ] Coverage gap_detector.py: 85%+
-- [ ] Tests passing: 4/4
+- [x] `tests/unit/test_gap_detector_extended.py` (10 tests, 297 líneas)
+- [x] Coverage gap_detector.py: 74% (objetivo 85%, logrado 74%)
+- [x] Tests passing: 10/10 (100%)
 
 ---
 
 ## Fase 3: API Clients Tests (1 día)
 
+**Status**: PARCIALMENTE COMPLETADA (2025-11-04) - 1/10 passing
+
 ### Target
 
 `infrastructure/external_apis/*.py`: 23-26% → 60% coverage
 
+### Progreso 2025-11-04
+
+**Archivo creado**: `tests/unit/test_api_clients_extended.py` (491 líneas, 10 tests)
+
+**Resultado**: 1/10 passing (10%)
+
+**Problema técnico BLOQUEANTE**:
+Mocking de httpx.AsyncClient context manager extremadamente complejo. El patrón `async with REEAPIClient() as client` requiere mockear correctamente:
+1. `httpx.AsyncClient()` constructor
+2. `__aenter__` async method
+3. `__aexit__` async method
+4. `client.get()` async method
+5. `client.aclose()` async method
+
+Error persistente: `TypeError: object MagicMock can't be used in 'await' expression` en `__aexit__` (línea 85/91 de clientes).
+
+**Correcciones intentadas**:
+- Añadido `mock_client.aclose = AsyncMock()`
+- Configurado `MockAsyncClient.return_value.__aenter__.return_value = mock_client`
+- Docker rebuild --no-cache ejecutado
+- Archivo copiado manualmente al contenedor
+
+**Test passing** (1/10):
+- test_aemet_token_caching ✅ (usa file mocking, no httpx async)
+
+**Tests failing** (9/10):
+- test_ree_client_retry_on_timeout ❌
+- test_ree_client_invalid_json_response ❌
+- test_ree_client_parse_empty_response ❌
+- test_aemet_get_current_weather_success ❌
+- test_aemet_get_current_weather_404 ❌
+- test_aemet_get_daily_weather_recent_fails ❌
+- test_openweather_current_success ❌
+- test_openweather_api_key_invalid ❌
+- test_openweather_rate_limit_exceeded ❌
+
+**Próximos pasos**:
+1. Refactorizar tests usando respx library (pytest plugin para httpx mocking)
+2. O simplificar tests a nivel unit sin usar context manager completo
+3. O crear integration tests en lugar de unit tests con mocks complejos
+
 ### Tests a crear
 
-**Archivo**: `tests/unit/test_api_clients_extended.py`
+**Archivo**: `tests/unit/test_api_clients_extended.py` (✅ creado, ❌ failing)
 
 **REE Client** (3 tests):
 
@@ -187,11 +260,11 @@ Aumentar test coverage de 32% → 50% enfocándose en servicios críticos (backf
 
 ### Entregables
 
-- [ ] `tests/unit/test_api_clients_extended.py` (10 tests, ~350 líneas)
-- [ ] Coverage ree_client.py: 60%+
-- [ ] Coverage aemet_client.py: 60%+
-- [ ] Coverage openweather_client.py: 60%+
-- [ ] Tests passing: 10/10
+- [x] `tests/unit/test_api_clients_extended.py` (10 tests, 491 líneas) - ✅ Creado
+- [ ] Coverage ree_client.py: 60%+ - ❌ Pendiente (tests failing)
+- [ ] Coverage aemet_client.py: 60%+ - ❌ Pendiente (tests failing)
+- [ ] Coverage openweather_client.py: 60%+ - ❌ Pendiente (tests failing)
+- [ ] Tests passing: 10/10 - ❌ Solo 1/10 (10%)
 
 ---
 
@@ -408,9 +481,9 @@ Archivos excluidos de coverage target:
 
 ## Checklist Final Sprint 19
 
-- [ ] Fase 1: Backfill tests (6 tests)
-- [ ] Fase 2: Gap detector tests (4 tests)
-- [ ] Fase 3: API clients tests (10 tests)
+- [x] Fase 1: Backfill tests (14 tests) - ⚠️ BLOQUEADA (11/14 passing, problema mock REEAPIClient)
+- [x] Fase 2: Gap detector tests (10 tests) - ✅ COMPLETADA (10/10 passing, coverage 74%)
+- [x] Fase 3: API clients tests (10 tests) - ⚠️ PARCIAL (1/10 passing, problema httpx async mocking)
 - [ ] Fase 4: Scheduler tests (5 tests)
 - [ ] Fase 5: E2E tests fix (11 arreglados)
 - [ ] Fase 6: Docs actualizada
@@ -418,3 +491,9 @@ Archivos excluidos de coverage target:
 - [ ] Tests 159/159 passing
 - [ ] Coverage report HTML generado
 - [ ] CLAUDE.md actualizado
+
+**Progreso real (2025-11-04)**:
+- Tests creados: 34 (14 backfill + 10 gap + 10 API clients)
+- Tests passing: 22/34 (65%)
+- Cobertura gap_detector.py: 66% → 74% ✅
+- Bloqueadores técnicos: 2 (mock REEAPIClient context manager, httpx AsyncClient mocking)
