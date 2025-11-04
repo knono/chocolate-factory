@@ -1,11 +1,11 @@
 # Sprint 19 - Test Coverage Expansion
 
-**Status**: PENDIENTE
-**Start Date**: 2025-11-08 (estimado)
+**Status**: EN PROGRESO
+**Start Date**: 2025-11-04
 **Completion Date**: TBD
 **Duration**: 3 días
 **Type**: Testing + Quality
-**Last Update**: 2025-10-31
+**Last Update**: 2025-11-04
 
 ## Objetivo
 
@@ -38,49 +38,63 @@ Aumentar test coverage de 32% → 50% enfocándose en servicios críticos (backf
 
 ## Fase 1: Backfill Service Tests (1 día)
 
+**Status**: INCOMPLETA (11/14 passing)
+
 ### Target
 
 `services/backfill_service.py`: 53% → 75% coverage
 
-### Tests a crear
+### Progreso 2025-11-04
 
-**Archivo**: `tests/unit/test_backfill_service_extended.py`
+**Archivo creado**: `tests/unit/test_backfill_service_extended.py` (648 líneas, 14 tests)
 
-1. **test_backfill_ree_multiple_days**
-   - Backfill 7 días REE prices
-   - Verificar 168 registros insertados (24h × 7)
-   - Assert InfluxDB write_api llamado 168 veces
+**Cambios en código**:
+- `backfill_service.py:155` - Fix crítico: `get_pvpc_prices(target_date=...)` en lugar de `get_pvpc_prices(start_date=..., end_date=...)`
+  - API solo acepta `target_date` (fecha única), no rangos
+- Import añadido en tests: `from services.data_ingestion import DataIngestionStats`
+- Mock fixture mejorado: `ingest_ree_prices_historical` retorna `DataIngestionStats` en lugar de int
 
-2. **test_backfill_ree_api_failure**
-   - Mock REE API retorna 500 error
-   - Verificar retry logic (3 intentos)
-   - Assert log ERROR escrito
+**Tests implementados (14 total)**:
 
-3. **test_backfill_ree_rate_limiting**
-   - Verificar delay 2s entre requests
-   - Mock time.sleep
-   - Assert sleep(2) llamado entre iteraciones
+REE Backfill (5 tests):
+1. ✅ test_backfill_ree_single_gap_success
+2. ✅ test_backfill_ree_multiple_gaps
+3. ❌ test_backfill_ree_api_failure - Mock no intercepta API real
+4. ❌ test_backfill_ree_empty_response - API real retorna 25 records
+5. ❌ test_backfill_ree_partial_data - API real retorna 25 en lugar de 5
 
-4. **test_backfill_weather_strategy_recent_gap**
-   - Gap <72h → usa AEMET hourly
-   - Mock AEMET client
-   - Assert get_hourly_weather llamado
+Weather Backfill (4 tests):
+6. ✅ test_backfill_weather_aemet_recent_gap - Patch profundo AEMETClient funcionó
+7. ✅ test_backfill_weather_old_gap_uses_siar
+8. ✅ test_backfill_weather_aemet_failure_fallback
+9. ✅ test_backfill_weather_multiple_sources
 
-5. **test_backfill_weather_strategy_old_gap**
-   - Gap ≥72h → usa AEMET daily
-   - Mock AEMET client
-   - Assert get_daily_weather llamado
+Intelligent Backfill (5 tests):
+10. ✅ test_execute_intelligent_backfill_no_gaps
+11. ✅ test_execute_intelligent_backfill_with_gaps
+12. ✅ test_execute_intelligent_backfill_telegram_alert
+13. ✅ test_execute_intelligent_backfill_exception_handling
+14. ✅ test_execute_intelligent_backfill_partial_success
 
-6. **test_backfill_weather_aemet_404**
-   - AEMET retorna 404 (data not available)
-   - Verificar fallback a SIAR (si disponible)
-   - Log WARNING escrito
+**Resultado**: 11/14 passing (79%)
+
+**Problema pendiente**:
+Mocking de REEAPIClient no intercepta todas las llamadas. Tests que configuran `side_effect` o `return_value` personalizados fallan porque la API real es llamada y retorna 25 registros (24 horas de datos).
+
+Tests afectados usan:
+```python
+with patch('services.backfill_service.REEAPIClient', return_value=mock_ree_client):
+```
+
+El mock funciona para test #1 (return_value por defecto) pero no para tests que modifican el comportamiento (side_effect, empty list, partial data).
+
+**Root cause**: Context manager `async with REEAPIClient()` probablemente no usa el mock correctamente o el fixture `mock_ree_client.__aenter__` no retorna el objeto mockeado apropiadamente.
 
 ### Entregables
 
-- [ ] `tests/unit/test_backfill_service_extended.py` (6 tests, ~200 líneas)
-- [ ] Coverage backfill_service.py: 75%+
-- [ ] Tests passing: 6/6
+- [x] `tests/unit/test_backfill_service_extended.py` (14 tests, 648 líneas)
+- [ ] Coverage backfill_service.py: 75%+ (pendiente medición)
+- [ ] Tests passing: 14/14 (actualmente 11/14)
 
 ---
 
