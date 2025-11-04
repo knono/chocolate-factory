@@ -267,3 +267,132 @@ async def get_health_logs(
     except Exception as e:
         logger.error(f"Failed to get health logs: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve logs: {str(e)}")
+
+
+@router.get("/connection-stats/{hostname}")
+async def get_connection_stats(
+    hostname: str,
+    service: TailscaleHealthService = Depends(get_health_service)
+) -> Dict[str, Any]:
+    """
+    Get detailed connection statistics for a specific node.
+
+    Returns:
+        - Connection type (direct vs relay)
+        - Relay node if applicable
+        - Current latency stats (min/max/avg)
+        - Traffic stats (RxBytes/TxBytes)
+        - Endpoint information
+
+    Args:
+        hostname: Target hostname (e.g., "git", "chocolate-factory-dev")
+    """
+    try:
+        logger.info(f"Fetching connection stats for {hostname}...")
+
+        # Get connection stats
+        conn_stats = service.get_connection_stats(hostname)
+
+        if "error" in conn_stats:
+            raise HTTPException(status_code=404, detail=conn_stats["error"])
+
+        # Get current ping stats
+        ping_stats = service.ping_peer(hostname, count=5)
+
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "hostname": hostname,
+            "connection": conn_stats,
+            "latency": ping_stats
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get connection stats for {hostname}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve connection stats: {str(e)}")
+
+
+@router.get("/latency-history/{hostname}")
+async def get_latency_history(
+    hostname: str,
+    hours: int = 24,
+    service: TailscaleHealthService = Depends(get_health_service)
+) -> Dict[str, Any]:
+    """
+    Get latency history from InfluxDB for a specific node.
+
+    Returns time series data for:
+        - Latency avg/min/max
+        - Packet loss
+        - Connection type changes
+        - Traffic stats
+
+    Args:
+        hostname: Target hostname
+        hours: Time window in hours (default 24)
+    """
+    try:
+        logger.info(f"Fetching latency history for {hostname} ({hours}h)...")
+
+        influx_client = get_influxdb_client()
+        if not influx_client:
+            raise HTTPException(status_code=503, detail="InfluxDB not available")
+
+        query_api = influx_client.query_api()
+
+        # Query latency data
+        query = f'''
+            from(bucket: "analytics")
+                |> range(start: -{hours}h)
+                |> filter(fn: (r) => r["_measurement"] == "tailscale_connections")
+                |> filter(fn: (r) => r["hostname"] == "{hostname}")
+                |> filter(fn: (r) => r["_field"] == "latency_avg" or r["_field"] == "latency_min" or r["_field"] == "latency_max" or r["_field"] == "packet_loss")
+                |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+        '''
+
+        result = query_api.query(query=query)
+
+        # Parse result
+        history = []
+        for table in result:
+            for record in table.records:
+                history.append({
+                    "timestamp": record.get_time().isoformat(),
+                    "latency_avg": record.values.get("latency_avg"),
+                    "latency_min": record.values.get("latency_min"),
+                    "latency_max": record.values.get("latency_max"),
+                    "packet_loss": record.values.get("packet_loss"),
+                    "connection_type": record.values.get("connection_type", "unknown")
+                })
+
+        # Calculate stats
+        if history:
+            latencies = [h["latency_avg"] for h in history if h["latency_avg"]]
+            stats = {
+                "mean": round(sum(latencies) / len(latencies), 2) if latencies else None,
+                "min": round(min(latencies), 2) if latencies else None,
+                "max": round(max(latencies), 2) if latencies else None,
+                "points": len(history)
+            }
+        else:
+            stats = {
+                "mean": None,
+                "min": None,
+                "max": None,
+                "points": 0
+            }
+
+        return {
+            "hostname": hostname,
+            "time_window_hours": hours,
+            "data_points": len(history),
+            "stats": stats,
+            "history": history
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get latency history for {hostname}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve history: {str(e)}")

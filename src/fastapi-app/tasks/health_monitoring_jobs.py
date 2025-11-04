@@ -166,3 +166,94 @@ def check_critical_nodes():
 
     except Exception as e:
         logger.error(f"Failed to check critical nodes: {e}", exc_info=True)
+
+
+def collect_connection_metrics():
+    """
+    Recolecta métricas detalladas de conexión (latency, traffic, relay) para nodos críticos.
+
+    Ejecuta cada 5 minutos para obtener histórico de:
+    - Latencia (min/max/avg)
+    - Packet loss
+    - Connection type (direct vs relay)
+    - Traffic stats (RxBytes/TxBytes)
+
+    Envía alertas Telegram si:
+    - Latency >100ms
+    - Connection usando relay (no direct)
+    """
+    try:
+        logger.info("🌐 Starting connection metrics collection...")
+
+        influx_client = get_influxdb_client()
+        service = TailscaleHealthService(influx_client=influx_client)
+        telegram_service = get_telegram_alert_service()
+
+        # Critical nodes to monitor
+        critical_hostnames = ["git", "chocolate-factory-dev"]
+
+        for hostname in critical_hostnames:
+            try:
+                logger.debug(f"Collecting metrics for {hostname}...")
+
+                # Ping peer for latency
+                ping_stats = service.ping_peer(hostname, count=5)
+
+                # Get connection stats
+                conn_stats = service.get_connection_stats(hostname)
+
+                # Store metrics in InfluxDB
+                asyncio.run(service.store_connection_metrics(hostname, ping_stats, conn_stats))
+
+                # Check for alerts
+                latency_avg = ping_stats.get("avg")
+                connection_type = conn_stats.get("connection_type")
+
+                # Alert: High latency (>100ms)
+                if latency_avg and latency_avg > 100:
+                    logger.warning(f"⚠️  High latency to {hostname}: {latency_avg}ms")
+
+                    if telegram_service:
+                        try:
+                            from services.telegram_alert_service import AlertSeverity
+
+                            asyncio.run(telegram_service.send_alert(
+                                message=f"High latency to {hostname}: {latency_avg:.1f}ms (threshold 100ms)",
+                                severity=AlertSeverity.WARNING,
+                                topic=f"latency_{hostname}"
+                            ))
+
+                        except Exception as alert_error:
+                            logger.error(f"Failed to send latency alert: {alert_error}")
+
+                # Alert: Using relay (not direct connection)
+                if connection_type == "relay":
+                    relay_node = conn_stats.get("relay_node", "unknown")
+                    logger.warning(f"⚠️  {hostname} using DERP relay: {relay_node}")
+
+                    if telegram_service:
+                        try:
+                            from services.telegram_alert_service import AlertSeverity
+
+                            asyncio.run(telegram_service.send_alert(
+                                message=f"{hostname} using DERP relay ({relay_node}) - direct connection unavailable",
+                                severity=AlertSeverity.WARNING,
+                                topic=f"relay_{hostname}"
+                            ))
+
+                        except Exception as alert_error:
+                            logger.error(f"Failed to send relay alert: {alert_error}")
+
+                logger.debug(
+                    f"✅ Metrics collected for {hostname}: "
+                    f"latency={latency_avg}ms, type={connection_type}"
+                )
+
+            except Exception as node_error:
+                logger.error(f"Failed to collect metrics for {hostname}: {node_error}")
+                continue
+
+        logger.info("✅ Connection metrics collection completed")
+
+    except Exception as e:
+        logger.error(f"Failed to collect connection metrics: {e}", exc_info=True)
