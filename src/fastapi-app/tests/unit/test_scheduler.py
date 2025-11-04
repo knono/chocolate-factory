@@ -32,7 +32,7 @@ def mock_scheduler():
     """Mock APScheduler instance."""
     scheduler = Mock(spec=AsyncIOScheduler)
     scheduler.add_job = Mock()
-    scheduler.get_jobs = Mock(return_value=[Mock() for _ in range(7)])
+    scheduler.get_jobs = Mock(return_value=[Mock() for _ in range(8)])  # Sprint 18: 8 jobs
     return scheduler
 
 
@@ -56,18 +56,18 @@ class TestSchedulerConfig:
 
     async def test_register_all_jobs_count(self, mock_scheduler):
         """
-        Test that all 7 jobs are registered.
+        Test that all 8 jobs are registered.
 
         Verifies:
-        - register_all_jobs calls add_job 7 times
+        - register_all_jobs calls add_job 8 times (Sprint 18: +gap_detection)
         - Job count matches expected
         """
         # Execute
         await register_all_jobs(mock_scheduler)
 
         # Assert
-        assert mock_scheduler.add_job.call_count == 7
-        assert len(mock_scheduler.get_jobs()) == 7
+        assert mock_scheduler.add_job.call_count == 8
+        assert len(mock_scheduler.get_jobs()) == 8
 
 
     async def test_register_all_jobs_ids(self, mock_scheduler):
@@ -92,7 +92,8 @@ class TestSchedulerConfig:
             "sklearn_training",
             "health_metrics_collection",
             "health_status_log",
-            "critical_nodes_check"
+            "critical_nodes_check",
+            "gap_detection"  # Sprint 18: Gap detection with Telegram alerts
         ]
         assert set(job_ids) == set(expected_ids)
 
@@ -193,6 +194,34 @@ class TestSchedulerConfig:
         assert prophet_call[1]['trigger'] == 'interval'
         assert prophet_call[1]['hours'] == 24
         assert 'next_run_time' in prophet_call[1]  # Runs immediately
+
+
+    async def test_register_gap_detection_job_interval(self, mock_scheduler):
+        """
+        Test that gap detection job has correct interval (2 hours).
+
+        Sprint 18: Automatic gap detection with Telegram alerts.
+
+        Verifies:
+        - Gap detection job uses interval trigger
+        - Interval is 2 hours
+        - Job ID is 'gap_detection'
+        """
+        # Execute
+        await register_all_jobs(mock_scheduler)
+
+        # Find gap detection job call
+        gap_detection_call = None
+        for call in mock_scheduler.add_job.call_args_list:
+            if call[1].get('id') == 'gap_detection':
+                gap_detection_call = call
+                break
+
+        # Assert
+        assert gap_detection_call is not None
+        assert gap_detection_call[1]['trigger'] == 'interval'
+        assert gap_detection_call[1]['hours'] == 2
+        assert gap_detection_call[1]['id'] == 'gap_detection'
 
 
 # =============================================================================
