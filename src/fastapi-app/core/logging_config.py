@@ -58,6 +58,10 @@ class StructuredFormatter(logging.Formatter):
         if hasattr(record, "request_id"):
             log_data["request_id"] = record.request_id
 
+        # Sprint 20 Fase 2: Add user identity (Tailscale auth - Sprint 18)
+        if hasattr(record, "user_login"):
+            log_data["user"] = record.user_login
+
         # Add exception info if present
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
@@ -121,8 +125,9 @@ def get_console_handler() -> logging.StreamHandler:
     """
     handler = logging.StreamHandler(sys.stdout)
 
-    if settings.ENVIRONMENT == "production":
-        # JSON structured logs for production
+    # Sprint 20 Fase 2: Use LOG_FORMAT_JSON setting
+    if settings.LOG_FORMAT_JSON or settings.ENVIRONMENT == "production":
+        # JSON structured logs for production or when explicitly enabled
         formatter = StructuredFormatter()
     else:
         # Color-coded human-readable logs for development

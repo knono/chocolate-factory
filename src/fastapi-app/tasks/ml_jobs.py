@@ -1,6 +1,6 @@
 """
-ML Training Jobs (Sprint 18: Telegram alerts)
-==============================================
+ML Training Jobs (Sprint 18: Telegram alerts, Sprint 20: Model monitoring)
+===========================================================================
 
 Background jobs for ML model training and maintenance.
 """
@@ -42,6 +42,24 @@ async def ensure_prophet_model_job():
             logger.info("✅ Modelo Prophet entrenado exitosamente")
             logger.info(f"   MAE: {result['metrics']['mae']:.4f} €/kWh")
             logger.info(f"   R²: {result['metrics']['r2']:.4f}")
+
+            # Sprint 20: Check for model degradation
+            current_metrics = result['metrics']
+            degradation = forecast_service.metrics_tracker.detect_degradation(
+                model_name="prophet_price_forecast",
+                current_metrics=current_metrics,
+                threshold_multiplier=2.0
+            )
+
+            # Alert if degradation detected
+            if degradation['degradation_detected'] and telegram_service:
+                alert_messages = [alert['message'] for alert in degradation['alerts']]
+                await telegram_service.send_alert(
+                    message=f"⚠️ Prophet model degradation detected:\n" + "\n".join(alert_messages),
+                    severity=AlertSeverity.WARNING,
+                    topic="prophet_model_degradation"
+                )
+                logger.warning(f"⚠️ Model degradation alert sent to Telegram")
         else:
             logger.error(f"❌ Error entrenando modelo: {result.get('error')}")
 

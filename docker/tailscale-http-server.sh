@@ -29,6 +29,30 @@ case "$path" in
         echo ""
         /usr/local/bin/tailscale whois "$ip" 2>&1
         ;;
+    /netcheck)
+        echo "HTTP/1.1 200 OK"
+        echo "Content-Type: application/json"
+        echo "Connection: close"
+        echo ""
+        /usr/local/bin/tailscale netcheck --format=json 2>&1
+        ;;
+    /ping/*)
+        host=$(echo "$path" | sed 's|/ping/||')
+        echo "HTTP/1.1 200 OK"
+        echo "Content-Type: text/plain"
+        echo "Connection: close"
+        echo ""
+        /usr/local/bin/tailscale ping --c 5 "$host" 2>&1
+        ;;
+    /debug/*)
+        peer=$(echo "$path" | sed 's|/debug/||')
+        echo "HTTP/1.1 200 OK"
+        echo "Content-Type: text/plain"
+        echo "Connection: close"
+        echo ""
+        # Limited output to avoid hanging
+        timeout 5 /usr/local/bin/tailscale debug watch-ipn 2>&1 | head -50
+        ;;
     *)
         echo "HTTP/1.1 404 Not Found"
         echo "Content-Type: application/json"

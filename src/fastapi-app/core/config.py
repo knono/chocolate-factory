@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     # =================================================================
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
+    LOG_FORMAT_JSON: bool = False  # Sprint 20 Fase 2: JSON structured logging
     TZ: str = "Europe/Madrid"
     API_VERSION: str = "0.41.0"
 

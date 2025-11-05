@@ -53,7 +53,8 @@ COPY .claude/ ./.claude/
 
 # Crear directorios necesarios y ajustar permisos
 RUN mkdir -p /app/data /app/logs /app/models/forecasting && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chmod -R 775 /app/logs
 
 # Cambiar a usuario no-root
 USER appuser
