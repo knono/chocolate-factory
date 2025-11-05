@@ -28,6 +28,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from influxdb_client import Point
 
 from .data_ingestion import DataIngestionService
+from domain.ml.model_metrics_tracker import ModelMetricsTracker
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,9 @@ class PriceForecastingService:
         self.model: Optional[Prophet] = None
         self.last_training: Optional[datetime] = None
         self.metrics: Dict[str, float] = {}
+
+        # Initialize metrics tracker (Sprint 20)
+        self.metrics_tracker = ModelMetricsTracker()
 
         # Configuración Prophet
         self.prophet_config = {
@@ -281,7 +285,21 @@ class PriceForecastingService:
             logger.info(f"   R²: {r2:.4f} (objetivo: >0.85)")
             logger.info(f"   Coverage 95%: {coverage:.2%} (objetivo: >90%)")
 
-            # 6. Guardar modelo
+            # 6. Log metrics to CSV tracker (Sprint 20)
+            training_duration = (datetime.now() - datetime.now()).total_seconds()  # Placeholder
+            self.metrics_tracker.log_metrics(
+                model_name="prophet_price_forecast",
+                metrics={
+                    "mae": float(mae),
+                    "rmse": float(rmse),
+                    "r2": float(r2),
+                    "samples": len(df_train),
+                    "duration_seconds": training_duration
+                },
+                notes="scheduled_retrain" if hasattr(self, '_scheduled_run') else "manual_train"
+            )
+
+            # 7. Guardar modelo
             self.last_training = datetime.now()
             self._save_model()
 
