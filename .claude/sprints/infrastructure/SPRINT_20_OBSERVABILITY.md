@@ -575,14 +575,48 @@ from(bucket: "analytics")
 
 ## Checklist Final Sprint 20
 
-- [ ] Fase 1: Tailscale logs (8 tasks)
-- [ ] Fase 2: JSON logging (5 tasks)
+- [x] Fase 1: Tailscale logs (8 tasks) - COMPLETADO
+- [x] Fase 2: JSON logging (5 tasks) - COMPLETADO (Nov 5, 2025)
 - [ ] Fase 3: Model monitoring (4 tasks)
 - [ ] Fase 4: Documentación (3 docs)
-- [ ] Tests passing: 13/13
-- [ ] Connection metrics en InfluxDB
+- [ ] Tests passing: 13/13 (actual: 11/11 Fase 2)
+- [x] Connection metrics en InfluxDB (Fase 1)
 - [ ] Latency chart en dashboard VPN
-- [ ] Logs JSON format
+- [x] Logs JSON format (StructuredFormatter)
 - [ ] Prophet metrics CSV tracking
 - [ ] CLAUDE.md actualizado
 - [ ] Sprint retrospective
+
+---
+
+## Fase 2 - Resumen Ejecución
+
+**Fecha**: Nov 5, 2025
+**Duración**: 1 día (incluyendo troubleshooting permisos)
+**Tests**: 11/11 passing (100%)
+
+### Implementación
+
+Archivos:
+- `docker/fastapi.Dockerfile`: +1 línea (chmod 775 /app/logs)
+- `core/logging_config.py`: +4 líneas (user_login en StructuredFormatter)
+- `core/config.py`: +1 línea (LOG_FORMAT_JSON: bool = False)
+- `api/routers/health.py`: +97 líneas (GET /logs/search)
+- `tests/unit/test_json_logging.py`: 207 líneas (11 tests unitarios)
+
+### Issue Critical Resuelto
+
+**Problema**: PermissionError en `/app/logs/fastapi.log` - Container restart loop
+**Causa**: Bind mount con UID mismatch (host:1000 vs container:999)
+**Fix**:
+- Dockerfile: `chmod -R 775 /app/logs`
+- Host: `chown -R 999:999 docker/services/fastapi/logs/`
+
+### Verificación
+
+- StructuredFormatter JSON logging funcional
+- Endpoint `/logs/search` operacional (filtros: level, hours, limit, module)
+- File logging escribiendo en `/app/logs/fastapi.log` (55KB generados)
+- Container healthy
+- Endpoint `/vpn` restored (307 redirect, antes 502)
+- Tests: 11/11 passing
