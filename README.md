@@ -19,14 +19,15 @@ Energy optimization system combining machine learning price forecasting, automat
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
 - Prophet ML: 168-hour price forecasting (MAE: 0.033 €/kWh, R²: 0.49)
-- Optimization Scoring: Deterministic business rules (NOT predictive ML) - real data, formula-based
+- Optimization Scoring: Deterministic business rules (NOT predictive ML)
 - ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
 - ROI: 1,661€/year energy savings (theoretical estimate)
-- Testing: 168 tests (156 passing 93%, coverage 33%, 12 failing async mocking)
-- Clean Architecture: 12 routers, 46 endpoints
+- Testing: 186 tests (174 passing 93%, coverage 33%)
+- Clean Architecture: 12 routers, 47 endpoints
 - CI/CD: Automated testing + smoke tests + rollback on failure
 - Security: Tailscale auth (admin/viewer roles), Telegram alerts (5 types)
-- Observability: Health monitoring + proactive alerting
+- Observability: Health monitoring + Tailscale connection metrics + model monitoring
+- APScheduler: 9 automated jobs
 
 **Components**:
 - FastAPI application with ML models (Prophet, sklearn RandomForest)
@@ -82,7 +83,7 @@ Energy optimization system combining machine learning price forecasting, automat
 │  │  - FastAPI (prod)                                 │         │
 │  │  - InfluxDB (data ingestion)                      │         │
 │  │  - ML models (Prophet, sklearn)                   │         │
-│  │  - APScheduler (13+ jobs)                         │         │
+│  │  - APScheduler (9 jobs)                          │         │
 │  │  - Port 8000                                      │         │
 │  │  - Nginx SSL                                      │         │
 │  └────────────────────────────────────────────────────┘         │
@@ -100,14 +101,15 @@ Secrets: SOPS encrypted + .env fallback
 src/fastapi-app/
 ├── main.py (135 lines)          # Entry point
 ├── api/                         # HTTP Interface
-│   ├── routers/                 # 12 routers, 45 endpoints (health, ree, weather,
+│   ├── routers/                 # 12 routers, 47 endpoints (health, ree, weather,
 │   │                            #   dashboard, optimization, analysis, gaps, insights,
 │   │                            #   chatbot, health_monitoring, ml_predictions,
 │   │                            #   price_forecast)
 │   └── schemas/                 # Pydantic models
 ├── domain/                      # Business Logic
 │   ├── energy/forecaster.py    # Price forecasting
-│   └── ml/model_trainer.py     # ML validation
+│   ├── ml/model_trainer.py     # ML validation
+│   └── ml/model_metrics_tracker.py  # Model monitoring (Sprint 20)
 ├── services/                    # Orchestration
 │   ├── ree_service.py          # REE + InfluxDB
 │   ├── weather_aggregation_service.py  # Multi-source weather
@@ -230,12 +232,13 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 | 11 | Oct 2025 | Chatbot BI (Claude Haiku) | RAG + keyword matching |
 | 12 | Oct 2025 | Forgejo CI/CD + Testing Suite | 102 tests, 19% coverage, automated rollback |
 | 13 | Oct 2025 | Health Monitoring (Pivoted) | 6 endpoints, uptime tracking, critical nodes alerts, event logs |
-| 14 | Oct 2025 | Hybrid ML Training Optimization | SIAR (88k) + REE fine-tune, deterministic scoring (circular formula) |
-| 15 | Oct 2025 | Architecture Cleanup & Consolidation | API clients consolidated, services 30→20, legacy archived, main.py bugs fixed |
-| 16 | Oct 2025 | Documentation Integrity & Transparency | ML claims corrected, ROI labeled theoretical, 87-line disclaimers section, 20+ limitations documented |
-| 17 | Oct 2025 | Test Coverage + Business Rules | Coverage 19%→32%, 134 tests, business rules documented (machinery, production, optimization) |
-| 18 | Nov 2025 | Tailscale Auth + Telegram Alerting | Middleware auth (admin/viewer), 5 alert types, 15min rate limiting, `/test-telegram` endpoint |
-| 19 | Nov 2025 | Test Coverage Expansion (parcial) | 34 tests created, 22 passing (65%), coverage 32%→33%, gap detector 74%, blocked by async mocking |
+| 14 | Oct 2025 | Hybrid ML Training Optimization | SIAR (88k) + REE fine-tune, deterministic scoring |
+| 15 | Oct 2025 | Architecture Cleanup & Consolidation | API clients consolidated, services 30→20, legacy archived |
+| 16 | Oct 2025 | Documentation Integrity & Transparency | ML claims corrected, 87-line disclaimers section |
+| 17 | Oct 2025 | Test Coverage + Business Rules | Coverage 19%→32%, 134 tests, business rules documented |
+| 18 | Nov 2025 | Tailscale Auth + Telegram Alerting | Middleware auth (admin/viewer), 5 alert types, 15min rate limiting |
+| 19 | Nov 2025 | Test Coverage Expansion (parcial) | 34 tests created, 22 passing (65%), blocked by async mocking |
+| 20 | Nov 2025 | Observability & Model Monitoring | Connection metrics (latency/traffic/relay), JSON logging, CSV metrics tracking |
 
 ### ML Models
 
@@ -243,7 +246,10 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 - **Optimization Scoring**: Deterministic business rules (NOT predictive ML)
   - Energy Score (0-100): Formula-based using price, temperature, humidity, tariff
   - Production State: Rule-based classification (Optimal/Moderate/Reduced/Halt)
-  - Note: Not trained prediction, circular if measured as ML model
+- **Model Monitoring** (Sprint 20): CSV tracking with degradation detection
+  - Metrics: MAE, RMSE, R², samples, duration
+  - Baseline: median over 30 entries
+  - Alerts: MAE >2x, R² <50% baseline (Telegram)
 - **Historical Analysis**: SIAR correlations (R²=0.049 temp, R²=0.057 humidity)
 - **ROI Tracking**: 1,661€/year theoretical savings (baseline estimate, not measured)
 
@@ -387,6 +393,7 @@ chocolate-factory/
 - [`CLAUDE.md`](CLAUDE.md): Complete project reference
 - [`.claude/architecture.md`](.claude/architecture.md): System design
 - [`docs/ML_ARCHITECTURE.md`](docs/ML_ARCHITECTURE.md): ML system documentation
+- [`docs/ML_MONITORING.md`](docs/ML_MONITORING.md): Model monitoring (Sprint 20)
 
 ### Sprint Documentation
 
@@ -437,9 +444,10 @@ Docker bind mounts ensure data survives container restarts:
 - **Access**: Localhost (dev) | Tailscale network (prod) | Public internet (blocked)
 
 ### Quality
-- **Tests**: 168 (156 passing 93%, 33% coverage) - Recommend 40%+ for production
+- **Tests**: 186 (174 passing 93%, 33% coverage) - Recommend 40%+ for production
 - **Failing**: 12 tests (async context manager mocking issues)
-- **Monitoring**: Health checks + Telegram alerts (Sprint 18)
+- **Monitoring**: Health checks + connection metrics + model monitoring + Telegram alerts
+- **Observability**: JSON logging + structured logs search + CSV metrics tracking
 - **ROI**: 1,661€/year theoretical estimate (not measured from production)
 
 ---
@@ -468,6 +476,6 @@ Provided as-is for educational and research purposes.
 
 Built with FastAPI, InfluxDB, Prophet ML, Forgejo CI/CD, and Tailscale
 
-**Current Status**: Sprint 19 partial (Nov 4 2025) - Sprint 18 completed
+**Current Status**: Sprint 20 completed (Nov 5 2025)
 
 </div>
