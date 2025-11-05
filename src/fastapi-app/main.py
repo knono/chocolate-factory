@@ -44,8 +44,8 @@ from api.routers import (
 # Import middleware
 from api.middleware.tailscale_auth import TailscaleAuthMiddleware
 
-# Setup logging (console only to avoid permission issues)
-setup_logging(enable_file_logging=False)
+# Setup logging (Sprint 20 Fase 2: Enable file logging for /logs/search endpoint)
+setup_logging(enable_file_logging=True)
 logger = logging.getLogger(__name__)
 
 

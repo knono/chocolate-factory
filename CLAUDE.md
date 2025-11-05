@@ -223,6 +223,30 @@ Implemented:
   - Tests creados: 34 (backfill 14, gap 10, API clients 10)
   - Tests passing: 22/34 (65%)
   - Bloqueadores técnicos: context manager async mocking complejo
+- Sprint 20: Observability & Model Monitoring (Nov 5, 2025) - COMPLETADO
+  - Fase 1: Tailscale logs avanzados (COMPLETADO)
+    - Endpoints socat: /netcheck, /ping/<host>, /debug
+    - TailscaleHealthService: ping_peer, get_connection_stats, get_network_diagnostics
+    - InfluxDB: tailscale_connections measurement (latency, traffic, relay)
+    - APScheduler: collect_connection_metrics (every 5 min)
+    - Telegram alerts: latency >100ms, relay usage
+    - API: GET /health-monitoring/connection-stats/{hostname}, /latency-history/{hostname}
+  - Fase 2: Structured JSON logging (COMPLETADO Nov 5)
+    - StructuredFormatter con user context (Tailscale auth)
+    - GET /logs/search (filtros: level, hours, limit, module)
+    - Config: LOG_FORMAT_JSON (default False)
+    - File logging: /app/logs/fastapi.log
+    - Tests: 11/11 passing
+  - Fase 3: Model monitoring (COMPLETADO Nov 5)
+    - ModelMetricsTracker: CSV tracking (/app/models/metrics_history.csv)
+    - Baseline calculation: median over window (30 entries)
+    - Degradation detection: MAE >2x, R² <50%
+    - Telegram alerts: prophet_model_degradation (WARNING)
+    - API: GET /models/metrics-history (filtros: model_name, limit)
+    - Tests: 18/18 passing
+  - Tests totales: 29/29 passing (Fase 2: 11, Fase 3: 18)
+  - Docs: ML_MONITORING.md creado
+  - Coverage: 33%
 
 ### Core Infrastructure
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML
@@ -248,10 +272,15 @@ Implemented:
   - SIAR sources: temperature, humidity from 2 stations (J09, J17)
   - REE source: price_eur_kwh hourly data
 - **Real-time Analysis**: Energy optimization scoring + production recommendations + price forecasting
-- **Automated ML**: Model retraining every 30 min (sklearn), hourly (Prophet)
+- **Automated ML**: Model retraining every 30 min (sklearn), daily (Prophet)
+- **Model Monitoring**: CSV tracking with degradation detection (Sprint 20)
+  - Metrics logged: MAE, RMSE, R², samples, duration
+  - Baseline: median over 30 entries
+  - Alerts: MAE >2x baseline, R² <50% baseline
+  - Storage: /app/models/metrics_history.csv
 - **ROI Tracking**: 1,661€/año ahorro energético demostrable (Sprint 09)
-- **Testing**: 168 tests total, 156 passing (93%), coverage ~33% (Sprints 17-19)
-- **Documentation**: `docs/ML_ARCHITECTURE.md` (Sprint 10, updated Oct 24)
+- **Testing**: 186 tests total, 174 passing (93%), coverage ~33% (Sprints 17-20)
+- **Documentation**: `docs/ML_ARCHITECTURE.md` (Sprint 10), `docs/ML_MONITORING.md` (Sprint 20)
 
 ### Operations
 - **APScheduler**: 13+ automated jobs (ingestion, ML, sklearn training, Prophet forecasting, backfill, health monitoring)
@@ -450,7 +479,7 @@ curl -X POST http://localhost:8000/chat/ask \
 
 ## System Automation
 
-### APScheduler Jobs (7 automated)
+### APScheduler Jobs (9 automated)
 - **REE ingestion**: Every 5 minutes
 - **Weather ingestion**: Every 5 minutes (hybrid AEMET/OpenWeatherMap)
 - **sklearn ML training**: Every 30 minutes (energy + production scoring models) ✅ Sprint 14
@@ -458,6 +487,8 @@ curl -X POST http://localhost:8000/chat/ask \
 - **Health monitoring**: Every 5 minutes (metrics collection) ✅ Sprint 13
 - **Critical nodes check**: Every 2 minutes ✅ Sprint 13
 - **Status logging**: Every hour ✅ Sprint 13
+- **Gap detection**: Every 2 hours (Telegram alerts) ✅ Sprint 18
+- **Connection metrics**: Every 5 minutes (latency, traffic, relay) ✅ Sprint 20
 
 ## Important Notes
 

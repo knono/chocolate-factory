@@ -32,7 +32,7 @@ def mock_scheduler():
     """Mock APScheduler instance."""
     scheduler = Mock(spec=AsyncIOScheduler)
     scheduler.add_job = Mock()
-    scheduler.get_jobs = Mock(return_value=[Mock() for _ in range(8)])  # Sprint 18: 8 jobs
+    scheduler.get_jobs = Mock(return_value=[Mock() for _ in range(9)])  # Sprint 20: 9 jobs
     return scheduler
 
 
@@ -59,15 +59,15 @@ class TestSchedulerConfig:
         Test that all 8 jobs are registered.
 
         Verifies:
-        - register_all_jobs calls add_job 8 times (Sprint 18: +gap_detection)
+        - register_all_jobs calls add_job 9 times (Sprint 20: +connection_metrics)
         - Job count matches expected
         """
         # Execute
         await register_all_jobs(mock_scheduler)
 
         # Assert
-        assert mock_scheduler.add_job.call_count == 8
-        assert len(mock_scheduler.get_jobs()) == 8
+        assert mock_scheduler.add_job.call_count == 9
+        assert len(mock_scheduler.get_jobs()) == 9
 
 
     async def test_register_all_jobs_ids(self, mock_scheduler):
@@ -93,7 +93,8 @@ class TestSchedulerConfig:
             "health_metrics_collection",
             "health_status_log",
             "critical_nodes_check",
-            "gap_detection"  # Sprint 18: Gap detection with Telegram alerts
+            "gap_detection",  # Sprint 18: Gap detection with Telegram alerts
+            "connection_metrics_collection"  # Sprint 20: Tailscale connection metrics
         ]
         assert set(job_ids) == set(expected_ids)
 

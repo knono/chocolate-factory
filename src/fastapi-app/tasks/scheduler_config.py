@@ -14,10 +14,11 @@ from .weather_jobs import weather_ingestion_job
 from .ml_jobs import ensure_prophet_model_job
 from .sklearn_jobs import sklearn_training_job  # sklearn training
 from .gap_detection_jobs import automatic_gap_detection  # Sprint 18
-from .health_monitoring_jobs import (  # Sprint 13 (pivoted)
+from .health_monitoring_jobs import (  # Sprint 13 (pivoted) + Sprint 20
     collect_health_metrics,
     log_health_status,
-    check_critical_nodes
+    check_critical_nodes,
+    collect_connection_metrics  # Sprint 20: latency, traffic, relay
 )
 
 logger = logging.getLogger(__name__)
@@ -121,5 +122,16 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
         replace_existing=True
     )
     logger.info("   ✅ Gap detection: every 2 hours (Telegram alerts for gaps >12h)")
+
+    # Connection metrics collection (every 5 minutes) - Sprint 20
+    scheduler.add_job(
+        func=collect_connection_metrics,
+        trigger="interval",
+        minutes=5,
+        id="connection_metrics_collection",
+        name="Tailscale Connection Metrics (Latency, Traffic, Relay)",
+        replace_existing=True
+    )
+    logger.info("   ✅ Connection metrics: every 5 minutes (latency, traffic, relay alerts)")
 
     logger.info(f"✅ Registered {len(scheduler.get_jobs())} jobs")
