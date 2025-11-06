@@ -152,7 +152,7 @@ class WeatherAggregationService:
         try:
             from influxdb_client import Point, WritePrecision
 
-            point = Point("weather") \
+            point = Point("weather_data") \
                 .tag("source", "openweathermap") \
                 .tag("station_id", weather.get("station_id", "owm_default"))
 

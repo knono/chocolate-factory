@@ -173,7 +173,7 @@ def get_weather_data(
     """
     builder = QueryBuilder(bucket) \
         .range(f"-{hours_back}h") \
-        .filter_measurement("weather")
+        .filter_measurement("weather_data")
 
     if source:
         builder.filter_tag("source", source)

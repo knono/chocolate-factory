@@ -51,7 +51,7 @@ def sample_weather_gap_recent():
     """Sample recent weather gap (<48h)."""
     now = datetime.now(timezone.utc)
     return DataGap(
-        measurement="weather",
+        measurement="weather_data",
         start_time=now - timedelta(hours=24),
         end_time=now - timedelta(hours=12),
         gap_duration_hours=12.0,
@@ -65,7 +65,7 @@ def sample_weather_gap_recent():
 def sample_weather_gap_old():
     """Sample old weather gap (>48h)."""
     return DataGap(
-        measurement="weather",
+        measurement="weather_data",
         start_time=datetime(2025, 10, 10, 0, 0, tzinfo=timezone.utc),
         end_time=datetime(2025, 10, 10, 23, 59, tzinfo=timezone.utc),
         gap_duration_hours=24.0,
@@ -304,7 +304,7 @@ class TestBackfillResult:
         - Errors are captured
         """
         result = BackfillResult(
-            measurement="weather",
+            measurement="weather_data",
             gap_start=datetime(2025, 10, 18, 0, 0, tzinfo=timezone.utc),
             gap_end=datetime(2025, 10, 18, 23, 59, tzinfo=timezone.utc),
             records_requested=24,
