@@ -81,7 +81,7 @@ services:
       - ./models:/app/models
       - ./static:/app/static
       - ./.claude:/app/.claude
-      - ./logs/dev:/app/logs
+      - ./docker/services/fastapi-dev/logs:/app/logs  # Logs separados para dev
     # No depends_on - usa InfluxDB de producción en la misma red
     networks:
       - chocolate-factory_backend
