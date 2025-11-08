@@ -56,8 +56,15 @@ RUN mkdir -p /app/data /app/logs /app/models/forecasting && \
     chown -R appuser:appuser /app && \
     chmod -R 775 /app/logs
 
+# Copy entrypoint script (Sprint 20 Fase 2 fix: handle bind mount permissions)
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Cambiar a usuario no-root
 USER appuser
+
+# Set entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Puerto de la aplicación
 EXPOSE 8000
@@ -66,8 +73,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Comando por defecto
+# Comando por defecto (ejecutado por entrypoint.sh)
 # Sprint 18: Enable proxy headers for Tailscale sidecar auth
 # --proxy-headers: Enable X-Forwarded-For, X-Real-IP, etc.
 # --forwarded-allow-ips: Trust headers from sidecar (192.168.100.8) and Docker network
+# Sprint 20 Fase 2: Entrypoint handles log permissions before uvicorn starts
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "192.168.100.0/24"]
