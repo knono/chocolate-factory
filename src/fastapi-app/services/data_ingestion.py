@@ -416,29 +416,32 @@ class DataIngestionService:
             valid_points = []
             for price_data in prices:
                 try:
-                    # Convert EUR/MWh to EUR/kWh for consistency
-                    price_eur_kwh = price_data.price_eur_mwh / 1000.0
-                    
+                    # Extract data from dictionary (REE client returns dicts, not objects)
+                    timestamp = price_data["timestamp"]
+                    price_eur_kwh = price_data["price_eur_kwh"]
+                    price_eur_mwh = price_data["price_eur_mwh"]
+
                     # Basic validation
                     if not (0.001 <= price_eur_kwh <= 1.0):  # Reasonable price range
-                        logger.warning(f"Price out of range: {price_eur_kwh} EUR/kWh at {price_data.timestamp}")
+                        logger.warning(f"Price out of range: {price_eur_kwh} EUR/kWh at {timestamp}")
                         stats.validation_errors += 1
                         continue
-                    
+
                     # Create InfluxDB point with historical tag
                     point = Point("energy_prices") \
                         .tag("source", "REE") \
-                        .tag("market_type", price_data.market_type) \
+                        .tag("market_type", "PVPC") \
                         .tag("data_source", "ree_historical") \
-                        .tag("season", get_season_from_date(price_data.timestamp)) \
+                        .tag("season", get_season_from_date(timestamp)) \
                         .field("price_eur_kwh", price_eur_kwh) \
-                        .field("price_eur_mwh", price_data.price_eur_mwh) \
-                        .time(price_data.timestamp)
+                        .field("price_eur_mwh", price_eur_mwh) \
+                        .time(timestamp)
                     
                     valid_points.append(point)
-                    
+
                 except Exception as e:
-                    logger.warning(f"Failed to process price record {price_data.timestamp}: {e}")
+                    timestamp_str = price_data.get("timestamp", "unknown") if isinstance(price_data, dict) else "unknown"
+                    logger.warning(f"Failed to process price record {timestamp_str}: {e}")
                     stats.validation_errors += 1
             
             # Batch write to InfluxDB

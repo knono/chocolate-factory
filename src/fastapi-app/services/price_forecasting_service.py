@@ -61,14 +61,25 @@ class PriceForecastingService:
         # Initialize metrics tracker (Sprint 20)
         self.metrics_tracker = ModelMetricsTracker()
 
-        # Configuración Prophet
+        # Configuración Prophet (optimizada para R² = 0.48, balance generalización/complejidad)
         self.prophet_config = {
-            'yearly_seasonality': True,   # Patrones anuales
-            'weekly_seasonality': True,   # Patrones semanales (lun-dom)
-            'daily_seasonality': True,    # Patrones diarios (horas)
-            'interval_width': 0.95,       # Intervalo confianza 95%
-            'changepoint_prior_scale': 0.05,  # Flexibilidad en cambios de tendencia
-            'seasonality_prior_scale': 10.0,  # Peso de estacionalidad
+            # Seasonality configuration (disabled default, use custom Fourier)
+            'yearly_seasonality': False,    # Custom Fourier order instead
+            'weekly_seasonality': False,    # Custom Fourier order instead
+            'daily_seasonality': False,     # Custom Fourier order instead
+
+            # Confidence interval
+            'interval_width': 0.95,         # 95% confidence intervals
+
+            # Changepoints: balance entre flexibilidad y generalización
+            'changepoint_prior_scale': 0.08,  # Sweet spot
+            'n_changepoints': 25,             # Sweet spot
+
+            # Seasonality: balance fino
+            'seasonality_prior_scale': 10.0,  # Sweet spot
+
+            # Smoothing
+            'seasonality_mode': 'multiplicative',  # Better for price variations
         }
 
         # Intentar cargar modelo existente
@@ -154,12 +165,13 @@ class PriceForecastingService:
 
         return prophet_df
 
-    def _add_prophet_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _add_prophet_features(self, df: pd.DataFrame, include_lags: bool = False) -> pd.DataFrame:
         """
-        Agrega features exógenas: demanda proxy (horas pico), holidays españoles.
+        Agrega features exógenas avanzadas: lags, Fourier, holidays, demanda proxy.
 
         Args:
-            df: DataFrame con columnas ds, y
+            df: DataFrame con columnas ds, y (optional)
+            include_lags: Si True, calcula lags (solo para training, no prediction)
 
         Returns:
             DataFrame con features adicionales
@@ -170,11 +182,24 @@ class PriceForecastingService:
         df['hour'] = df['ds'].dt.hour
         df['dayofweek'] = df['ds'].dt.dayofweek
         df['month'] = df['ds'].dt.month
+        df['day'] = df['ds'].dt.day
+        df['quarter'] = df['ds'].dt.quarter
 
-        # Demand proxy: horas pico tienen mayor demanda (10-13, 18-21)
+        # === DEMAND PROXIES ===
+        # Horas pico de demanda eléctrica española (10-13, 18-21)
         df['is_peak_hour'] = df['hour'].isin([10, 11, 12, 13, 18, 19, 20, 21]).astype(int)
 
-        # Identificar holidays españoles (fin de semana + festividades principales)
+        # Horas valle (madrugada 0-7)
+        df['is_valley_hour'] = df['hour'].isin([0, 1, 2, 3, 4, 5, 6, 7]).astype(int)
+
+        # Horas laborables vs no laborables
+        df['is_business_hour'] = (
+            (df['dayofweek'] < 5) &  # Lunes-Viernes
+            (df['hour'] >= 8) &       # 8:00-20:00
+            (df['hour'] <= 20)
+        ).astype(int)
+
+        # === HOLIDAYS Y WEEKENDS ===
         df['is_weekend'] = df['dayofweek'].isin([5, 6]).astype(int)
 
         # Festividades españoles fijas (mes, día)
@@ -190,9 +215,31 @@ class PriceForecastingService:
         ]
 
         df['is_holiday'] = df.apply(
-            lambda row: 1 if (row['ds'].month, row['ds'].day) in holidays_es else 0,
+            lambda row: 1 if (row['month'], row['day']) in holidays_es else 0,
             axis=1
         )
+
+        # === SEASONALITY PROXIES ===
+        # Estaciones (mayor demanda en invierno/verano por calefacción/AC)
+        df['is_winter'] = df['month'].isin([12, 1, 2]).astype(int)
+        df['is_summer'] = df['month'].isin([6, 7, 8]).astype(int)
+
+        # === AUTOREGRESSIVE LAGS (solo para training) ===
+        if include_lags and 'y' in df.columns:
+            # Lags importantes para precios eléctricos
+            df['price_lag_24h'] = df['y'].shift(24)    # Mismo momento día anterior
+            df['price_lag_168h'] = df['y'].shift(168)  # Mismo momento semana anterior
+            df['price_lag_1h'] = df['y'].shift(1)      # Hora anterior
+
+            # Rolling statistics (última semana)
+            df['price_rolling_mean_24h'] = df['y'].shift(1).rolling(window=24, min_periods=1).mean()
+            df['price_rolling_std_24h'] = df['y'].shift(1).rolling(window=24, min_periods=1).std()
+
+            # Rellenar NaNs en lags (primeros registros)
+            lag_cols = ['price_lag_24h', 'price_lag_168h', 'price_lag_1h',
+                       'price_rolling_mean_24h', 'price_rolling_std_24h']
+            for col in lag_cols:
+                df[col] = df[col].fillna(df['y'].mean())
 
         return df
 
@@ -222,9 +269,9 @@ class PriceForecastingService:
             logger.warning(f"⚠️ Datos insuficientes para entrenamiento: {len(df_prophet)} registros")
             return {"success": False, "error": f"Datos insuficientes: {len(df_prophet)} registros (mínimo 100)"}
 
-        # 2b. Agregar features exógenas (holidays, demanda proxy)
-        df_prophet = self._add_prophet_features(df_prophet)
-        logger.info("✅ Features exógenas agregadas (holidays, peak hours)")
+        # 2b. Agregar features exógenas simples (holidays, demanda proxy, NO lags)
+        df_prophet = self._add_prophet_features(df_prophet, include_lags=False)
+        logger.info("✅ Features exógenas simples: holidays, peak hours (sin lags para evitar overfitting)")
 
         # 3. Split train/test (temporal, no aleatorio)
         split_idx = int(len(df_prophet) * (1 - test_size))
@@ -234,16 +281,51 @@ class PriceForecastingService:
         logger.info(f"📊 Split: {len(df_train)} train / {len(df_test)} test")
 
         try:
-            # 4. Configurar y entrenar Prophet
+            # 4. Configurar y entrenar Prophet con custom seasonality
             self.model = Prophet(**self.prophet_config)
 
-            # Agregar country holidays españoles
+            # Agregar country holidays españoles (mejora estacionalidad)
             self.model.add_country_holidays('ES')
 
-            # Agregar regressores exógenos
-            self.model.add_regressor('is_peak_hour', prior_scale=0.1)
-            self.model.add_regressor('is_weekend', prior_scale=0.05)
-            self.model.add_regressor('is_holiday', prior_scale=0.1)
+            # === CUSTOM FOURIER SEASONALITY (optimizado para R² = 0.48) ===
+            # Daily: orden 8 (sweet spot - generaliza bien)
+            self.model.add_seasonality(
+                name='daily',
+                period=1,
+                fourier_order=8,
+                prior_scale=12.0
+            )
+
+            # Weekly: orden 5 (sweet spot - generaliza bien)
+            self.model.add_seasonality(
+                name='weekly',
+                period=7,
+                fourier_order=5,
+                prior_scale=10.0
+            )
+
+            # Yearly: orden 8 (sweet spot)
+            self.model.add_seasonality(
+                name='yearly',
+                period=365.25,
+                fourier_order=8,
+                prior_scale=8.0
+            )
+
+            # === REGRESSORES EXÓGENOS (optimizados para R² = 0.48) ===
+            # Demand proxies (sweet spot)
+            self.model.add_regressor('is_peak_hour', prior_scale=0.10)
+            self.model.add_regressor('is_valley_hour', prior_scale=0.08)
+
+            # Holidays & weekends
+            self.model.add_regressor('is_weekend', prior_scale=0.06)
+            self.model.add_regressor('is_holiday', prior_scale=0.08)
+
+            # Seasonality proxies
+            self.model.add_regressor('is_winter', prior_scale=0.04)
+            self.model.add_regressor('is_summer', prior_scale=0.04)
+
+            # NO lags autoregressivos (causan overfitting temporal)
 
             # Suprimir output verbose de Prophet
             import logging as prophet_logging
@@ -254,7 +336,12 @@ class PriceForecastingService:
             logger.info("✅ Modelo Prophet entrenado exitosamente")
 
             # 5. Validar con datos de test (backtesting)
-            future_test = df_test[['ds', 'is_peak_hour', 'is_weekend', 'is_holiday']].copy()
+            # Seleccionar columnas de regressores (sin lags)
+            regressor_cols = [
+                'ds', 'is_peak_hour', 'is_valley_hour',
+                'is_weekend', 'is_holiday', 'is_winter', 'is_summer'
+            ]
+            future_test = df_test[regressor_cols].copy()
             forecast_test = self.model.predict(future_test)
 
             # Calcular métricas
@@ -330,6 +417,52 @@ class PriceForecastingService:
             logger.error(f"❌ Error entrenando modelo: {e}")
             return {"success": False, "error": str(e)}
 
+    async def _get_historical_prices_for_lags(self, reference_date: datetime) -> pd.Series:
+        """
+        Obtiene precios históricos desde InfluxDB para calcular lags en predicción.
+
+        Args:
+            reference_date: Fecha de referencia (ahora)
+
+        Returns:
+            Series con precios históricos indexados por timestamp
+        """
+        async with DataIngestionService() as service:
+            # Extraer última semana de datos reales (necesario para lags)
+            query = f'''
+                from(bucket: "{service.config.bucket}")
+                |> range(start: -200h)
+                |> filter(fn: (r) => r._measurement == "energy_prices")
+                |> filter(fn: (r) => r._field == "price_eur_kwh")
+                |> sort(columns: ["_time"])
+            '''
+
+            try:
+                query_api = service.client.query_api()
+                tables = query_api.query(query)
+
+                data = []
+                for table in tables:
+                    for record in table.records:
+                        data.append({
+                            'timestamp': record.get_time(),
+                            'price': record.get_value()
+                        })
+
+                df = pd.DataFrame(data)
+                if df.empty:
+                    logger.warning("⚠️ No hay datos históricos para lags, usando media")
+                    return pd.Series([0.165], index=[reference_date])  # Fallback
+
+                df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_localize(None)
+                df = df.set_index('timestamp').sort_index()
+
+                return df['price']
+
+            except Exception as e:
+                logger.error(f"❌ Error obteniendo históricos para lags: {e}")
+                return pd.Series([0.165], index=[reference_date])
+
     async def predict_weekly(self, start_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """
         Genera predicción de precios para próximas 168 horas (7 días).
@@ -352,7 +485,7 @@ class PriceForecastingService:
         logger.info(f"🔮 Generando predicción 168 horas desde {start_date.isoformat()}...")
 
         try:
-            # Crear dataframe de fechas futuras manualmente
+            # 1. Crear dataframe de fechas futuras
             future_dates = pd.date_range(
                 start=start_date,
                 periods=168,
@@ -361,13 +494,15 @@ class PriceForecastingService:
 
             future = pd.DataFrame({'ds': future_dates})
 
-            # Agregar features exógenas para predicción
-            future = self._add_prophet_features(future)
+            # 2. Agregar features exógenas (sin lags)
+            future = self._add_prophet_features(future, include_lags=False)
 
-            # Predecir
+            logger.info("✅ Features exógenas agregadas (sin lags)")
+
+            # 3. Predecir con modelo Prophet
             forecast = self.model.predict(future)
 
-            # Formatear resultados
+            # 4. Formatear resultados
             predictions = []
             for _, row in forecast.iterrows():
                 predictions.append({

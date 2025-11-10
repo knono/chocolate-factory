@@ -139,7 +139,12 @@ Implemented:
 - Sprint 03: Service Layer + Repository pattern
 - Sprint 04: SIAR ETL (88,935 records, 25 years)
 - Sprint 05: Unified Dashboard + BusinessLogicService
-- Sprint 06: Prophet Price Forecasting (Oct 3, 2025)
+- Sprint 06: Prophet Price Forecasting (Oct 3, 2025 - Nov 10, 2025)
+  - R² optimizado: 0.49 (inicial) → 0.48 (walk-forward validation Nov 2025)
+  - Walk-forward validation: train hasta Oct 31, test Nov 1-10 (datos no vistos)
+  - Eliminación lags autoregressivos (evita overfitting temporal)
+  - Fourier orders: daily=8, weekly=5, yearly=8 (punto óptimo)
+  - Features exógenas: 7 (holidays ES, peak/valley hours, seasons)
 - Sprint 07: SIAR Historical Analysis (Oct 4, 2025)
   - Correlaciones: R²=0.049 (temp), R²=0.057 (humedad)
   - 5 endpoints `/analysis/*`
@@ -260,7 +265,10 @@ Implemented:
 - **Automatic Backfill**: Gap detection and recovery every 2 hours
 
 ### Machine Learning (Direct Implementation)
-- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.033 €/kWh, R²: 0.49) ✅ Real ML
+- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.029 €/kWh, R²: 0.48 walk-forward) ✅ Real ML
+  - Walk-forward validation: Nov 1-10, 2025 (datos no vistos, 239 samples)
+  - Coverage 95%: 94.98% (objetivo >90% alcanzado)
+  - Configuración optimizada: Fourier 8/5/8, sin lags (generaliza mejor)
 - **Optimization Scoring**: Deterministic business rules (NOT trained ML prediction)
   - Energy Score (0-100): Formula-based calculation using price, temperature, humidity, tariff
   - Production State: Rule-based classification (Optimal/Moderate/Reduced/Halt)

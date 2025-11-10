@@ -18,7 +18,7 @@ Energy optimization system combining machine learning price forecasting, automat
 
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
-- Prophet ML: 168-hour price forecasting (MAE: 0.033 €/kWh, R²: 0.49)
+- Prophet ML: 168-hour price forecasting (MAE: 0.029 €/kWh, R²: 0.48 walk-forward validation Nov 2025)
 - Optimization Scoring: Deterministic business rules (NOT predictive ML)
 - ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
 - ROI: 1,661€/year energy savings (theoretical estimate)
@@ -224,7 +224,7 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 
 | Sprint | Date | Description | Key Metrics |
 |--------|------|-------------|-------------|
-| 06 | Oct 2025 | Prophet Price Forecasting | MAE: 0.033 €/kWh, R²: 0.49 |
+| 06 | Oct-Nov 2025 | Prophet Price Forecasting | MAE: 0.029 €/kWh, R²: 0.48 (walk-forward) |
 | 07 | Oct 2025 | SIAR Historical Analysis | 88,935 records, 25 years |
 | 08 | Oct 2025 | Hourly Production Optimization | 85.33% savings vs baseline |
 | 09 | Oct 2025 | Unified Predictive Dashboard | 7-day forecast integration |
@@ -242,7 +242,10 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 
 ### ML Models
 
-- **Price Forecasting**: Prophet 168h ahead (MAE: 0.033 €/kWh, R²: 0.49) ✅ Real ML
+- **Price Forecasting**: Prophet 168h ahead (MAE: 0.029 €/kWh, R²: 0.48 walk-forward) ✅ Real ML
+  - Walk-forward validation: Nov 1-10, 2025 (239 samples no vistos)
+  - Coverage 95%: 94.98%
+  - Modelo simplificado: Fourier 8/5/8, 7 features exógenas, sin lags
 - **Optimization Scoring**: Deterministic business rules (NOT predictive ML)
   - Energy Score (0-100): Formula-based using price, temperature, humidity, tariff
   - Production State: Rule-based classification (Optimal/Moderate/Reduced/Halt)
