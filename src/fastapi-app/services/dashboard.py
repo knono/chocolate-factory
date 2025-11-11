@@ -122,10 +122,26 @@ class DashboardService:
             today = datetime.now().date()
             logger.info(f"🔍 Getting current info for date: {today}")
 
-            async with self.ree_client as ree:
-                ree_data = await ree.get_pvpc_prices(target_date=today)
+            ree_data = None
+            try:
+                async with self.ree_client as ree:
+                    ree_data = await ree.get_pvpc_prices(target_date=today)
+                logger.info(f"📊 REE data received: {len(ree_data) if ree_data else 0} records")
+            except Exception as ree_error:
+                logger.warning(f"⚠️ REE API failed: {ree_error}, using InfluxDB fallback")
 
-            logger.info(f"📊 REE data received: {len(ree_data) if ree_data else 0} records")
+                # Fallback: Query InfluxDB for last 24h prices
+                try:
+                    from infrastructure.influxdb.queries import query_ree_prices
+                    ree_data = await query_ree_prices(
+                        influxdb_client=self.influxdb,
+                        start_date=datetime.now() - timedelta(days=1),
+                        end_date=datetime.now()
+                    )
+                    logger.info(f"✅ InfluxDB fallback: {len(ree_data) if ree_data else 0} records")
+                except Exception as db_error:
+                    logger.warning(f"⚠️ InfluxDB fallback failed: {db_error}, using Prophet as last resort")
+                    ree_data = None
 
             current_price = None
             if ree_data and len(ree_data) > 0:
@@ -167,6 +183,32 @@ class DashboardService:
                     "datetime": latest["timestamp"],
                     "trend": self._calculate_price_trend_from_dicts(ree_data)
                 }
+            else:
+                # Last resort: Use Prophet forecast for current hour
+                logger.warning("⚠️ No REE/InfluxDB data, using Prophet forecast as fallback")
+                try:
+                    from services.price_forecasting_service import get_price_forecasting_service
+                    forecaster = get_price_forecasting_service()
+                    predictions = await forecaster.predict_hourly(hours=1)
+                    if predictions and len(predictions) > 0:
+                        pred = predictions[0]
+                        current_price = {
+                            "price_eur_kwh": pred["predicted_price"],
+                            "price_eur_mwh": pred["predicted_price"] * 1000,
+                            "datetime": pred["timestamp"],
+                            "trend": "stable"  # No trend data from forecast
+                        }
+                        logger.info(f"✅ Using Prophet forecast: {pred['predicted_price']:.4f} €/kWh")
+                except Exception as prophet_error:
+                    logger.error(f"❌ Prophet fallback failed: {prophet_error}")
+                    # Set default values to prevent dashboard from breaking
+                    current_price = {
+                        "price_eur_kwh": 0.15,  # Conservative average
+                        "price_eur_mwh": 150.0,
+                        "datetime": datetime.now(timezone.utc),
+                        "trend": "unknown"
+                    }
+                    logger.warning("⚠️ Using default price 0.15 €/kWh")
             
             # Clima actual
             async with self.weather_client as weather:

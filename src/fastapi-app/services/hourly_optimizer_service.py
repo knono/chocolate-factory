@@ -372,38 +372,90 @@ class HourlyOptimizerService:
     async def _get_weather_forecast_24h(self, target_date: datetime) -> List[Dict[str, Any]]:
         """Obtiene predicciones clima para 24 horas desde target_date"""
         try:
-            # Usar AEMET para predicciones
-            from infrastructure.external_apis import AEMETAPIClient  # Sprint 15
+            # Usar OpenWeatherMap para predicciones horarias (Linares, Jaén)
+            from infrastructure.external_apis import OpenWeatherMapAPIClient
 
-            async with AEMETAPIClient() as aemet:
-                forecast = await aemet.get_daily_weather(
-                    station_id="3195",  # Madrid-Retiro (default)
-                    start_date=target_date,
-                    end_date=target_date + timedelta(days=1)
-                )
+            async with OpenWeatherMapAPIClient() as owm:
+                forecast = await owm.get_forecast(hours=120)  # 5 days forecast
 
-            # Simplificación: asumir condiciones constantes durante el día
-            # (AEMET da predicción diaria, no horaria)
             if forecast and len(forecast) > 0:
-                # Tomar el primer registro del forecast
-                first_record = forecast[0]
-                hourly_data = [{
+                logger.info(f"✅ Obtenidos {len(forecast)} registros OpenWeatherMap forecast")
+
+                # Filtrar registros relevantes para target_date (OWM da forecast cada 3h)
+                target_start = target_date.replace(minute=0, second=0, microsecond=0)
+                target_end = target_start + timedelta(hours=24)
+
+                # Extraer registros OWM que caen en la ventana de 24h
+                owm_records = []
+                for record in forecast:
+                    record_time = record.get("timestamp")
+                    if record_time and target_start <= record_time < target_end:
+                        owm_records.append(record)
+
+                logger.info(f"🔍 Filtrado: {len(owm_records)}/{len(forecast)} registros para {target_start.date()}")
+                if forecast:
+                    first_ts = forecast[0].get('timestamp')
+                    last_ts = forecast[-1].get('timestamp')
+                    logger.info(f"🔍 Forecast range: {first_ts} → {last_ts}")
+                    logger.info(f"🔍 Target range: {target_start} → {target_end}")
+
+                # Interpolar para obtener datos horarios completos (24 horas)
+                if owm_records:
+                    hourly_data = []
+                    for hour in range(24):
+                        target_hour_time = target_start + timedelta(hours=hour)
+
+                        # Buscar el forecast más cercano (antes o después)
+                        closest_record = min(owm_records, key=lambda r: abs((r['timestamp'] - target_hour_time).total_seconds()))
+
+                        hourly_data.append({
+                            "hour": hour,
+                            "temperature": closest_record.get("temperature", 22.0),
+                            "humidity": closest_record.get("humidity", 55.0),
+                            "pressure": closest_record.get("pressure", 1013.0)
+                        })
+
+                    logger.info(f"✅ Interpolado {len(hourly_data)} horas desde {len(owm_records)} registros OWM")
+                    logger.info(f"✅ Datos clima: {hourly_data[0]['temperature']:.1f}°C @ {hourly_data[0]['hour']}:00")
+                    return hourly_data
+
+                # Fallback: si no hay datos para target_date, usar primeros registros disponibles
+                logger.warning(f"⚠️ No hay datos OWM para {target_date.date()}, usando primeros disponibles")
+                hourly_data = []
+                for hour in range(24):
+                    record_idx = min(hour // 3, len(forecast) - 1)  # Cada 3h
+                    record = forecast[record_idx]
+                    hourly_data.append({
+                        "hour": hour,
+                        "temperature": record.get("temperature", 22.0),
+                        "humidity": record.get("humidity", 55.0),
+                        "pressure": record.get("pressure", 1013.0)
+                    })
+                return hourly_data
+
+            # Fallback: usar clima actual replicado 24h
+            logger.warning("⚠️ No hay forecast OWM, usando clima actual")
+            current = await owm.get_current_weather()
+            if current:
+                temp = current.get("temperature", 22.0)
+                humidity = current.get("humidity", 55.0)
+                pressure = current.get("pressure", 1013.0)
+                logger.info(f"✅ Usando clima actual: {temp:.1f}°C, {humidity:.1f}%")
+                return [{
                     "hour": h,
-                    "temperature": first_record.get("temperature", 22.0),
-                    "humidity": first_record.get("humidity", 55.0),
-                    "pressure": first_record.get("pressure", 1013.0)
-                } for h in range(24)]
-            else:
-                # Fallback: condiciones ideales
-                logger.warning("⚠️  No hay forecast AEMET, usando condiciones ideales")
-                hourly_data = [{
-                    "hour": h,
-                    "temperature": 22.0,
-                    "humidity": 55.0,
-                    "pressure": 1013.0
+                    "temperature": temp,
+                    "humidity": humidity,
+                    "pressure": pressure
                 } for h in range(24)]
 
-            return hourly_data
+            # Fallback final: condiciones ideales
+            logger.warning("⚠️ No hay datos OWM, usando condiciones ideales")
+            return [{
+                "hour": h,
+                "temperature": 22.0,
+                "humidity": 55.0,
+                "pressure": 1013.0
+            } for h in range(24)]
 
         except Exception as e:
             logger.error(f"❌ Error obteniendo forecast clima: {e}")
