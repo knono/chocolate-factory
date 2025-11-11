@@ -124,9 +124,23 @@ class TailscaleAuthMiddleware(BaseHTTPMiddleware):
                     return True
         return False
 
+    def _is_direct_localhost(self, request: Request) -> bool:
+        """
+        Check if request originates from direct localhost (127.0.0.1).
+
+        This is for internal container-to-container communication or self-calls.
+        ALWAYS trusted regardless of environment (production or development).
+        Examples: chatbot internal HTTP calls, scheduler jobs calling endpoints.
+        """
+        if not request.client:
+            return False
+
+        client_host = request.client.host
+        return client_host in ["127.0.0.1", "localhost", "::1", "testclient"]
+
     def _is_local_request(self, request: Request) -> bool:
         """
-        Check if request originates from localhost or Docker gateway.
+        Check if request originates from Docker gateway (development only).
 
         In development, requests from host machine via Docker bridge NAT
         appear as gateway IP (e.g., 192.168.100.1). We trust these in dev mode.
@@ -135,10 +149,6 @@ class TailscaleAuthMiddleware(BaseHTTPMiddleware):
             return False
 
         client_host = request.client.host
-
-        # Direct localhost access (including testclient for unit tests)
-        if client_host in ["127.0.0.1", "localhost", "::1", "testclient"]:
-            return True
 
         # Docker gateway/bridge IPs in development mode only
         # These indicate port-forwarded access from host machine (docker run -p 8000:8000)
@@ -266,14 +276,15 @@ class TailscaleAuthMiddleware(BaseHTTPMiddleware):
 
         Logic:
         1. Public routes → allow
-        2. Localhost (dev) → bypass if enabled
-        3. Check if Tailscale IP (100.64.0.0/10)
-        4. If NOT Tailscale IP → 401 Unauthorized
-        5. If has header + admin → ADMIN role
-        6. If has header + NOT admin → VIEWER role
-        7. If NO header but Tailscale IP → VIEWER role (node share)
-        8. Admin routes (/vpn) → require ADMIN role
-        9. All other routes → allow VIEWER
+        2. Direct localhost (127.0.0.1) → allow non-admin routes (internal calls)
+        3. Docker gateway (dev only) → bypass if enabled
+        4. Check if Tailscale IP (100.64.0.0/10)
+        5. If NOT Tailscale IP → 401 Unauthorized
+        6. If has header + admin → ADMIN role
+        7. If has header + NOT admin → VIEWER role
+        8. If NO header but Tailscale IP → VIEWER role (node share)
+        9. Admin routes (/vpn) → require ADMIN role
+        10. All other routes → allow VIEWER
         """
 
         # Skip if auth disabled
@@ -284,11 +295,31 @@ class TailscaleAuthMiddleware(BaseHTTPMiddleware):
         if self._is_public_route(request.url.path):
             return await call_next(request)
 
-        # Bypass localhost in development
+        # Direct localhost: allow for internal calls (chatbot, scheduler)
+        # BUT still enforce admin restrictions on /vpn routes
+        if self._is_direct_localhost(request):
+            if self._is_admin_route(request.url.path):
+                # /vpn routes: block localhost unless in dev mode
+                if not self.bypass_local:
+                    logger.warning(f"Blocked localhost access to admin route: {request.url.path}")
+                    return JSONResponse(
+                        status_code=403,
+                        content={
+                            "error": "Forbidden",
+                            "message": "Admin routes require Tailscale authentication"
+                        }
+                    )
+            # Non-admin routes: allow localhost (internal calls)
+            logger.debug(f"Allowing internal localhost call: {request.url.path}")
+            request.state.user_login = "localhost_internal"
+            request.state.role = "viewer"  # Viewer role for non-admin routes
+            return await call_next(request)
+
+        # Bypass Docker gateway in development
         if self.bypass_local and self._is_local_request(request):
-            logger.debug(f"Bypassing auth for localhost: {request.url.path}")
+            logger.debug(f"Bypassing auth for Docker gateway: {request.url.path}")
             request.state.user_login = "localhost_dev"
-            request.state.role = "admin"  # Localhost has admin in dev
+            request.state.role = "admin"  # Full admin in dev mode
             return await call_next(request)
 
         # Get client IP
