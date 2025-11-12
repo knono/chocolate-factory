@@ -19,6 +19,12 @@ from sklearn.metrics import r2_score, accuracy_score, classification_report
 from influxdb_client import InfluxDBClient
 
 from services.data_ingestion import DataIngestionService
+from domain.machinery.specs import (
+    MACHINERY_SPECS,
+    determine_active_process,
+    calculate_process_energy,
+    calculate_process_cost
+)
 
 logger = logging.getLogger(__name__)
 
@@ -385,6 +391,12 @@ class DirectMLService:
                     if df[col].dtype in ['float64', 'float32']:
                         df[col] = df[col].fillna(method='ffill').fillna(method='bfill')
 
+                # Rename weather columns to match expected names
+                if 'temperature_mean' in df.columns:
+                    df['temperature'] = df['temperature_mean']
+                if 'humidity_mean' in df.columns:
+                    df['humidity'] = df['humidity_mean']
+
                 logger.info(f"Final merged dataset: {len(df)} records (resampled from {len(weather_df)} weather records)")
                 return df
                 
@@ -403,61 +415,93 @@ class DirectMLService:
             # Basic features
             df['hour'] = pd.to_datetime(df['timestamp']).dt.hour
             df['day_of_week'] = pd.to_datetime(df['timestamp']).dt.dayofweek
-            
-            # Energy optimization score (target for regression) - WITH REALISTIC VARIABILITY
-            # Base energy efficiency calculation
-            price_factor = (1 - df['price_eur_kwh'] / 0.40) * 0.5  # Price impact (50%)
-            temp_factor = (1 - abs(df.get('temperature', 22) - 22) / 15) * 0.3  # Temperature comfort (30%)  
-            humidity_factor = (1 - abs(df.get('humidity', 55) - 55) / 45) * 0.2  # Humidity impact (20%)
-            
-            # Add realistic noise and operational factors
-            np.random.seed(42)  # For reproducible results
-            market_volatility = np.random.normal(1.0, 0.08, len(df)).clip(0.8, 1.2)  # ±8% market volatility
-            equipment_efficiency = np.random.normal(0.92, 0.06, len(df)).clip(0.75, 1.0)  # Equipment variations
-            seasonal_adjustment = 0.95 + 0.1 * np.sin(2 * np.pi * pd.to_datetime(df['timestamp']).dt.dayofyear / 365.25)
-            
-            # Combined energy optimization score with realistic variability
-            base_score = (price_factor + temp_factor + humidity_factor).clip(0.1, 1.0)
+
+            # Machine-specific features based on REAL machinery specifications
+            df['active_process'] = df['hour'].apply(determine_active_process)
+            df['machine_power_kw'] = df['active_process'].apply(
+                lambda p: MACHINERY_SPECS[p]['power_kw']
+            )
+            df['machine_duration_hours'] = df['active_process'].apply(
+                lambda p: MACHINERY_SPECS[p]['duration_minutes'] / 60
+            )
+            df['machine_optimal_temp'] = df['active_process'].apply(
+                lambda p: np.mean(MACHINERY_SPECS[p]['optimal_temp_range'])
+            )
+            df['machine_optimal_humidity'] = df['active_process'].apply(
+                lambda p: MACHINERY_SPECS[p]['optimal_humidity']
+            )
+
+            # Calculate deviations and efficiencies
+            df['temp_machine_deviation'] = np.abs(
+                df.get('temperature', 22) - df['machine_optimal_temp']
+            )
+            df['humidity_machine_deviation'] = np.abs(
+                df.get('humidity', 55) - df['machine_optimal_humidity']
+            )
+            df['machine_thermal_efficiency'] = np.maximum(
+                0, 100 - df['temp_machine_deviation'] * 5
+            )
+            df['machine_humidity_efficiency'] = np.maximum(
+                0, 100 - df['humidity_machine_deviation'] * 2
+            )
+
+            # Real estimated energy and cost
+            df['estimated_energy_kwh'] = (
+                df['machine_power_kw'] * df['machine_duration_hours']
+            )
+            df['estimated_cost_eur'] = (
+                df['estimated_energy_kwh'] * df['price_eur_kwh']
+            )
+
+            # Tariff adjustments
+            df['tariff_period'] = df['hour'].apply(lambda h:
+                'P1_Punta' if h in [10, 11, 12, 18, 19, 20] else
+                'P2_Llano' if h in [8, 9, 14, 15, 16, 17, 22, 23] else
+                'P3_Valle'
+            )
+            tariff_multipliers = {
+                'P1_Punta': 1.3,   # +30% penalty
+                'P2_Llano': 1.0,   # neutral
+                'P3_Valle': 0.8    # -20% bonus
+            }
+            df['tariff_multiplier'] = df['tariff_period'].map(tariff_multipliers)
+            df['cost_with_tariff'] = df['estimated_cost_eur'] * df['tariff_multiplier']
+
+            # Price normalization for scoring
+            df['price_normalized'] = (df['price_eur_kwh'] / 0.40) * 100
+
+            # Energy optimization score (target for regression) - PHYSICS-BASED WITH MACHINERY SPECS
+            # Multi-component scoring based on real machine thermal efficiency
             df['energy_optimization_score'] = (
-                base_score * market_volatility * equipment_efficiency * seasonal_adjustment * 100
-            ).clip(10, 95)  # Realistic range 10-95 (never perfect 100)
+                (100 - df['price_normalized']) * 0.4 +                    # 40% price weight
+                df['machine_thermal_efficiency'] * 0.35 +                 # 35% thermal efficiency
+                df['machine_humidity_efficiency'] * 0.15 +                # 15% humidity efficiency
+                ((df['tariff_multiplier'] - 1) * -50 + 50) * 0.1         # 10% tariff weight
+            ).clip(0, 100)
             
-            # Production recommendation (target for classification) - WITH REALISTIC VARIABILITY
-            # Add production efficiency factor based on multiple variables
-            df['production_efficiency'] = (
-                (1 - df['price_eur_kwh'] / 0.40) * 0.4 +  # Energy cost impact
-                (1 - abs(df.get('temperature', 22) - 22) / 15) * 0.35 +  # Temperature comfort
-                (1 - abs(df.get('humidity', 55) - 55) / 45) * 0.25  # Humidity impact
-            ).clip(0.1, 1.0)
-            
-            # Add realistic noise and equipment factors
-            np.random.seed(42)  # For reproducible results
-            equipment_factor = np.random.normal(0.95, 0.05, len(df)).clip(0.8, 1.0)
-            seasonal_factor = 0.95 + 0.1 * np.sin(2 * np.pi * pd.to_datetime(df['timestamp']).dt.dayofyear / 365.25)
-            
-            # Combined production score with realistic variability  
-            production_score = (df['production_efficiency'] * equipment_factor * seasonal_factor).clip(0, 1)
-            
-            # Classification with realistic thresholds and overlap zones
+            # Production recommendation (target for classification) - PHYSICS-BASED WITH MACHINERY SPECS
+            # Calculate production suitability score based on real machinery thermal/humidity efficiency
+            df['production_suitability'] = (
+                df['machine_thermal_efficiency'] * 0.45 +       # 45% thermal efficiency
+                df['machine_humidity_efficiency'] * 0.25 +      # 25% humidity efficiency
+                (100 - df['price_normalized']) * 0.30           # 30% price factor
+            )
+
+            # Adjust for extreme tariff periods
+            df['production_suitability'] = df.apply(
+                lambda row: row['production_suitability'] * row['tariff_multiplier']
+                if row['tariff_period'] == 'P3_Valle' else row['production_suitability'],
+                axis=1
+            )
+
+            # Classification based on production suitability thresholds
             conditions = [
-                production_score >= 0.85,  # Optimal
-                (production_score >= 0.65) & (production_score < 0.85),  # Moderate  
-                (production_score >= 0.45) & (production_score < 0.65),  # Reduced
+                df['production_suitability'] >= 75,  # Optimal (high efficiency + low cost)
+                (df['production_suitability'] >= 55) & (df['production_suitability'] < 75),  # Moderate
+                (df['production_suitability'] >= 35) & (df['production_suitability'] < 55),  # Reduced
             ]
             choices = ['Optimal', 'Moderate', 'Reduced']
             df['production_class'] = np.select(conditions, choices, default='Halt')
-            
-            # Add some realistic classification uncertainty near boundaries
-            boundary_uncertainty = np.random.random(len(df)) < 0.1  # 10% uncertainty
-            boundary_mask = ((production_score >= 0.63) & (production_score <= 0.67)) | \
-                          ((production_score >= 0.83) & (production_score <= 0.87))
-            
-            # Apply uncertainty adjustments
-            uncertain_indices = boundary_uncertainty & boundary_mask
-            if uncertain_indices.any():
-                # Randomly flip some classifications near boundaries
-                flip_choices = np.random.choice(choices, size=uncertain_indices.sum())
-                df.loc[uncertain_indices, 'production_class'] = flip_choices
             
             logger.info(f"Features engineered for {len(df)} records")
             return df
@@ -550,42 +594,30 @@ class DirectMLService:
                 logger.error(f"❌ Insufficient merged data: {len(merged_df)} samples (need >100)")
                 return {"success": False, "error": "Insufficient data after merge"}
 
-            # STEP 4: Generate target from BUSINESS RULES (not synthetic formulas)
+            # STEP 4: Engineer machinery features (includes physics-based targets)
             logger.info("\n" + "="*60)
-            logger.info("STEP 4: Generate target from business rules")
+            logger.info("STEP 4: Engineer machinery features from specs (includes targets)")
             logger.info("="*60)
 
-            # Business rules for production state
-            # Based on: price + temperature (not circular, based on actual business constraints)
-            merged_df['production_state'] = 'Moderate'  # Default
-
-            # Optimal: Low price (<0.12 €/kWh) AND good temp (18-25°C)
-            optimal = (merged_df['price_eur_kwh'] < 0.12) & \
-                     (merged_df['temperature'] >= 18) & (merged_df['temperature'] <= 25)
-            merged_df.loc[optimal, 'production_state'] = 'Optimal'
-
-            # Reduced: High price (>0.20 €/kWh) OR hot (>28°C)
-            reduced = ((merged_df['price_eur_kwh'] > 0.20) | (merged_df['temperature'] > 28)) & \
-                     ~optimal
-            merged_df.loc[reduced, 'production_state'] = 'Reduced'
-
-            # Halt: Extreme conditions (>0.25 €/kWh AND >30°C)
-            halt = (merged_df['price_eur_kwh'] > 0.25) & (merged_df['temperature'] > 30)
-            merged_df.loc[halt, 'production_state'] = 'Halt'
-
-            logger.info(f"Target distribution:")
-            logger.info(merged_df['production_state'].value_counts().to_string())
+            merged_df = self.engineer_features(merged_df)
+            logger.info(f"✅ Machinery features + targets engineered: {len(merged_df)} records")
+            logger.info(f"Target distribution (production_class):")
+            logger.info(merged_df['production_class'].value_counts().to_string())
 
             # STEP 5: Prepare features for training
             logger.info("\n" + "="*60)
             logger.info("STEP 5: Prepare features for classification")
             logger.info("="*60)
 
-            feature_columns = ['price_eur_kwh', 'hour', 'day_of_week', 'temperature', 'humidity']
+            feature_columns = [
+                'price_eur_kwh', 'hour', 'day_of_week', 'temperature', 'humidity',
+                'machine_power_kw', 'machine_thermal_efficiency', 'machine_humidity_efficiency',
+                'estimated_cost_eur', 'tariff_multiplier'
+            ]
 
             X = merged_df[feature_columns].copy()
             X = X.fillna(X.mean())
-            y = merged_df['production_state'].copy()
+            y = merged_df['production_class'].copy()
 
             logger.info(f"✅ Features shape: {X.shape}")
             logger.info(f"✅ Target shape: {y.shape}")
@@ -754,8 +786,12 @@ class DirectMLService:
             logger.error("Feature engineering failed")
             return {"success": False, "error": "Feature engineering failed"}
         
-        # Prepare features - MUST match predict() method (5 features, Sprint 14)
-        feature_columns = ['price_eur_kwh', 'hour', 'day_of_week', 'temperature', 'humidity']
+        # Prepare features - EXPANDED with machinery specs (10 features)
+        feature_columns = [
+            'price_eur_kwh', 'hour', 'day_of_week', 'temperature', 'humidity',
+            'machine_power_kw', 'machine_thermal_efficiency', 'machine_humidity_efficiency',
+            'estimated_cost_eur', 'tariff_multiplier'
+        ]
 
         # Clean data: remove rows with NaN in critical columns and fill remaining
         df_clean = df.dropna(subset=['price_eur_kwh']).copy()
@@ -915,46 +951,57 @@ class DirectMLService:
             return {"error": "Energy model not available"}
 
         try:
-            # Prepare features - match training features (5: price, hour, day_of_week, temperature, humidity)
+            # Calculate machinery features based on current hour
             now = datetime.now()
+            active_process = determine_active_process(now.hour)
+            machine_specs = MACHINERY_SPECS[active_process]
+
+            machine_power_kw = machine_specs['power_kw']
+            machine_duration_hours = machine_specs['duration_minutes'] / 60
+            machine_optimal_temp = np.mean(machine_specs['optimal_temp_range'])
+            machine_optimal_humidity = machine_specs['optimal_humidity']
+
+            # Calculate efficiencies
+            temp_deviation = abs(temperature - machine_optimal_temp)
+            humidity_deviation = abs(humidity - machine_optimal_humidity)
+            machine_thermal_efficiency = max(0, 100 - temp_deviation * 5)
+            machine_humidity_efficiency = max(0, 100 - humidity_deviation * 2)
+
+            # Calculate cost
+            estimated_energy_kwh = machine_power_kw * machine_duration_hours
+            estimated_cost_eur = estimated_energy_kwh * price_eur_kwh
+
+            # Tariff multiplier
+            if now.hour in [10, 11, 12, 18, 19, 20]:
+                tariff_multiplier = 1.3  # P1_Punta
+            elif now.hour in [8, 9, 14, 15, 16, 17, 22, 23]:
+                tariff_multiplier = 1.0  # P2_Llano
+            else:
+                tariff_multiplier = 0.8  # P3_Valle
+
+            # Prepare features - match training features (10 features with machinery specs)
             features = np.array([[
                 price_eur_kwh,
                 now.hour,
                 now.weekday(),
                 temperature,
-                humidity
+                humidity,
+                machine_power_kw,
+                machine_thermal_efficiency,
+                machine_humidity_efficiency,
+                estimated_cost_eur,
+                tariff_multiplier
             ]])
 
-            # Get base prediction from model
-            base_prediction = self.energy_model.predict(features)[0]
-            
-            # Apply realistic variability to the prediction (works with existing trained models)
-            # Base energy efficiency calculation with realistic factors
-            price_factor = (1 - price_eur_kwh / 0.40) * 0.5  # Price impact (50%)
-            temp_factor = (1 - abs(temperature - 22) / 15) * 0.3  # Temperature comfort (30%)  
-            humidity_factor = (1 - abs(humidity - 55) / 45) * 0.2  # Humidity impact (20%)
-            
-            # Add realistic operational factors
-            import random
-            random.seed(int(now.timestamp()) % 1000)  # Time-based seed for consistency
-            market_volatility = random.uniform(0.85, 1.15)  # ±15% market volatility
-            equipment_efficiency = random.uniform(0.88, 0.98)  # Equipment variations
-            seasonal_adjustment = 0.95 + 0.1 * np.sin(2 * np.pi * now.timetuple().tm_yday / 365.25)
-            
-            # Combined realistic score
-            efficiency_base = (price_factor + temp_factor + humidity_factor)
-            realistic_score = (
-                efficiency_base * market_volatility * equipment_efficiency * seasonal_adjustment * 100
-            )
-            
-            # Blend with model prediction (70% realistic, 30% model) and clip to realistic range
-            final_prediction = (0.7 * realistic_score + 0.3 * base_prediction)
-            final_prediction = max(15, min(85, final_prediction))  # Realistic range 15-85
-            
+            # Get prediction from model
+            prediction = self.energy_model.predict(features)[0]
+
             return {
-                "energy_optimization_score": round(final_prediction, 2),
-                "recommendation": "Optimal" if final_prediction > 70 else "Moderate" if final_prediction > 40 else "Reduced",
-                "timestamp": now.isoformat()
+                "energy_optimization_score": round(prediction, 2),
+                "recommendation": "Optimal" if prediction > 70 else "Moderate" if prediction > 40 else "Reduced",
+                "timestamp": now.isoformat(),
+                "active_process": active_process,
+                "machine_thermal_efficiency": round(machine_thermal_efficiency, 2)
             }
             
         except Exception as e:
@@ -972,28 +1019,62 @@ class DirectMLService:
             return {"error": "Production model not available"}
 
         try:
-            # Prepare features - match training features (5: price, hour, day_of_week, temperature, humidity)
+            # Calculate machinery features based on current hour
             now = datetime.now()
+            active_process = determine_active_process(now.hour)
+            machine_specs = MACHINERY_SPECS[active_process]
+
+            machine_power_kw = machine_specs['power_kw']
+            machine_duration_hours = machine_specs['duration_minutes'] / 60
+            machine_optimal_temp = np.mean(machine_specs['optimal_temp_range'])
+            machine_optimal_humidity = machine_specs['optimal_humidity']
+
+            # Calculate efficiencies
+            temp_deviation = abs(temperature - machine_optimal_temp)
+            humidity_deviation = abs(humidity - machine_optimal_humidity)
+            machine_thermal_efficiency = max(0, 100 - temp_deviation * 5)
+            machine_humidity_efficiency = max(0, 100 - humidity_deviation * 2)
+
+            # Calculate cost
+            estimated_energy_kwh = machine_power_kw * machine_duration_hours
+            estimated_cost_eur = estimated_energy_kwh * price_eur_kwh
+
+            # Tariff multiplier
+            if now.hour in [10, 11, 12, 18, 19, 20]:
+                tariff_multiplier = 1.3  # P1_Punta
+            elif now.hour in [8, 9, 14, 15, 16, 17, 22, 23]:
+                tariff_multiplier = 1.0  # P2_Llano
+            else:
+                tariff_multiplier = 0.8  # P3_Valle
+
+            # Prepare features - match training features (10 features with machinery specs)
             features = np.array([[
                 price_eur_kwh,
                 now.hour,
                 now.weekday(),
                 temperature,
-                humidity
+                humidity,
+                machine_power_kw,
+                machine_thermal_efficiency,
+                machine_humidity_efficiency,
+                estimated_cost_eur,
+                tariff_multiplier
             ]])
 
             prediction = self.production_model.predict(features)[0]
             probabilities = self.production_model.predict_proba(features)[0]
-            
+
             # Get class probabilities
             classes = self.production_model.classes_
             prob_dict = {classes[i]: round(prob, 3) for i, prob in enumerate(probabilities)}
-            
+
             return {
                 "production_recommendation": prediction,
                 "confidence": round(max(probabilities), 3),
                 "probabilities": prob_dict,
-                "timestamp": now.isoformat()
+                "timestamp": now.isoformat(),
+                "active_process": active_process,
+                "machine_thermal_efficiency": round(machine_thermal_efficiency, 2)
             }
             
         except Exception as e:

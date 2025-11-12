@@ -13,6 +13,12 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from services.data_ingestion import DataIngestionService
+from domain.machinery.specs import (
+    MACHINERY_SPECS,
+    determine_active_process,
+    calculate_process_energy,
+    calculate_process_cost
+)
 
 logger = logging.getLogger(__name__)
 
@@ -265,9 +271,95 @@ class ChocolateFeatureEngine:
         df['production_recommendation'] = df['chocolate_production_index'].apply(
             self._classify_production_recommendation
         )
-        
+
+        # Add machine-specific features (based on real specs)
+        df = self.calculate_machine_features(df)
+
         return df
-    
+
+    def calculate_machine_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate features based on REAL machinery specifications.
+
+        Features added:
+        - active_process: Process typical for each hour
+        - machine_power_kw: Real power consumption (kW)
+        - machine_duration_hours: Real process duration (hours)
+        - machine_optimal_temp: Optimal temperature for active machine
+        - temp_machine_deviation: Deviation from machine optimal temp
+        - machine_thermal_efficiency: Efficiency score (0-100)
+        - estimated_energy_kwh: Real estimated energy consumption
+        - estimated_cost_eur: Real estimated cost
+        - tariff_multiplier: Tariff period multiplier
+        - cost_with_tariff: Cost adjusted by tariff period
+        """
+        if df.empty:
+            return df
+
+        # Determine active process for each hour
+        df['active_process'] = df['hour'].apply(determine_active_process)
+
+        # Get machine specs for active process
+        df['machine_power_kw'] = df['active_process'].apply(
+            lambda p: MACHINERY_SPECS[p]['power_kw']
+        )
+        df['machine_duration_hours'] = df['active_process'].apply(
+            lambda p: MACHINERY_SPECS[p]['duration_minutes'] / 60
+        )
+        df['machine_optimal_temp'] = df['active_process'].apply(
+            lambda p: np.mean(MACHINERY_SPECS[p]['optimal_temp_range'])
+        )
+        df['machine_optimal_humidity'] = df['active_process'].apply(
+            lambda p: MACHINERY_SPECS[p]['optimal_humidity']
+        )
+
+        # Calculate deviation from machine optimal temperature
+        df['temp_machine_deviation'] = np.abs(
+            df['temperature'] - df['machine_optimal_temp']
+        )
+
+        # Calculate deviation from machine optimal humidity
+        df['humidity_machine_deviation'] = np.abs(
+            df['humidity'] - df['machine_optimal_humidity']
+        )
+
+        # Machine thermal efficiency (0-100)
+        # Penalization: 5 points per degree of deviation
+        df['machine_thermal_efficiency'] = np.maximum(
+            0, 100 - df['temp_machine_deviation'] * 5
+        )
+
+        # Machine humidity efficiency (0-100)
+        # Penalization: 0.5 points per % of deviation
+        df['machine_humidity_efficiency'] = np.maximum(
+            0, 100 - df['humidity_machine_deviation'] * 0.5
+        )
+
+        # Real estimated energy consumption (kWh)
+        df['estimated_energy_kwh'] = (
+            df['machine_power_kw'] * df['machine_duration_hours']
+        )
+
+        # Real estimated cost (€)
+        df['estimated_cost_eur'] = (
+            df['estimated_energy_kwh'] * df['price_eur_kwh']
+        )
+
+        # Tariff period multipliers
+        tariff_multipliers = {
+            'P1_Punta': 1.3,   # +30% penalty in peak hours
+            'P2_Llano': 1.0,   # neutral
+            'P3_Valle': 0.8    # -20% bonus in valley hours
+        }
+        df['tariff_multiplier'] = df['tariff_period'].map(tariff_multipliers)
+
+        # Cost adjusted by tariff period
+        df['cost_with_tariff'] = df['estimated_cost_eur'] * df['tariff_multiplier']
+
+        logger.info(f"✅ Added {len(df)} rows with machine-specific features")
+
+        return df
+
     def _classify_tariff_period(self, hour: int) -> str:
         """Clasificar período tarifario español"""
         if 10 <= hour <= 13 or 18 <= hour <= 21:

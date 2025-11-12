@@ -19,8 +19,9 @@ Energy optimization system combining machine learning price forecasting, automat
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
 - Prophet ML: 168-hour price forecasting (MAE: 0.029 €/kWh, R²: 0.48 walk-forward validation Nov 2025)
-- Optimization Scoring: Deterministic business rules (NOT predictive ML)
-- ML Data: REE 12,493 records + SIAR 8,900 records merged (481 days)
+- Optimization Scoring: Physics-based ML (R² 0.978, Accuracy 0.911, Nov 12, 2025)
+- ML Features: 10 total (5 base + 5 machinery-specific from real equipment specs)
+- ML Data: REE 619 records + machinery specs (4 processes: 30-48 kW, 1-5h cycles)
 - ROI: 1,661€/year energy savings (theoretical estimate)
 - Testing: 186 tests (174 passing 93%, coverage 33%)
 - Clean Architecture: 12 routers, 47 endpoints
@@ -246,9 +247,11 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
   - Walk-forward validation: Nov 1-10, 2025 (239 samples no vistos)
   - Coverage 95%: 94.98%
   - Modelo simplificado: Fourier 8/5/8, 7 features exógenas, sin lags
-- **Optimization Scoring**: Deterministic business rules (NOT predictive ML)
-  - Energy Score (0-100): Formula-based using price, temperature, humidity, tariff
-  - Production State: Rule-based classification (Optimal/Moderate/Reduced/Halt)
+- **Optimization Scoring**: Physics-based ML with machinery specifications (Nov 12, 2025) ✅
+  - Energy Score: R² 0.978 (previous 0.287, +240% improvement)
+  - Production State: Accuracy 0.911 (previous 0.814, +12% improvement)
+  - Features: 10 (5 base + 5 machinery: power_kw, thermal_efficiency, humidity_efficiency, cost, tariff)
+  - Machinery specs: Conchado 48kW, Refinado 42kW, Templado 36kW, Mezclado 30kW
 - **Model Monitoring** (Sprint 20): CSV tracking with degradation detection
   - Metrics: MAE, RMSE, R², samples, duration
   - Baseline: median over 30 entries

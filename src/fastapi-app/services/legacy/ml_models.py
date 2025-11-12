@@ -22,6 +22,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from domain.ml.feature_engineering import ChocolateFeatureEngine
+from domain.machinery.specs import MACHINERY_SPECS, determine_active_process
 
 logger = logging.getLogger(__name__)
 
@@ -66,13 +67,37 @@ class ChocolateMLModels:
             # Feature engineering
             features_df = await self.feature_engine.create_features(training_data)
 
-            # Target variable
+            # Target variable (based on REAL machinery specs)
             if 'energy_optimization_score' not in features_df.columns:
-                logger.warning("Creating synthetic energy_optimization_score for training")
-                features_df['energy_optimization_score'] = (
-                    100 - (features_df['ree_price_eur_kwh'] * 100) +
-                    (features_df['chocolate_production_index'] * 0.3)
-                ).clip(0, 100)
+                logger.info("Creating energy_optimization_score based on REAL machinery specs")
+
+                # Use machine-specific features if available
+                if 'machine_thermal_efficiency' in features_df.columns:
+                    # IMPROVED TARGET: Based on real specs
+                    # - Price normalized (0.05 = optimal, 0.35 = worst)
+                    # - Machine thermal efficiency (0-100, from real optimal temps)
+                    # - Machine humidity efficiency (0-100, from real optimal humidity)
+                    # - Tariff multiplier (P3 valle bonus, P1 punta penalty)
+
+                    features_df['price_normalized'] = (
+                        (0.35 - features_df['price_eur_kwh']) / 0.30 * 100
+                    ).clip(0, 100)
+
+                    features_df['energy_optimization_score'] = (
+                        features_df['price_normalized'] * 0.4 +           # 40% price
+                        features_df['machine_thermal_efficiency'] * 0.35 + # 35% thermal
+                        features_df['machine_humidity_efficiency'] * 0.15 + # 15% humidity
+                        (features_df['tariff_multiplier'] - 1) * 50 + 50  # 10% tariff bonus/penalty
+                    ).clip(0, 100)
+
+                    logger.info("✅ Using REAL machinery specs for target calculation")
+                else:
+                    # FALLBACK: Old synthetic target (if machine features not available)
+                    logger.warning("Machine features not available, using basic target")
+                    features_df['energy_optimization_score'] = (
+                        100 - (features_df['price_eur_kwh'] * 100) +
+                        (features_df.get('chocolate_production_index', 50) * 0.3)
+                    ).clip(0, 100)
 
             target = features_df['energy_optimization_score']
             feature_columns = [col for col in features_df.columns if col != 'energy_optimization_score']
@@ -192,21 +217,63 @@ class ChocolateMLModels:
             # Feature engineering
             features_df = await self.feature_engine.create_features(training_data)
 
-            # Create synthetic production recommendations if not present
+            # Create production recommendations based on REAL machinery specs
             if 'production_recommendation' not in features_df.columns:
-                logger.warning("Creating synthetic production_recommendation for training")
+                logger.info("Creating production_recommendation based on REAL machinery specs")
 
-                def get_production_recommendation(row):
-                    if row['ree_price_eur_kwh'] < 0.15 and row['chocolate_production_index'] > 75:
-                        return "Optimal"
-                    elif row['ree_price_eur_kwh'] < 0.25 and row['chocolate_production_index'] > 50:
-                        return "Moderate"
-                    elif row['ree_price_eur_kwh'] < 0.35 and row['chocolate_production_index'] > 25:
-                        return "Reduced"
+                def get_production_recommendation_realistic(row):
+                    """
+                    Production recommendation based on:
+                    - Real estimated cost (from machinery specs)
+                    - Machine thermal efficiency (real optimal temps)
+                    - Tariff period (P3 valle preferred)
+                    """
+                    # Use machine features if available
+                    if 'estimated_cost_eur' in row and 'machine_thermal_efficiency' in row:
+                        cost = row['estimated_cost_eur']
+                        thermal_eff = row['machine_thermal_efficiency']
+                        tariff_mult = row.get('tariff_multiplier', 1.0)
+
+                        # Combined score (0-100)
+                        cost_score = (20 - cost) / 20 * 100  # Lower cost = higher score
+                        cost_score = max(0, min(100, cost_score))
+
+                        combined_score = (
+                            cost_score * 0.5 +        # 50% cost
+                            thermal_eff * 0.3 +       # 30% thermal
+                            (tariff_mult - 1) * -50 + 50  # 20% tariff (P3 bonus, P1 penalty)
+                        )
+
+                        # Classify based on combined score
+                        if combined_score >= 75:
+                            return "Optimal"
+                        elif combined_score >= 50:
+                            return "Moderate"
+                        elif combined_score >= 25:
+                            return "Reduced"
+                        else:
+                            return "Halt"
                     else:
-                        return "Halt"
+                        # FALLBACK: Old basic thresholds
+                        price = row.get('price_eur_kwh', 0.20)
+                        choco_index = row.get('chocolate_production_index', 50)
 
-                features_df['production_recommendation'] = features_df.apply(get_production_recommendation, axis=1)
+                        if price < 0.15 and choco_index > 75:
+                            return "Optimal"
+                        elif price < 0.25 and choco_index > 50:
+                            return "Moderate"
+                        elif price < 0.35 and choco_index > 25:
+                            return "Reduced"
+                        else:
+                            return "Halt"
+
+                features_df['production_recommendation'] = features_df.apply(
+                    get_production_recommendation_realistic, axis=1
+                )
+
+                # Log distribution
+                dist = features_df['production_recommendation'].value_counts()
+                logger.info(f"Production recommendation distribution: {dist.to_dict()}")
 
             target = features_df['production_recommendation']
             feature_columns = [col for col in features_df.columns if col != 'production_recommendation']

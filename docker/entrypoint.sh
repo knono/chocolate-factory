@@ -46,8 +46,22 @@ setup_logs() {
     return 0
 }
 
+# Function to setup domain directories permissions
+setup_domain_permissions() {
+    # Fix permissions for newly added domain modules (machinery, etc.)
+    if [ -d "/app/domain/machinery" ]; then
+        chmod -R 755 /app/domain/machinery 2>/dev/null || {
+            echo "Warning: Could not set machinery module permissions"
+        }
+    fi
+    return 0
+}
+
 # Setup logging
 setup_logs
+
+# Setup domain permissions (for new modules)
+setup_domain_permissions
 
 # Execute the main command (uvicorn)
 exec "$@"
