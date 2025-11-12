@@ -640,6 +640,36 @@ GET /predict/prices/weekly
 | R² | 0.49 | > 0.40 | ✅ |
 | Coverage 95% | 88.3% | > 85% | ✅ |
 
+#### Experimentos de Optimización Prophet (Nov 12, 2025)
+
+Se probaron **3 variantes** para mejorar baseline (R² 0.4932). Todos empeoraron rendimiento:
+
+**1. Clima Real (temperature/humidity)**
+- **Objetivo**: Usar valores reales clima vs categóricos (is_winter/summer)
+- **Features**: temperature (°C), humidity (%)
+- **Estrategia**: Hybrid (OpenWeather horaria + SIAR broadcast)
+- **Resultado**: R² 0.4906 (-0.0026, -0.26%)
+- **Causa**: Coverage limitado (5%), correlación débil clima-precios
+- **Script**: `test_prophet_climate_ab.py`
+
+**2. Tariff Periods Explícitos (P1/P2/P3)**
+- **Objetivo**: Usar estructura tarifaria oficial (RD 148/2021) vs is_peak/valley
+- **Features**: is_P1_punta, is_P2_llano, is_P3_valle
+- **Resultado**: R² 0.3222 (-0.1711, -17.11%)
+- **Causa**: Overfitting estructura regulatoria, multicolinealidad categórica
+- **Script**: `test_prophet_tariff_periods.py`
+
+**3. Changepoints + Volatility**
+- **Objetivo**: Mayor flexibilidad (changepoint_prior_scale 0.12) + volatilidad
+- **Features**: + price_volatility_7d, is_high_volatility
+- **Resultado**: R² 0.3141 (-0.1791, -17.91%)
+- **Causa**: Overfitting, volatilidad ya capturada por Fourier
+- **Script**: `test_prophet_changepoints.py`
+
+**Conclusión**: Baseline actual óptimo. Features simples (is_peak_hour, is_valley_hour, is_winter, is_summer) generalizan mejor que features elaboradas. Complejidad adicional causa overfitting.
+
+**Principio validado**: "Less is more" en ML para series temporales volátiles.
+
 ---
 
 ### sklearn Energy Optimization (Nov 12, 2025)

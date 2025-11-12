@@ -265,11 +265,17 @@ Implemented:
 - **Automatic Backfill**: Gap detection and recovery every 2 hours
 
 ### Machine Learning (Direct Implementation)
-- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.029 €/kWh, R²: 0.48 walk-forward) ✅ Real ML
-  - Walk-forward validation: Nov 1-10, 2025 (datos no vistos, 239 samples)
-  - Coverage 95%: 94.98% (objetivo >90% alcanzado)
-  - Configuración optimizada: Fourier 8/5/8, sin lags (generaliza mejor)
-  - Validation script: `scripts/validate_prophet_walkforward.py`
+- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.029 €/kWh, R²: 0.49 walk-forward) ✅ Real ML
+  - Walk-forward validation: Nov 1-10, 2025 (datos no vistos, 240 samples)
+  - Coverage 95%: 95.00% (objetivo >90% alcanzado)
+  - Configuración optimizada: Fourier 8/5/8, changepoint_prior_scale 0.08, sin lags
+  - Features: is_peak_hour, is_valley_hour, is_winter, is_summer (simples, óptimas)
+  - **Optimización validada** (Nov 12, 2025): 3 experimentos probados, baseline óptimo
+    - ❌ Clima real (temp/humidity): R² -0.26% (peor)
+    - ❌ Tariff periods (P1/P2/P3): R² -17.11% (mucho peor)
+    - ❌ Changepoints + Volatility: R² -17.91% (mucho peor)
+  - Conclusión: Features simples generalizan mejor, complejidad adicional causa overfitting
+  - Validation scripts: `scripts/validate_prophet_walkforward.py`, `scripts/test_prophet_*.py`
 - **Optimization Scoring**: Physics-based ML with machinery specifications (Nov 12, 2025)
   - Energy Score: R² test 0.983, train 0.996, diff 0.013 (no overfitting)
   - Production State: Accuracy test 0.928, train 0.998, diff 0.070 (no overfitting)
