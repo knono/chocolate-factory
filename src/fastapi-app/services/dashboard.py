@@ -15,7 +15,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 from infrastructure.external_apis import REEAPIClient, OpenWeatherMapAPIClient  # Sprint 15
-from .ml_models import ChocolateMLModels
+from .legacy.ml_models import ChocolateMLModels  # Legacy - not actively used
 from domain.ml.feature_engineering import ChocolateFeatureEngine  # Sprint 15
 from domain.recommendations.business_logic_service import get_business_logic_service  # Sprint 15
 from .price_forecasting_service import PriceForecastingService
