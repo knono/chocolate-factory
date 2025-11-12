@@ -14,8 +14,8 @@ import asyncio
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score, accuracy_score, classification_report
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
+from sklearn.metrics import r2_score, accuracy_score, classification_report, mean_absolute_error, mean_squared_error
 from influxdb_client import InfluxDBClient
 
 from services.data_ingestion import DataIngestionService
@@ -821,31 +821,95 @@ class DirectMLService:
                     X, y_energy, test_size=0.2, random_state=42
                 )
                 
-                self.energy_model = RandomForestRegressor(n_estimators=50, random_state=42)
+                self.energy_model = RandomForestRegressor(
+                    n_estimators=100,
+                    max_depth=15,
+                    min_samples_split=5,
+                    random_state=42
+                )
                 self.energy_model.fit(X_train, y_train)
-                
-                # Evaluate
-                y_pred = self.energy_model.predict(X_test)
-                r2 = r2_score(y_test, y_pred)
-                
-                # Save model with version
+
+                # Evaluate on TRAIN (overfitting detection)
+                y_pred_train = self.energy_model.predict(X_train)
+                r2_train = r2_score(y_train, y_pred_train)
+                mae_train = mean_absolute_error(y_train, y_pred_train)
+                rmse_train = np.sqrt(mean_squared_error(y_train, y_pred_train))
+
+                # Evaluate on TEST
+                y_pred_test = self.energy_model.predict(X_test)
+                r2_test = r2_score(y_test, y_pred_test)
+                mae_test = mean_absolute_error(y_test, y_pred_test)
+                rmse_test = np.sqrt(mean_squared_error(y_test, y_pred_test))
+
+                # Cross-validation (5-fold)
+                logger.info("🔍 Running 5-fold cross-validation...")
+                kfold = KFold(n_splits=5, shuffle=True, random_state=42)
+                cv_scores = cross_val_score(
+                    self.energy_model, X, y_energy, cv=kfold,
+                    scoring='r2', n_jobs=-1
+                )
+                cv_r2_mean = cv_scores.mean()
+                cv_r2_std = cv_scores.std()
+
+                # Overfitting detection
+                r2_diff = r2_train - r2_test
+                overfitting_detected = r2_diff > 0.10  # Threshold 10%
+
+                logger.info("="*60)
+                logger.info("ENERGY MODEL VALIDATION METRICS")
+                logger.info("="*60)
+                logger.info(f"  R² Train:     {r2_train:.4f}")
+                logger.info(f"  R² Test:      {r2_test:.4f}")
+                logger.info(f"  R² Diff:      {r2_diff:.4f} {'⚠️  OVERFITTING' if overfitting_detected else '✅ OK'}")
+                logger.info(f"  MAE Train:    {mae_train:.4f}")
+                logger.info(f"  MAE Test:     {mae_test:.4f}")
+                logger.info(f"  RMSE Train:   {rmse_train:.4f}")
+                logger.info(f"  RMSE Test:    {rmse_test:.4f}")
+                logger.info(f"  CV R² (5-fold): {cv_r2_mean:.4f} ± {cv_r2_std:.4f}")
+                logger.info("="*60)
+
+                # Feature importance
+                feature_importance = dict(zip(
+                    feature_columns,
+                    self.energy_model.feature_importances_
+                ))
+                sorted_importance = sorted(
+                    feature_importance.items(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )
+                logger.info("Top 5 feature importance:")
+                for feat, imp in sorted_importance[:5]:
+                    logger.info(f"  {feat}: {imp:.4f}")
+
+                # Save model with extended metrics
                 energy_metrics = {
-                    'r2_score': r2,
+                    'r2_train': float(r2_train),
+                    'r2_test': float(r2_test),
+                    'r2_diff': float(r2_diff),
+                    'mae_train': float(mae_train),
+                    'mae_test': float(mae_test),
+                    'rmse_train': float(rmse_train),
+                    'rmse_test': float(rmse_test),
+                    'cv_r2_mean': float(cv_r2_mean),
+                    'cv_r2_std': float(cv_r2_std),
+                    'overfitting_detected': bool(overfitting_detected),
                     'training_samples': len(X_train),
                     'test_samples': len(X_test),
+                    'feature_importance': {k: float(v) for k, v in sorted_importance[:5]}
                 }
                 energy_path = self._save_model_with_version(
                     self.energy_model, 'energy_optimization', timestamp, energy_metrics
                 )
-                
+
                 results['energy_model'] = {
                     **energy_metrics,
                     'saved': True,
                     'model_path': energy_path,
                     'timestamp': timestamp
                 }
-                
-                logger.info(f"Energy model trained: R² = {r2:.4f} (saved as {timestamp})")
+
+                logger.info(f"✅ Energy model trained and validated (saved as {timestamp})")
             
             # Train Production Classification Model
             # Filter data to match production class indices
@@ -864,32 +928,88 @@ class DirectMLService:
                         stratify=y_production if can_stratify else None
                     )
                     
-                    self.production_model = RandomForestClassifier(n_estimators=50, random_state=42)
+                    self.production_model = RandomForestClassifier(
+                        n_estimators=100,
+                        max_depth=15,
+                        min_samples_split=5,
+                        class_weight='balanced',
+                        random_state=42
+                    )
                     self.production_model.fit(X_train, y_train)
-                    
-                    # Evaluate
-                    y_pred = self.production_model.predict(X_test)
-                    accuracy = accuracy_score(y_test, y_pred)
-                    
-                    # Save model with version
+
+                    # Evaluate on TRAIN (overfitting detection)
+                    y_pred_train = self.production_model.predict(X_train)
+                    accuracy_train = accuracy_score(y_train, y_pred_train)
+
+                    # Evaluate on TEST
+                    y_pred_test = self.production_model.predict(X_test)
+                    accuracy_test = accuracy_score(y_test, y_pred_test)
+
+                    # Cross-validation (5-fold)
+                    logger.info("🔍 Running 5-fold cross-validation...")
+                    cv_scores = cross_val_score(
+                        self.production_model, X_prod, y_production, cv=kfold,
+                        scoring='accuracy', n_jobs=-1
+                    )
+                    cv_accuracy_mean = cv_scores.mean()
+                    cv_accuracy_std = cv_scores.std()
+
+                    # Overfitting detection
+                    accuracy_diff = accuracy_train - accuracy_test
+                    overfitting_detected = accuracy_diff > 0.15  # Threshold 15%
+
+                    logger.info("="*60)
+                    logger.info("PRODUCTION MODEL VALIDATION METRICS")
+                    logger.info("="*60)
+                    logger.info(f"  Accuracy Train: {accuracy_train:.4f}")
+                    logger.info(f"  Accuracy Test:  {accuracy_test:.4f}")
+                    logger.info(f"  Accuracy Diff:  {accuracy_diff:.4f} {'⚠️  OVERFITTING' if overfitting_detected else '✅ OK'}")
+                    logger.info(f"  CV Accuracy (5-fold): {cv_accuracy_mean:.4f} ± {cv_accuracy_std:.4f}")
+                    logger.info("="*60)
+
+                    # Classification report
+                    logger.info("Classification Report (Test Set):")
+                    logger.info("\n" + classification_report(y_test, y_pred_test))
+
+                    # Feature importance
+                    feature_importance = dict(zip(
+                        feature_columns,
+                        self.production_model.feature_importances_
+                    ))
+                    sorted_importance = sorted(
+                        feature_importance.items(),
+                        key=lambda x: x[1],
+                        reverse=True
+                    )
+                    logger.info("Top 5 feature importance:")
+                    for feat, imp in sorted_importance[:5]:
+                        logger.info(f"  {feat}: {imp:.4f}")
+
+                    # Save model with extended metrics
                     production_metrics = {
-                        'accuracy': accuracy,
+                        'accuracy_train': float(accuracy_train),
+                        'accuracy_test': float(accuracy_test),
+                        'accuracy_diff': float(accuracy_diff),
+                        'cv_accuracy_mean': float(cv_accuracy_mean),
+                        'cv_accuracy_std': float(cv_accuracy_std),
+                        'overfitting_detected': bool(overfitting_detected),
                         'training_samples': len(X_train),
                         'test_samples': len(X_test),
                         'classes': list(y_production.unique()),
+                        'feature_importance': {k: float(v) for k, v in sorted_importance[:5]}
                     }
                     production_path = self._save_model_with_version(
                         self.production_model, 'production_classifier', timestamp, production_metrics
                     )
-                    
+
                     results['production_model'] = {
                         **production_metrics,
                         'saved': True,
                         'model_path': production_path,
                         'timestamp': timestamp
                     }
-                    
-                    logger.info(f"Production model trained: Accuracy = {accuracy:.4f} (saved as {timestamp})")
+
+                    logger.info(f"✅ Production model trained and validated (saved as {timestamp})")
             
             results['success'] = True
             results['total_samples'] = len(df)
@@ -1122,3 +1242,163 @@ class DirectMLService:
             },
             "timestamp": datetime.now().isoformat()
         }
+
+    def get_diagnostic_report(self) -> Dict[str, Any]:
+        """
+        Genera reporte diagnóstico completo de modelos entrenados
+        Incluye métricas de validación extendidas desde el registry
+        """
+        try:
+            registry = self.get_model_registry()
+
+            # Energy model diagnostics
+            energy_diagnostics = {}
+            if "energy_optimization" in registry:
+                latest = registry["energy_optimization"].get("latest", {})
+                metrics = latest.get("metrics", {})
+
+                # Overfitting analysis
+                r2_train = metrics.get("r2_train", 0)
+                r2_test = metrics.get("r2_test", 0)
+                r2_diff = metrics.get("r2_diff", 0)
+                overfitting = metrics.get("overfitting_detected", False)
+
+                # Cross-validation stability
+                cv_mean = metrics.get("cv_r2_mean", 0)
+                cv_std = metrics.get("cv_r2_std", 0)
+                cv_stability = "high" if cv_std < 0.05 else "medium" if cv_std < 0.10 else "low"
+
+                energy_diagnostics = {
+                    "model_type": "RandomForestRegressor",
+                    "status": "healthy" if not overfitting and r2_test > 0.70 else "warning" if r2_test > 0.50 else "poor",
+                    "performance": {
+                        "r2_train": r2_train,
+                        "r2_test": r2_test,
+                        "r2_diff": r2_diff,
+                        "mae_test": metrics.get("mae_test", 0),
+                        "rmse_test": metrics.get("rmse_test", 0)
+                    },
+                    "cross_validation": {
+                        "cv_r2_mean": cv_mean,
+                        "cv_r2_std": cv_std,
+                        "stability": cv_stability,
+                        "interpretation": f"Model performance varies ±{cv_std:.2%} across folds"
+                    },
+                    "overfitting_analysis": {
+                        "detected": overfitting,
+                        "r2_gap": r2_diff,
+                        "threshold": 0.10,
+                        "interpretation": "⚠️ OVERFITTING: Train R² >> Test R²" if overfitting else "✅ No significant overfitting detected"
+                    },
+                    "feature_importance": metrics.get("feature_importance", {}),
+                    "training_info": {
+                        "training_samples": metrics.get("training_samples", 0),
+                        "test_samples": metrics.get("test_samples", 0),
+                        "last_trained": latest.get("created_at", "unknown")
+                    },
+                    "recommendations": self._generate_model_recommendations(
+                        overfitting, r2_test, cv_std, "regression"
+                    )
+                }
+
+            # Production model diagnostics
+            production_diagnostics = {}
+            if "production_classifier" in registry:
+                latest = registry["production_classifier"].get("latest", {})
+                metrics = latest.get("metrics", {})
+
+                # Overfitting analysis
+                acc_train = metrics.get("accuracy_train", 0)
+                acc_test = metrics.get("accuracy_test", 0)
+                acc_diff = metrics.get("accuracy_diff", 0)
+                overfitting = metrics.get("overfitting_detected", False)
+
+                # Cross-validation stability
+                cv_mean = metrics.get("cv_accuracy_mean", 0)
+                cv_std = metrics.get("cv_accuracy_std", 0)
+                cv_stability = "high" if cv_std < 0.05 else "medium" if cv_std < 0.10 else "low"
+
+                production_diagnostics = {
+                    "model_type": "RandomForestClassifier",
+                    "status": "healthy" if not overfitting and acc_test > 0.80 else "warning" if acc_test > 0.60 else "poor",
+                    "performance": {
+                        "accuracy_train": acc_train,
+                        "accuracy_test": acc_test,
+                        "accuracy_diff": acc_diff,
+                        "classes": metrics.get("classes", [])
+                    },
+                    "cross_validation": {
+                        "cv_accuracy_mean": cv_mean,
+                        "cv_accuracy_std": cv_std,
+                        "stability": cv_stability,
+                        "interpretation": f"Model accuracy varies ±{cv_std:.2%} across folds"
+                    },
+                    "overfitting_analysis": {
+                        "detected": overfitting,
+                        "accuracy_gap": acc_diff,
+                        "threshold": 0.15,
+                        "interpretation": "⚠️ OVERFITTING: Train Acc >> Test Acc" if overfitting else "✅ No significant overfitting detected"
+                    },
+                    "feature_importance": metrics.get("feature_importance", {}),
+                    "training_info": {
+                        "training_samples": metrics.get("training_samples", 0),
+                        "test_samples": metrics.get("test_samples", 0),
+                        "last_trained": latest.get("created_at", "unknown")
+                    },
+                    "recommendations": self._generate_model_recommendations(
+                        overfitting, acc_test, cv_std, "classification"
+                    )
+                }
+
+            # Overall system health
+            overall_status = "healthy"
+            if energy_diagnostics.get("status") == "poor" or production_diagnostics.get("status") == "poor":
+                overall_status = "poor"
+            elif energy_diagnostics.get("status") == "warning" or production_diagnostics.get("status") == "warning":
+                overall_status = "warning"
+
+            return {
+                "overall_status": overall_status,
+                "timestamp": datetime.now().isoformat(),
+                "energy_model": energy_diagnostics,
+                "production_model": production_diagnostics,
+                "summary": {
+                    "energy_overfitting": energy_diagnostics.get("overfitting_analysis", {}).get("detected", False),
+                    "production_overfitting": production_diagnostics.get("overfitting_analysis", {}).get("detected", False),
+                    "energy_r2_test": energy_diagnostics.get("performance", {}).get("r2_test", 0),
+                    "production_accuracy_test": production_diagnostics.get("performance", {}).get("accuracy_test", 0)
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Error generating diagnostic report: {e}")
+            return {"error": str(e), "timestamp": datetime.now().isoformat()}
+
+    def _generate_model_recommendations(self, overfitting: bool, performance: float, cv_std: float, model_type: str) -> List[str]:
+        """Genera recomendaciones basadas en métricas de validación"""
+        recommendations = []
+
+        if overfitting:
+            recommendations.append("⚠️ CRITICAL: Increase regularization (max_depth, min_samples_split)")
+            recommendations.append("Consider pruning or reducing model complexity")
+            recommendations.append("Collect more training data to reduce overfitting")
+
+        if model_type == "regression":
+            if performance < 0.50:
+                recommendations.append("❌ Poor R² test score - consider feature engineering")
+            elif performance < 0.70:
+                recommendations.append("⚠️ Moderate R² - model may benefit from more features or data")
+        else:  # classification
+            if performance < 0.60:
+                recommendations.append("❌ Poor accuracy - verify class balance and features")
+            elif performance < 0.80:
+                recommendations.append("⚠️ Moderate accuracy - consider ensemble methods or more data")
+
+        if cv_std > 0.10:
+            recommendations.append("⚠️ High CV variance - model unstable across folds")
+            recommendations.append("Consider stratified sampling or more balanced data")
+
+        if not recommendations:
+            recommendations.append("✅ Model performing well - no critical issues detected")
+
+        return recommendations

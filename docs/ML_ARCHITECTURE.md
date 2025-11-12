@@ -244,9 +244,11 @@ RandomForestRegressor(
 **Output**: Score 0-100 (mayor = mejor momento para producir)
 
 **Métricas (Nov 12, 2025)**:
-- R²: **0.978** (previous: 0.287, +240%)
-- Training samples: 495
-- Test samples: 124
+- R² test: **0.983** (train: 0.996, diff: 0.013)
+- Cross-validation 5-fold: 0.982 ± 0.003
+- Training samples: 497
+- Test samples: 125
+- Overfitting: NO (diff < 0.10 threshold)
 
 **Entrenamiento**:
 - Automático: Cada 30 minutos
@@ -283,10 +285,12 @@ RandomForestClassifier(
 **Output**: Clase + probabilidades
 
 **Métricas (Nov 12, 2025)**:
-- Accuracy: **0.911** (previous: 0.814, +12%)
-- Training samples: 495
-- Test samples: 124
+- Accuracy test: **0.928** (train: 0.998, diff: 0.070)
+- Cross-validation 5-fold: 0.947 ± 0.026
+- Training samples: 497
+- Test samples: 125
 - Classes: 4 (Optimal, Moderate, Reduced, Halt)
+- Overfitting: NO (diff < 0.15 threshold)
 
 **Entrenamiento**:
 - Automático: Cada 30 minutos (junto con energy model)
@@ -642,11 +646,15 @@ GET /predict/prices/weekly
 
 | Métrica | Valor Actual | Objetivo | Estado |
 |---------|-------------|----------|--------|
-| R² | **0.978** | > 0.80 | ✅ |
-| Training samples | 495 | > 100 | ✅ |
-| Test samples | 124 | > 20 | ✅ |
+| R² test | **0.983** | > 0.80 | ✅ |
+| R² train | 0.996 | - | ✅ |
+| R² diff | 0.013 | < 0.10 | ✅ No overfitting |
+| CV 5-fold | 0.982 ± 0.003 | Stable | ✅ |
+| Training samples | 497 | > 100 | ✅ |
+| Test samples | 125 | > 20 | ✅ |
 | Features | 10 (5 base + 5 machinery) | - | ✅ |
-| Improvement | +240% (vs 0.287 baseline) | - | ✅ |
+
+**Validation**: `scripts/validate_sklearn_overfitting.py`
 
 ---
 
@@ -654,11 +662,39 @@ GET /predict/prices/weekly
 
 | Métrica | Valor Actual | Objetivo | Estado |
 |---------|-------------|----------|--------|
-| Accuracy | **0.911** | > 0.80 | ✅ |
-| Training samples | 495 | > 100 | ✅ |
-| Test samples | 124 | > 20 | ✅ |
+| Accuracy test | **0.928** | > 0.80 | ✅ |
+| Accuracy train | 0.998 | - | ✅ |
+| Accuracy diff | 0.070 | < 0.15 | ✅ No overfitting |
+| CV 5-fold | 0.947 ± 0.026 | Stable | ✅ |
+| Training samples | 497 | > 100 | ✅ |
+| Test samples | 125 | > 20 | ✅ |
 | Classes | 4 (Optimal/Moderate/Reduced/Halt) | 4 | ✅ |
-| Improvement | +12% (vs 0.814 baseline) | - | ✅ |
+
+**Validation**: `scripts/validate_sklearn_overfitting.py`
+
+---
+
+### Scripts de Validación
+
+**Prophet Walk-Forward Validation**:
+```bash
+docker exec chocolate_factory_brain python /app/scripts/validate_prophet_walkforward.py
+```
+- Train: Data hasta Oct 31, 2025
+- Test: Nov 1-10, 2025 (unseen data)
+- Output: MAE, RMSE, R², Coverage 95%
+- Location: `scripts/validate_prophet_walkforward.py`
+
+**sklearn Overfitting Detection**:
+```bash
+docker exec chocolate_factory_brain python /app/scripts/validate_sklearn_overfitting.py
+```
+- Train/test split: 80/20
+- Cross-validation: 5-fold KFold
+- Metrics: R² train vs test, CV mean ± std
+- Overfitting thresholds: R² diff > 0.10, Acc diff > 0.15
+- Location: `scripts/validate_sklearn_overfitting.py`
+- Code: `domain/ml/direct_ml.py:824-912` (energy), `931-1012` (production)
 
 ---
 

@@ -19,8 +19,11 @@ Energy optimization system combining machine learning price forecasting, automat
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
 - Prophet ML: 168-hour price forecasting (MAE: 0.029 €/kWh, R²: 0.48 walk-forward validation Nov 2025)
-- Optimization Scoring: Physics-based ML (R² 0.978, Accuracy 0.911, Nov 12, 2025)
+- Optimization Scoring: Physics-based ML (Nov 12, 2025)
+  - Energy: R² test 0.983, CV 0.982±0.003 (no overfitting)
+  - Production: Accuracy test 0.928, CV 0.947±0.026 (no overfitting)
 - ML Features: 10 total (5 base + 5 machinery-specific from real equipment specs)
+- ML Validation: Cross-validation 5-fold, train/test split 80/20, scripts in `/scripts`
 - ML Data: REE 619 records + machinery specs (4 processes: 30-48 kW, 1-5h cycles)
 - ROI: 1,661€/year energy savings (theoretical estimate)
 - Testing: 186 tests (174 passing 93%, coverage 33%)
@@ -247,11 +250,14 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
   - Walk-forward validation: Nov 1-10, 2025 (239 samples no vistos)
   - Coverage 95%: 94.98%
   - Modelo simplificado: Fourier 8/5/8, 7 features exógenas, sin lags
+  - Validation: `scripts/validate_prophet_walkforward.py`
 - **Optimization Scoring**: Physics-based ML with machinery specifications (Nov 12, 2025) ✅
-  - Energy Score: R² 0.978 (previous 0.287, +240% improvement)
-  - Production State: Accuracy 0.911 (previous 0.814, +12% improvement)
+  - Energy Score: R² test 0.983, train 0.996 (diff 0.013, no overfitting)
+  - Production State: Accuracy test 0.928, train 0.998 (diff 0.070, no overfitting)
+  - Cross-validation 5-fold: Energy R² 0.982±0.003, Production Acc 0.947±0.026
   - Features: 10 (5 base + 5 machinery: power_kw, thermal_efficiency, humidity_efficiency, cost, tariff)
   - Machinery specs: Conchado 48kW, Refinado 42kW, Templado 36kW, Mezclado 30kW
+  - Validation: `scripts/validate_sklearn_overfitting.py`
 - **Model Monitoring** (Sprint 20): CSV tracking with degradation detection
   - Metrics: MAE, RMSE, R², samples, duration
   - Baseline: median over 30 entries

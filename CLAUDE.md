@@ -269,13 +269,17 @@ Implemented:
   - Walk-forward validation: Nov 1-10, 2025 (datos no vistos, 239 samples)
   - Coverage 95%: 94.98% (objetivo >90% alcanzado)
   - Configuración optimizada: Fourier 8/5/8, sin lags (generaliza mejor)
+  - Validation script: `scripts/validate_prophet_walkforward.py`
 - **Optimization Scoring**: Physics-based ML with machinery specifications (Nov 12, 2025)
-  - Energy Score: R² 0.978 (previous 0.287, +240% improvement)
-  - Production State: Accuracy 0.911 (previous 0.814, +12% improvement)
+  - Energy Score: R² test 0.983, train 0.996, diff 0.013 (no overfitting)
+  - Production State: Accuracy test 0.928, train 0.998, diff 0.070 (no overfitting)
+  - Cross-validation: Energy R² 0.982±0.003, Production Acc 0.947±0.026 (stable)
   - Features: 10 (5 base + 5 machinery-specific from real equipment specs)
   - Machinery features: power_kw, thermal_efficiency, humidity_efficiency, estimated_cost, tariff_multiplier
   - Targets: Physics-based using real thermal/humidity efficiency (not synthetic)
   - Data: REE 619 records + machinery specs (Conchado 48kW, Refinado 42kW, Templado 36kW, Mezclado 30kW)
+  - Validation script: `scripts/validate_sklearn_overfitting.py`
+  - Overfitting detection: R² diff threshold 0.10, Accuracy diff threshold 0.15
 - **Direct Training**: sklearn + Prophet + pickle storage (no external ML services)
 - **Feature Engineering**: 10 features total
   - Base (5): price, hour, dow, temperature, humidity

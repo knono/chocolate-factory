@@ -57,11 +57,30 @@ setup_domain_permissions() {
     return 0
 }
 
+# Function to setup scripts directory permissions (bind mount)
+setup_scripts_permissions() {
+    # Ensure scripts directory exists and is readable
+    if [ -d "/app/scripts" ]; then
+        # Make scripts executable (bind mount from host)
+        chmod -R +x /app/scripts/*.py 2>/dev/null || {
+            echo "Warning: Could not set scripts executable permissions"
+        }
+        chmod -R +x /app/scripts/*.sh 2>/dev/null || true
+        echo "✅ Scripts directory ready: /app/scripts"
+    else
+        echo "Warning: /app/scripts directory not found (bind mount may not be active)"
+    fi
+    return 0
+}
+
 # Setup logging
 setup_logs
 
 # Setup domain permissions (for new modules)
 setup_domain_permissions
+
+# Setup scripts permissions (bind mount)
+setup_scripts_permissions
 
 # Execute the main command (uvicorn)
 exec "$@"
