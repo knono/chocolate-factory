@@ -59,9 +59,13 @@ class TailscaleHealthService:
         """
         self.influx_client = influx_client
         self.tailscale_proxy_url = tailscale_proxy_url
-        self._http_client = httpx.Client(timeout=10.0, follow_redirects=False)
+        self._http_client = httpx.AsyncClient(timeout=10.0, follow_redirects=False)
 
-    def _get_tailscale_status_http(self) -> str:
+    async def aclose(self):
+        """Close the async HTTP client."""
+        await self._http_client.aclose()
+
+    async def _get_tailscale_status_http(self) -> str:
         """
         Get tailscale status via HTTP proxy.
 
@@ -75,14 +79,14 @@ class TailscaleHealthService:
         logger.debug(f"Fetching Tailscale status from: {url}")
 
         try:
-            response = self._http_client.get(url)
+            response = await self._http_client.get(url)
             response.raise_for_status()
             return response.text
         except httpx.HTTPError as e:
             logger.error(f"HTTP request to Tailscale proxy failed: {e}")
             raise
 
-    def get_tailscale_status(self) -> Dict[str, Any]:
+    async def get_tailscale_status(self) -> Dict[str, Any]:
         """
         Get full Tailscale status as JSON via HTTP proxy.
 
@@ -90,7 +94,7 @@ class TailscaleHealthService:
             Dict with Self, Peer, CurrentTailnet, etc.
         """
         try:
-            status_json = self._get_tailscale_status_http()
+            status_json = await self._get_tailscale_status_http()
             status = json.loads(status_json)
             return status
 
@@ -101,7 +105,7 @@ class TailscaleHealthService:
             logger.error(f"Failed to parse tailscale status JSON: {e}")
             raise
 
-    def get_nodes_health(self) -> List[NodeHealth]:
+    async def get_nodes_health(self) -> List[NodeHealth]:
         """
         Get health status for all critical nodes.
 
@@ -109,7 +113,7 @@ class TailscaleHealthService:
             List of NodeHealth objects with current status
         """
         try:
-            status = self.get_tailscale_status()
+            status = await self.get_tailscale_status()
             nodes_health = []
 
             # Process self node
@@ -208,14 +212,14 @@ class TailscaleHealthService:
                 "error": str(e)
             }
 
-    def get_health_summary(self) -> Dict[str, Any]:
+    async def get_health_summary(self) -> Dict[str, Any]:
         """
         Get summary of Tailscale network health.
 
         Returns:
             Dict with overall health metrics
         """
-        nodes = self.get_nodes_health()
+        nodes = await self.get_nodes_health()
 
         total_nodes = len(nodes)
         online_nodes = sum(1 for n in nodes if n.online)
@@ -315,7 +319,7 @@ class TailscaleHealthService:
             logger.error(f"Failed to calculate uptime for {hostname}: {e}")
             return None
 
-    def get_network_diagnostics(self) -> Dict[str, Any]:
+    async def get_network_diagnostics(self) -> Dict[str, Any]:
         """
         Run netcheck for connectivity diagnostics via HTTP proxy.
 
@@ -326,7 +330,7 @@ class TailscaleHealthService:
         logger.debug(f"Fetching netcheck diagnostics from: {url}")
 
         try:
-            response = self._http_client.get(url)
+            response = await self._http_client.get(url)
             response.raise_for_status()
             netcheck_data = json.loads(response.text)
 
@@ -340,7 +344,7 @@ class TailscaleHealthService:
             logger.error(f"Failed to parse netcheck JSON: {e}")
             return {}
 
-    def ping_peer(self, hostname: str, count: int = 5) -> Dict[str, Any]:
+    async def ping_peer(self, hostname: str, count: int = 5) -> Dict[str, Any]:
         """
         Ping peer and return latency statistics.
 
@@ -355,7 +359,7 @@ class TailscaleHealthService:
         logger.debug(f"Pinging {hostname} via: {url}")
 
         try:
-            response = self._http_client.get(url, timeout=30.0)
+            response = await self._http_client.get(url, timeout=30.0)
             response.raise_for_status()
             output = response.text
 
@@ -420,7 +424,7 @@ class TailscaleHealthService:
                 "error": str(e)
             }
 
-    def get_connection_stats(self, hostname: str) -> Dict[str, Any]:
+    async def get_connection_stats(self, hostname: str) -> Dict[str, Any]:
         """
         Get detailed connection statistics for a peer.
 
@@ -431,7 +435,7 @@ class TailscaleHealthService:
             Dict with connection type, relay info, traffic stats
         """
         try:
-            status = self.get_tailscale_status()
+            status = await self.get_tailscale_status()
             peers = status.get("Peer", {})
 
             for peer_key, peer_data in peers.items():

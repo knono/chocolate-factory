@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 _offline_tracking: Dict[str, datetime] = {}
 
 
-def collect_health_metrics():
+async def collect_health_metrics():
     """
     Recolecta métricas de salud de todos los nodos y las almacena en InfluxDB.
 
@@ -33,14 +33,14 @@ def collect_health_metrics():
         service = TailscaleHealthService(influx_client=influx_client)
 
         # Get current health status
-        nodes = service.get_nodes_health()
+        nodes = await service.get_nodes_health()
 
         if not nodes:
             logger.warning("No nodes found during health check")
             return
 
         # Store metrics in InfluxDB
-        asyncio.run(service.store_health_metrics(nodes))
+        await service.store_health_metrics(nodes)
 
         # Log summary
         online_count = sum(1 for n in nodes if n.online)
@@ -64,7 +64,7 @@ def collect_health_metrics():
         logger.error(f"Failed to collect health metrics: {e}", exc_info=True)
 
 
-def log_health_status():
+async def log_health_status():
     """
     Logging periódico del estado de salud general.
 
@@ -74,7 +74,7 @@ def log_health_status():
         influx_client = get_influxdb_client()
         service = TailscaleHealthService(influx_client=influx_client)
 
-        summary = service.get_health_summary()
+        summary = await service.get_health_summary()
 
         logger.info(
             f"📊 Health Status Report: "
@@ -99,11 +99,11 @@ def log_health_status():
         logger.error(f"Failed to log health status: {e}", exc_info=True)
 
 
-def check_critical_nodes():
+async def check_critical_nodes():
     """
     Verifica específicamente nodos críticos y genera alertas si están caídos.
 
-    Ejecuta cada 2 minutos para detección rápida de caídas.
+    Ejecuta cada 5 minutos para detección rápida de caídas.
     Envía alerta Telegram si nodo crítico offline >5 minutos.
     """
     global _offline_tracking
@@ -113,7 +113,7 @@ def check_critical_nodes():
         service = TailscaleHealthService(influx_client=influx_client)
         telegram_service = get_telegram_alert_service()
 
-        nodes = service.get_nodes_health()
+        nodes = await service.get_nodes_health()
         critical_nodes = [n for n in nodes if n.node_type in ["production", "development", "git"]]
 
         offline_critical = [n for n in critical_nodes if not n.online]
@@ -144,12 +144,12 @@ def check_critical_nodes():
                             try:
                                 from services.telegram_alert_service import AlertSeverity
 
-                                asyncio.run(telegram_service.send_alert(
+                                await telegram_service.send_alert(
                                     message=f"Critical node '{node.hostname}' ({node.node_type}) "
                                             f"offline for {offline_duration.total_seconds()/60:.1f} minutes",
                                     severity=AlertSeverity.CRITICAL,
                                     topic=f"health_monitoring_{node_id}"
-                                ))
+                                )
 
                                 logger.info(f"📱 Telegram alert sent for offline node {node_id}")
 
@@ -168,7 +168,7 @@ def check_critical_nodes():
         logger.error(f"Failed to check critical nodes: {e}", exc_info=True)
 
 
-def collect_connection_metrics():
+async def collect_connection_metrics():
     """
     Recolecta métricas detalladas de conexión (latency, traffic, relay) para nodos críticos.
 
@@ -197,13 +197,13 @@ def collect_connection_metrics():
                 logger.debug(f"Collecting metrics for {hostname}...")
 
                 # Ping peer for latency
-                ping_stats = service.ping_peer(hostname, count=5)
+                ping_stats = await service.ping_peer(hostname, count=5)
 
                 # Get connection stats
-                conn_stats = service.get_connection_stats(hostname)
+                conn_stats = await service.get_connection_stats(hostname)
 
                 # Store metrics in InfluxDB
-                asyncio.run(service.store_connection_metrics(hostname, ping_stats, conn_stats))
+                await service.store_connection_metrics(hostname, ping_stats, conn_stats)
 
                 # Check for alerts
                 latency_avg = ping_stats.get("avg")
@@ -217,11 +217,11 @@ def collect_connection_metrics():
                         try:
                             from services.telegram_alert_service import AlertSeverity
 
-                            asyncio.run(telegram_service.send_alert(
+                            await telegram_service.send_alert(
                                 message=f"High latency to {hostname}: {latency_avg:.1f}ms (threshold 100ms)",
                                 severity=AlertSeverity.WARNING,
                                 topic=f"latency_{hostname}"
-                            ))
+                            )
 
                         except Exception as alert_error:
                             logger.error(f"Failed to send latency alert: {alert_error}")
@@ -235,11 +235,11 @@ def collect_connection_metrics():
                         try:
                             from services.telegram_alert_service import AlertSeverity
 
-                            asyncio.run(telegram_service.send_alert(
+                            await telegram_service.send_alert(
                                 message=f"{hostname} using DERP relay ({relay_node}) - direct connection unavailable",
                                 severity=AlertSeverity.WARNING,
                                 topic=f"relay_{hostname}"
-                            ))
+                            )
 
                         except Exception as alert_error:
                             logger.error(f"Failed to send relay alert: {alert_error}")

@@ -39,7 +39,7 @@ async def get_health_summary(
         - Individual node status
     """
     try:
-        summary = service.get_health_summary()
+        summary = await service.get_health_summary()
         logger.info(
             f"Health summary: {summary['online_nodes']}/{summary['total_nodes']} nodes online, "
             f"Critical: {summary['critical_nodes']['health_percentage']}%"
@@ -70,7 +70,7 @@ async def get_nodes_status(
         - Last seen timestamp
     """
     try:
-        all_nodes = service.get_nodes_health()
+        all_nodes = await service.get_nodes_health()
 
         # Filter project nodes if requested (default)
         if project_only:
@@ -153,7 +153,7 @@ async def get_critical_nodes_status(
         Filtered list with only critical infrastructure nodes
     """
     try:
-        all_nodes = service.get_nodes_health()
+        all_nodes = await service.get_nodes_health()
         critical_nodes = [n for n in all_nodes if n.node_type in ["production", "development", "git"]]
 
         online_critical = sum(1 for n in critical_nodes if n.online)
@@ -194,7 +194,7 @@ async def get_health_alerts(
         List of alerts with severity and recommended actions
     """
     try:
-        nodes = service.get_nodes_health()
+        nodes = await service.get_nodes_health()
         alerts = []
 
         # Check for offline critical nodes
@@ -291,13 +291,13 @@ async def get_connection_stats(
         logger.info(f"Fetching connection stats for {hostname}...")
 
         # Get connection stats
-        conn_stats = service.get_connection_stats(hostname)
+        conn_stats = await service.get_connection_stats(hostname)
 
         if "error" in conn_stats:
             raise HTTPException(status_code=404, detail=conn_stats["error"])
 
         # Get current ping stats
-        ping_stats = service.ping_peer(hostname, count=5)
+        ping_stats = await service.ping_peer(hostname, count=5)
 
         return {
             "timestamp": datetime.utcnow().isoformat(),

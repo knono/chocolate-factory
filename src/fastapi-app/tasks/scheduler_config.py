@@ -101,16 +101,16 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
     )
     logger.info("   ✅ Health status log: every hour")
 
-    # Critical nodes check (every 2 minutes) - Sprint 13 (pivoted)
+    # Critical nodes check (every 5 minutes) - Sprint 13 (pivoted), optimized frequency
     scheduler.add_job(
         func=check_critical_nodes,
         trigger="interval",
-        minutes=2,
+        minutes=5,
         id="critical_nodes_check",
         name="Critical Nodes Health Check",
         replace_existing=True
     )
-    logger.info("   ✅ Critical nodes check: every 2 minutes")
+    logger.info("   ✅ Critical nodes check: every 5 minutes")
 
     # Automatic gap detection (every 2 hours) - Sprint 18
     scheduler.add_job(
