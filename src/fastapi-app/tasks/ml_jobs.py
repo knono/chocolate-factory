@@ -28,8 +28,8 @@ async def ensure_prophet_model_job():
     try:
         forecast_service = PriceForecastingService()
 
-        # Entrenar modelo con datos de los últimos 12 meses
-        result = await forecast_service.train_model(months_back=12)
+        # Entrenar modelo con datos de los últimos 36 meses (3 años completos)
+        result = await forecast_service.train_model(months_back=36)
 
         if result.get('success'):
             logger.info("✅ Modelo Prophet entrenado exitosamente")
