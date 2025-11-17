@@ -243,7 +243,7 @@ curl http://localhost:8000/chat/health
   • Optimizado: 185.29 €
   • Baseline: 217.14 €
   • Ahorro: 14.7%
-🎯 ROI anual estimado: 1,661 €
+🎯 ROI anual estimado: 11,045 € (valle-prioritized, 35.7% ahorro)
 
 ⏱️ Latencia: ~12s
 💰 Costo: $0.001

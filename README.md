@@ -25,7 +25,7 @@ Energy optimization system combining machine learning price forecasting, automat
 - ML Features: 10 total (5 base + 5 machinery-specific from real equipment specs)
 - ML Validation: Cross-validation 5-fold, train/test split 80/20, scripts in `/scripts`
 - ML Data: REE 619 records + machinery specs (4 processes: 30-48 kW, 1-5h cycles)
-- ROI: 1,661€/year energy savings (theoretical estimate)
+- ROI: 11,045€/year energy savings (valle-prioritized vs baseline, 35.7% reduction)
 - Testing: 186 tests (174 passing 93%, coverage 33%)
 - Clean Architecture: 12 routers, 47 endpoints
 - CI/CD: Automated testing + smoke tests + rollback on failure
@@ -263,7 +263,7 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
   - Baseline: median over 30 entries
   - Alerts: MAE >2x, R² <50% baseline (Telegram)
 - **Historical Analysis**: SIAR correlations (R²=0.049 temp, R²=0.057 humidity)
-- **ROI Tracking**: 1,661€/year theoretical savings (baseline estimate, not measured)
+- **ROI Tracking**: 11,045€/year valle-prioritized savings (35.7% vs baseline, not measured)
 
 Full documentation: [`docs/ML_ARCHITECTURE.md`](docs/ML_ARCHITECTURE.md)
 
@@ -460,7 +460,7 @@ Docker bind mounts ensure data survives container restarts:
 - **Failing**: 12 tests (async context manager mocking issues)
 - **Monitoring**: Health checks + connection metrics + model monitoring + Telegram alerts
 - **Observability**: JSON logging + structured logs search + CSV metrics tracking
-- **ROI**: 1,661€/year theoretical estimate (not measured from production)
+- **ROI**: 11,045€/year valle-prioritized estimate (35.7% reduction, not measured)
 
 ---
 

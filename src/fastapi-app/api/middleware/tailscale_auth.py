@@ -75,7 +75,12 @@ class TailscaleAuthMiddleware(BaseHTTPMiddleware):
             "/version",
             "/docs",
             "/redoc",
-            "/openapi.json"
+            "/openapi.json",
+            # Dashboard data endpoints (required for /static/index.html to work via proxy)
+            "/dashboard/complete",
+            "/insights/savings-tracking",
+            "/insights/ree-deviation",
+            "/insights/optimal-windows"
         ]
 
         # Static routes (checked separately to exclude /static/vpn.html)

@@ -55,18 +55,17 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
     )
     logger.info(f"   ✅ Weather ingestion: every {settings.WEATHER_INGESTION_INTERVAL} minutes")
 
-    # Prophet model auto-training (run at startup + daily)
-    from datetime import datetime as dt
+    # Prophet model auto-training (daily at 15:00h)
     scheduler.add_job(
         func=ensure_prophet_model_job,
-        trigger="interval",
-        hours=24,
-        id="ensure_prophet_model",
-        name="Ensure Prophet Model Exists",
-        replace_existing=True,
-        next_run_time=dt.now()  # Execute immediately
+        trigger="cron",
+        hour=15,
+        minute=0,
+        id="prophet_daily_training",
+        name="Prophet Daily Training (15:00h)",
+        replace_existing=True
     )
-    logger.info("   ✅ Prophet model check: at startup + every 24 hours")
+    logger.info("   ✅ Prophet training: daily at 15:00h")
 
     # sklearn model training (every 30 minutes)
     scheduler.add_job(

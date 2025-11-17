@@ -705,8 +705,8 @@ Unified predictive dashboard summary.
 {
   "status": "success",
   "roi_tracking": {
-    "annual_savings_eur": 1661,
-    "monthly_average": 138.4
+    "annual_savings_eur": 11045,
+    "monthly_average": 920.4
   },
   "recommendations": [
     "Maximizar produccion entre 02:00-06:00",

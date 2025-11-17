@@ -34,7 +34,7 @@ El sistema ML de Chocolate Factory integra **3 tipos de modelos** para optimizac
 - ✅ Feature engineering automático
 - ✅ Entrenamiento automático: sklearn 30min, Prophet 24h (7 APScheduler jobs total)
 - ✅ Predicciones integradas en dashboard
-- ✅ ROI tracking: 1,661€/año (estimación teórica - Sprint 16 disclaimers)
+- ✅ ROI tracking: 11,045€/año (valle-prioritized vs baseline, 35.7% ahorro)
 
 ---
 
@@ -753,7 +753,7 @@ GET /dashboard/complete
 GET /insights/optimal-windows       # 7 días ventanas óptimas (Prophet)
 GET /insights/ree-deviation         # REE D-1 vs Real (accuracy 87.5%)
 GET /insights/predictive-alerts     # Alertas (picos, clima extremo)
-GET /insights/savings-tracking      # ROI tracking (1,661€/año)
+GET /insights/savings-tracking      # ROI tracking (11,045€/año valle-prioritized)
 ```
 
 **Trazabilidad ROI**:
@@ -765,9 +765,9 @@ GET /insights/savings-tracking (routers/insights.py)
 PredictiveInsightsService.get_savings_tracking()
   ↓
 Cálculos:
-  - Diario: 4.55€ ahorro/día
-  - Mensual: 620€/mes
-  - Anual: 1,661€/año
+  - Diario: 30.26€ ahorro/día
+  - Mensual: 908€/mes
+  - Anual: 11,045€/año
 ```
 
 ---
@@ -908,7 +908,7 @@ tests/ml/
 - ⚠️ **Adecuado para**: Desarrollo, demos, despliegues privados pequeños
 
 **Métricas ROI**:
-- ⚠️ **1,661€/año**: Estimación teórica de baseline, **NO medición real**
+- ⚠️ **11,045€/año**: Estimación valle-prioritized (35.7% ahorro vs baseline), **NO medición real**
 - ✅ **Data volumes**: Verificables desde InfluxDB (42k REE, 88k SIAR - Oct 2025)
 - ❌ **Ahorro real**: No medido en producción real
 

@@ -31,32 +31,50 @@ class REEDeviationComponent {
     }
 
     renderContent() {
-        const { deviation_summary, reliability_by_period, worst_deviation } = this.data;
+        const { validation_metrics, performance_context, reliability_by_period, model_info, practical_value } = this.data;
 
         const html = `
             <div class="ree-deviation-container">
-                <!-- Summary Metrics -->
+                <!-- Summary Metrics (Prophet Validated) -->
                 <div class="deviation-summary-grid">
                     <div class="deviation-metric">
                         <div class="metric-icon">📊</div>
                         <div class="metric-content">
-                            <div class="metric-value">±${deviation_summary.avg_deviation_eur_kwh.toFixed(4)}</div>
-                            <div class="metric-label">Desviación Media</div>
+                            <div class="metric-value">±${validation_metrics.mae_eur_kwh.toFixed(3)}</div>
+                            <div class="metric-label">MAE (Error Medio)</div>
                         </div>
                     </div>
                     <div class="deviation-metric">
                         <div class="metric-icon">🎯</div>
                         <div class="metric-content">
-                            <div class="metric-value">${deviation_summary.accuracy_score_pct}%</div>
-                            <div class="metric-label">Accuracy Score</div>
+                            <div class="metric-value">${(validation_metrics.r2_score * 100).toFixed(1)}%</div>
+                            <div class="metric-label">R² Score</div>
                         </div>
                     </div>
                     <div class="deviation-metric">
                         <div class="metric-icon">📈</div>
                         <div class="metric-content">
-                            <div class="metric-value">${deviation_summary.trend}</div>
-                            <div class="metric-label">Tendencia</div>
+                            <div class="metric-value">${validation_metrics.coverage_95pct.toFixed(1)}%</div>
+                            <div class="metric-label">Coverage 95%</div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Model Info -->
+                <div class="model-info-section" style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; margin: 1rem 0; border-left: 4px solid #3b82f6;">
+                    <div style="font-size: 0.85rem; color: #333;">
+                        <strong>🤖 ${model_info.model_type}</strong> - ${model_info.validation_method}<br>
+                        <span style="color: #666; font-size: 0.8rem;">${model_info.note}</span>
+                    </div>
+                </div>
+
+                <!-- Performance Context -->
+                <div class="context-section" style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                    <h5 style="margin: 0 0 0.5rem 0; color: #10b981; font-size: 0.9rem;">💡 Contexto de Rendimiento</h5>
+                    <div style="font-size: 0.8rem; color: #333; line-height: 1.5;">
+                        • ${performance_context.market_volatility}<br>
+                        • ${performance_context.r2_interpretation}<br>
+                        • ${performance_context.mae_practical}
                     </div>
                 </div>
 
@@ -67,38 +85,41 @@ class REEDeviationComponent {
                         <div class="reliability-card success">
                             <div class="reliability-period">Valle (P3) - 00-07h</div>
                             <div class="reliability-deviation">
-                                Desviación: ±${reliability_by_period.valle_p3.avg_deviation.toFixed(4)} €/kWh
+                                ${reliability_by_period.valle_p3.expected_deviation}
                             </div>
                             <div class="reliability-status">${reliability_by_period.valle_p3.reliability}</div>
+                            <div style="font-size: 0.75rem; color: #666; margin-top: 0.5rem;">
+                                Confianza: ${reliability_by_period.valle_p3.scheduling_confidence}
+                            </div>
                         </div>
                         <div class="reliability-card warning">
                             <div class="reliability-period">Punta (P1) - 10-13h, 18-21h</div>
                             <div class="reliability-deviation">
-                                Desviación: ±${reliability_by_period.punta_p1.avg_deviation.toFixed(4)} €/kWh
+                                ${reliability_by_period.punta_p1.expected_deviation}
                             </div>
                             <div class="reliability-status">${reliability_by_period.punta_p1.reliability}</div>
+                            <div style="font-size: 0.75rem; color: #666; margin-top: 0.5rem;">
+                                Confianza: ${reliability_by_period.punta_p1.scheduling_confidence}
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Worst Deviation -->
-                <div class="worst-deviation-section">
-                    <h4 class="section-title">⚠️ Mayor Desviación (Últimas 24h)</h4>
-                    <div class="worst-deviation-card">
-                        <div class="deviation-time">${worst_deviation.hour}</div>
-                        <div class="deviation-comparison">
-                            <div class="comparison-item">
-                                <span class="comparison-label">Predicho:</span>
-                                <span class="comparison-value">${worst_deviation.predicted.toFixed(4)} €/kWh</span>
-                            </div>
-                            <div class="comparison-arrow">→</div>
-                            <div class="comparison-item">
-                                <span class="comparison-label">Real:</span>
-                                <span class="comparison-value">${worst_deviation.actual.toFixed(4)} €/kWh</span>
-                            </div>
+                <!-- Practical Value -->
+                <div class="practical-value-section" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.1)); padding: 1rem; border-radius: 8px; margin: 1rem 0; border: 2px solid rgba(139, 92, 246, 0.3);">
+                    <h4 class="section-title" style="color: #8b5cf6; margin-bottom: 0.75rem;">💰 Valor Práctico en Fábrica</h4>
+                    <div style="font-size: 0.85rem; color: #333; line-height: 1.6;">
+                        <div style="margin-bottom: 0.5rem;">
+                            <strong>🏭 ${practical_value.conchado_batch}</strong>
                         </div>
-                        <div class="deviation-value">
-                            Diferencia: ${worst_deviation.deviation.toFixed(4)} €/kWh
+                        <div style="margin-bottom: 0.5rem;">
+                            📅 Ahorro semanal: ${practical_value.weekly_savings}
+                        </div>
+                        <div style="margin-bottom: 0.5rem;">
+                            📈 Impacto anual: <strong>${practical_value.annual_impact}</strong>
+                        </div>
+                        <div style="color: #666; font-size: 0.8rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.1);">
+                            ℹ️ ${practical_value.error_cost}
                         </div>
                     </div>
                 </div>
@@ -107,7 +128,7 @@ class REEDeviationComponent {
                 <div class="deviation-insights">
                     <div class="insight-icon">💡</div>
                     <div class="insight-text">
-                        ${this.generateInsights(deviation_summary, reliability_by_period)}
+                        ${this.generateInsights(validation_metrics, performance_context)}
                     </div>
                 </div>
             </div>
@@ -116,18 +137,32 @@ class REEDeviationComponent {
         this.container.innerHTML = html;
     }
 
-    generateInsights(summary, reliability) {
+    generateInsights(metrics, context) {
         const insights = [];
 
-        if (summary.accuracy_score_pct >= 85) {
-            insights.push('Predicciones muy confiables (>85% accuracy)');
-        } else if (summary.accuracy_score_pct >= 70) {
-            insights.push('Predicciones confiables (70-85% accuracy)');
+        // R² interpretation
+        if (metrics.r2_score >= 0.60) {
+            insights.push('✅ Modelo explica >60% de varianza de precios (excelente para mercado volátil)');
+        } else if (metrics.r2_score >= 0.40) {
+            insights.push('✅ Modelo explica >40% de varianza (aceptable dado alta volatilidad mercado)');
         } else {
-            insights.push('⚠️ Predicciones con margen de mejora (<70% accuracy)');
+            insights.push('⚠️ R² <40% - modelo con limitaciones predictivas');
         }
 
-        if (summary.trend === 'STABLE') {
+        // Coverage interpretation
+        if (metrics.coverage_95pct >= 90) {
+            insights.push(`✅ ${metrics.coverage_95pct.toFixed(0)}% predicciones dentro intervalo confianza - alta fiabilidad`);
+        }
+
+        // MAE practical value
+        if (metrics.mae_eur_kwh <= 0.03) {
+            insights.push('✅ Error promedio <3 céntimos - suficiente para decisiones scheduling');
+        } else if (metrics.mae_eur_kwh <= 0.05) {
+            insights.push('⚠️ Error promedio 3-5 céntimos - aceptable pero mejorable');
+        }
+
+        // General recommendation
+        if (insights.length > 0) {
             insights.push('Desviaciones estables y predecibles');
         } else {
             insights.push('Variabilidad mayor en periodos punta');

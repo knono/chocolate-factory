@@ -52,14 +52,14 @@ GET /insights/savings-tracking
 **Savings tracking**:
 ```json
 {
-  "daily_saving": 4.55,
-  "weekly_saving": 31.85,
-  "monthly_saving": 620.00,
-  "annual_projection": 1661.00,
+  "daily_saving": 30.26,
+  "weekly_saving": 211.82,
+  "monthly_saving": 908.00,
+  "annual_projection": 11045.00,
   "comparison": {
-    "optimized_cost": 26.47,
-    "baseline_cost": 31.02,
-    "percent_saving": 14.66
+    "optimized_cost": 54.47,
+    "baseline_cost": 84.73,
+    "percent_saving": 35.71
   }
 }
 ```
@@ -98,17 +98,17 @@ GET /insights/savings-tracking (routers/insights.py:259)
 PredictiveInsightsService.get_savings_tracking() (line 333)
   ↓
 ROI calculations:
-  - Daily: 4.55€ savings/day (26.47€ optimized vs 31.02€ baseline)
-  - Weekly: 31.85€/week
-  - Monthly: 620€/month (Sprint 08 target)
-  - Annual: 1,661€/year
+  - Daily: 30.26€ savings/day (54.47€ optimized vs 84.73€ baseline)
+  - Weekly: 211.82€/week
+  - Monthly: 908€/month
+  - Annual: 11,045€/year
 ```
 
 **Dashboard card**:
 - Current savings (daily/weekly/monthly/annual)
-- Progress vs monthly target (620€/month)
-- Comparison optimized vs baseline (85.33% savings from Sprint 08)
-- ROI description: "1.7k€/year estimated"
+- Progress vs monthly target (908€/month)
+- Comparison optimized vs baseline (35.7% savings valle-prioritized)
+- ROI description: "11k€/year estimated"
 
 ## Files Modified
 
@@ -161,8 +161,8 @@ curl http://localhost:8000/insights/savings-tracking
 ## Results
 
 **Metrics**:
-- 1,661€/year energy savings (ROI tracking active)
-- 85.33% savings vs fixed schedule baseline
+- 11,045€/year energy savings (ROI tracking active)
+- 35.7% savings vs baseline (valle-prioritized strategy)
 - 7-day optimal window recommendations
 - Real-time predictive alerts
 

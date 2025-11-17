@@ -17,25 +17,18 @@ logger = logging.getLogger(__name__)
 
 async def ensure_prophet_model_job():
     """
-    Verifica que el modelo Prophet exista, si no lo entrena automáticamente.
+    Reentrena el modelo Prophet diariamente a las 15:00h.
 
-    Se ejecuta al iniciar la aplicación y periódicamente para asegurar
-    que siempre hay un modelo disponible.
+    Mantiene el modelo actualizado con datos recientes para mejorar
+    la precisión de las predicciones.
     """
     telegram_service = get_telegram_alert_service()
-    logger.info("🔍 Verificando disponibilidad modelo Prophet...")
+    logger.info("🔄 Iniciando reentrenamiento programado de Prophet...")
 
     try:
         forecast_service = PriceForecastingService()
-        model_path = forecast_service.models_dir / "prophet_latest.pkl"
 
-        if model_path.exists():
-            logger.info(f"✅ Modelo Prophet disponible: {model_path}")
-            return
-
-        # Modelo no existe, entrenar automáticamente
-        logger.warning("⚠️ Modelo Prophet no encontrado, iniciando entrenamiento automático...")
-
+        # Entrenar modelo con datos de los últimos 12 meses
         result = await forecast_service.train_model(months_back=12)
 
         if result.get('success'):

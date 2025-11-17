@@ -59,7 +59,7 @@ class InfluxDBConfig(BaseModel):
     url: str = Field(default_factory=lambda: os.getenv("INFLUXDB_URL", "http://localhost:8086"))
     token: str = Field(default_factory=lambda: os.getenv("INFLUXDB_TOKEN", ""))
     org: str = Field(default_factory=lambda: os.getenv("INFLUXDB_ORG", "chocolate-factory"))
-    bucket: str = Field(default_factory=lambda: os.getenv("INFLUXDB_BUCKET", "energy-data"))
+    bucket: str = Field(default_factory=lambda: os.getenv("INFLUXDB_BUCKET", "energy_data"))
     timeout: int = 30000  # ms
 
 

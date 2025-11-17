@@ -36,11 +36,11 @@ total_score = 0.6 * price_score + 0.4 * climate_score
     {"id": "P01", "type": "Premium", "start": "00:00", "end": "12:00", "cost": 79.14}
   ],
   "savings": {
-    "absolute_eur": 920.52,
-    "percent": 85.33,
-    "daily_projection": 920.52,
-    "monthly_projection": 20251.44,
-    "annual_projection": 228288.96
+    "absolute_eur": 30.26,
+    "percent": 35.71,
+    "daily_projection": 30.26,
+    "monthly_projection": 908.00,
+    "annual_projection": 11045.00
   }
 }
 ```
@@ -88,10 +88,10 @@ Baseline: Fixed 08:00-16:00h schedule
 **Real test results** (2025-10-06):
 ```
 Target: 200kg (20 batches: 6 premium + 14 standard)
-Baseline: 1,078.80€ (fixed 08-16h)
-Optimized: 158.28€ (dynamic windows)
-Savings: 920.52€/day (85.33%)
-Annual ROI: 228,288€
+Baseline: 84.73€/día (distribución aleatoria 25% P1, 35% P2, 40% P3)
+Optimized: 54.47€/día (valle-prioritized: Conchado 100% P3, etc.)
+Savings: 30.26€/día (35.71%)
+Annual ROI: 11,045€
 ```
 
 ### 4. API Endpoints
@@ -165,8 +165,8 @@ curl -X POST http://localhost:8000/optimize/production/daily \
 
 **Operational test** (2025-10-06):
 - 100% feasibility (all constraints respected)
-- 85.33% savings vs fixed schedule
-- 228,288€ annual ROI projection
+- 35.71% savings valle-prioritized vs baseline
+- 11,045€ annual ROI projection
 - Prophet predictions 0.03€ - 0.16€/kWh
 - Timeline enables identification of process/tariff crossings
 

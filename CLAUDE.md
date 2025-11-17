@@ -298,7 +298,7 @@ Implemented:
   - Baseline: median over 30 entries
   - Alerts: MAE >2x baseline, R² <50% baseline
   - Storage: /app/models/metrics_history.csv
-- **ROI Tracking**: 1,661€/año ahorro energético demostrable (Sprint 09)
+- **ROI Tracking**: 11,045€/año ahorro energético (estimación valle-prioritized vs baseline)
 - **Testing**: 186 tests total, 174 passing (93%), coverage ~33% (Sprints 17-20)
 - **Documentation**: `docs/ML_ARCHITECTURE.md` (Sprint 10), `docs/ML_MONITORING.md` (Sprint 20)
 
@@ -440,7 +440,7 @@ Implemented:
 - `GET /insights/savings-tracking` - Real savings vs baseline tracking
   - Historical vs actual consumption comparison
   - Cost reduction metrics
-  - ROI calculation (1,661€/año demonstrated)
+  - ROI calculation (11,045€/año valle-prioritized vs baseline)
 
 **Note**: All endpoints perform real calculations using Prophet forecasts, SIAR historical data, and current InfluxDB values. No static data returned.
 
@@ -801,7 +801,7 @@ Technical fixes applied:
 - **Suitable For**: Development/demo, small-scale private deployments
 
 ### Data & Metrics
-- **ROI (1,661€/year)**: Theoretical baseline estimate, NOT measured from real production
+- **ROI (11,045€/year)**: Estimación valle-prioritized vs baseline (35.7% ahorro), NOT measured from real production
 - **Data Volumes**: Verifiable from InfluxDB (42k REE, 88k SIAR records as of Oct 2025)
 - **Prophet Metrics**: Last measured Oct 3, 2025 (MAE 0.033, R² 0.49) - initial benchmark, not dynamically updated
 - cuando documentes, hazlo de forma austera y directa; sin artefactos de marketing
