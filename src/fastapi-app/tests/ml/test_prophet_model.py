@@ -32,7 +32,14 @@ from services.price_forecasting_service import PriceForecastingService
 @pytest.fixture
 def forecasting_service(tmp_path):
     """Price forecasting service with temp directory."""
-    return PriceForecastingService(models_dir=str(tmp_path / "models"))
+    service = PriceForecastingService(models_dir=str(tmp_path / "models"))
+
+    # Disable metrics tracking in tests to avoid contaminating production CSV
+    service.metrics_tracker = Mock()
+    service.metrics_tracker.log_training_metrics = Mock()
+    service.metrics_tracker.detect_degradation = Mock(return_value={'degradation_detected': False, 'alerts': []})
+
+    return service
 
 
 @pytest.fixture
