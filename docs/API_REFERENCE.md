@@ -271,10 +271,12 @@ Date range specific backfill with data source filter.
 }
 ```
 
-## Machine Learning (sklearn)
+## Sistemas de Scoring Determinístico (sklearn)
+
+⚠️ **Nota**: Estos NO son modelos ML predictivos. Son sistemas de scoring basados en reglas de negocio con targets circulares (calculados desde inputs). Solo Prophet es ML puro.
 
 ### POST /models/train
-Train ML models directly (energy optimization + production classifier).
+Train scoring systems (energy optimization + production classification) - **Actualiza motor de reglas**.
 
 **Response:**
 ```json
@@ -282,22 +284,24 @@ Train ML models directly (energy optimization + production classifier).
   "status": "success",
   "training_results": {
     "energy_model": {
-      "r2_score": 0.8876,
-      "mae": 12.45,
-      "training_samples": 50
+      "r2_score": 0.983,
+      "mae": 3.2,
+      "training_samples": 619
     },
     "production_model": {
-      "accuracy": 0.90,
-      "f1_score": 0.88,
-      "training_samples": 50
+      "accuracy": 0.928,
+      "f1_score": 0.92,
+      "training_samples": 619
     }
   },
-  "timestamp": "2025-10-23T09:00:00Z"
+  "timestamp": "2025-11-12T09:00:00Z"
 }
 ```
 
+**Nota**: Métricas miden estabilidad técnica, NO capacidad predictiva (targets circulares).
+
 ### GET /models/status-direct
-Direct ML models health and performance.
+Scoring systems health and performance (NOT predictive ML models).
 
 **Response:**
 ```json
@@ -325,7 +329,7 @@ Direct ML models health and performance.
 ```
 
 ### POST /predict/energy-optimization
-Energy optimization score prediction (0-100).
+Energy optimization score (0-100) - **Sistema de scoring determinístico, NO predicción ML**.
 
 **Request:**
 ```json
@@ -354,7 +358,7 @@ Energy optimization score prediction (0-100).
 ```
 
 ### POST /predict/production-recommendation
-Production recommendation based on conditions.
+Production recommendation based on conditions - **Sistema de clasificación determinístico, NO predicción ML**.
 
 **Request:**
 ```json

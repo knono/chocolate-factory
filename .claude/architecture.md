@@ -154,9 +154,9 @@ Expone: /dashboard, /static, limited API
 
 ### ML Operations
 - **POST /predict/energy-optimization** - Energy score (0-100)
-- **POST /predict/production-recommendation** - Production class
-- **POST /predict/train** - Train sklearn models
-- **POST /predict/train/hybrid** - SIAR + REE hybrid training
+- **POST /predict/production-recommendation** - Production class (scoring determinístico)
+- **POST /predict/train** - Train sklearn scoring systems (90 días REE)
+- **POST /predict/train/hybrid** - SIAR + REE hybrid training (deprecated)
 
 ### Price Forecasting
 - **GET /predict/prices/weekly** - 7-day Prophet forecast

@@ -288,7 +288,7 @@ docker compose -f docker-compose.dev.yml config | grep "aemet_api_key"
 
 Complete backup and restore system for all critical components:
 - InfluxDB (124M+ time series data)
-- ML models (Prophet + sklearn)
+- ML models (Prophet ML puro + sklearn scoring systems)
 - Configuration (Docker Compose + Nginx)
 - Encrypted secrets (SOPS + AGE keys)
 - Source code (src/, scripts/, .claude/, docs/)
@@ -852,7 +852,7 @@ Proactive alerting system for critical failures via Telegram bot.
 2. Backfill completion/failure
 3. Gap detection (>12h)
 4. Critical nodes offline (>5min)
-5. ML training failures (sklearn/Prophet)
+5. ML training failures (Prophet ML / sklearn scoring systems)
 
 **Rate Limiting**: Max 1 alert per topic per 15min (prevents spam)
 
@@ -932,7 +932,7 @@ curl -X POST http://localhost:8000/test-telegram
 - `services/backfill_service.py` - Backfill completion/failure
 - `services/gap_detector.py` - Gap detection >12h
 - `tasks/health_monitoring_jobs.py` - Critical nodes offline
-- `tasks/sklearn_jobs.py`, `tasks/ml_jobs.py` - ML training failures
+- `tasks/sklearn_jobs.py`, `tasks/ml_jobs.py` - Prophet ML / scoring systems training failures
 
 **Dependency Injection** (`dependencies.py`):
 ```python

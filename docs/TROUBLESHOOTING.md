@@ -218,8 +218,8 @@ docker exec chocolate_factory_brain ls -lh /app/models/
 
 **Manual training:**
 ```bash
-# Train sklearn models (SIAR historical + REE data)
-curl -X POST http://localhost:8000/predict/train/hybrid
+# Train sklearn scoring systems (90 días REE data)
+curl -X POST http://localhost:8000/predict/train
 
 # Check training logs
 docker logs chocolate_factory_brain | grep "Training completed"
@@ -246,8 +246,8 @@ curl -X POST http://localhost:8000/predict/production-recommendation \
 curl -s http://localhost:8000/scheduler/status | jq '.scheduler.jobs[] | select(.id | contains("ml") or contains("prophet"))'
 
 # Expected jobs:
-# - train_sklearn_models_job (every 30 min)
-# - train_prophet_model_job (every 24 hours at 02:30)
+# - train_sklearn_models_job (every 30 min) - Scoring systems (NOT ML predictivo)
+# - train_prophet_model_job (every 24 hours at 02:30) - Prophet ML puro
 ```
 
 **Training frequencies:**

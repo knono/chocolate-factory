@@ -233,7 +233,7 @@ Cada sprint se considera **COMPLETADO** cuando:
 **Logros Serie ML Evolution**:
 - ✅ Prophet forecasting (MAE 0.029 €/kWh, R² 0.48 walk-forward validation Nov 2025)
 - ✅ Walk-forward validation metodológica (train Oct, test Nov - datos no vistos)
-- ✅ sklearn optimization (R² 0.963 - HYBRID training)
+- ✅ sklearn scoring systems (R² 0.983 - 90 días REE, targets circulares - NO ML predictivo)
 - ✅ SIAR historical analysis (88,935 registros)
 - ✅ Hourly optimization (85.33% savings)
 - ✅ Predictive dashboard (7 días forecast)

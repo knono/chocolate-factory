@@ -18,19 +18,20 @@ Energy optimization system combining machine learning price forecasting, automat
 
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
-- Prophet ML: 168-hour price forecasting (MAE: 0.029 €/kWh, R²: 0.48 walk-forward validation Nov 2025)
-- Optimization Scoring: Physics-based ML (Nov 12, 2025)
-  - Energy: R² test 0.983, CV 0.982±0.003 (no overfitting)
-  - Production: Accuracy test 0.928, CV 0.947±0.026 (no overfitting)
-- ML Features: 10 total (5 base + 5 machinery-specific from real equipment specs)
-- ML Validation: Cross-validation 5-fold, train/test split 80/20, scripts in `/scripts`
-- ML Data: REE 619 records + machinery specs (4 processes: 30-48 kW, 1-5h cycles)
+- **Prophet ML (Real ML Puro)**: 168-hour price forecasting (MAE: 0.029 €/kWh, R²: 0.48 walk-forward Nov 2025) ✅
+- **Sistemas de Scoring Determinístico** (sklearn RandomForest como motor, Nov 12, 2025):
+  - Energy Optimization: Scoring 0-100, R² test 0.983 (estabilidad técnica, targets circulares)
+  - Production Recommendation: Clasificación 4-class, Accuracy test 0.928 (targets circulares)
+  - **Naturaleza**: Motores de reglas de negocio, NO ML predictivo
+- Features: 10 total (5 base + 5 machinery-specific from real equipment specs)
+- Validation: Cross-validation 5-fold, train/test split 80/20, scripts in `/scripts`
+- Data: REE 619 records (90 días) + machinery specs (4 processes: 30-48 kW, 1-5h cycles)
 - ROI: 11,045€/year energy savings (valle-prioritized vs baseline, 35.7% reduction)
 - Testing: 186 tests (174 passing 93%, coverage 33%)
 - Clean Architecture: 12 routers, 47 endpoints
 - CI/CD: Automated testing + smoke tests + rollback on failure
 - Security: Tailscale auth (admin/viewer roles), Telegram alerts (5 types)
-- Observability: Health monitoring + Tailscale connection metrics + model monitoring
+- Observability: Health monitoring + Tailscale connection metrics + Prophet ML monitoring
 - APScheduler: 9 automated jobs
 
 **Components**:
@@ -244,21 +245,26 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 | 19 | Nov 2025 | Test Coverage Expansion (parcial) | 34 tests created, 22 passing (65%), blocked by async mocking |
 | 20 | Nov 2025 | Observability & Model Monitoring | Connection metrics (latency/traffic/relay), JSON logging, CSV metrics tracking |
 
-### ML Models
+### ML Models & Decision Support Systems
 
-- **Price Forecasting**: Prophet 168h ahead (MAE: 0.029 €/kWh, R²: 0.48 walk-forward) ✅ Real ML
+- **Price Forecasting (Prophet)**: 168h ahead (MAE: 0.029 €/kWh, R²: 0.48 walk-forward) ✅ **Real ML Puro**
   - Walk-forward validation: Nov 1-10, 2025 (239 samples no vistos)
   - Coverage 95%: 94.98%
   - Modelo simplificado: Fourier 8/5/8, 7 features exógenas, sin lags
   - Validation: `scripts/validate_prophet_walkforward.py`
-- **Optimization Scoring**: Physics-based ML with machinery specifications (Nov 12, 2025) ✅
-  - Energy Score: R² test 0.983, train 0.996 (diff 0.013, no overfitting)
-  - Production State: Accuracy test 0.928, train 0.998 (diff 0.070, no overfitting)
+- **Sistemas de Scoring Determinístico (sklearn)**: Motores de reglas de negocio (Nov 12, 2025)
+  - **Energy Optimization Scoring System**: RandomForestRegressor scoring 0-100
+    - R² test 0.983, train 0.996 (diff 0.013, estabilidad técnica)
+    - **Targets circulares**: Fórmula determinística desde inputs (NO predictivo)
+  - **Production Recommendation System**: RandomForestClassifier (Optimal/Moderate/Reduced/Halt)
+    - Accuracy test 0.928, train 0.998 (diff 0.070, estabilidad técnica)
+    - **Targets circulares**: Thresholds de fórmula determinística (NO predictivo)
   - Cross-validation 5-fold: Energy R² 0.982±0.003, Production Acc 0.947±0.026
   - Features: 10 (5 base + 5 machinery: power_kw, thermal_efficiency, humidity_efficiency, cost, tariff)
   - Machinery specs: Conchado 48kW, Refinado 42kW, Templado 36kW, Mezclado 30kW
+  - Data: 619 records (90 días REE, 100% real - eliminado data augmentation)
   - Validation: `scripts/validate_sklearn_overfitting.py`
-- **Model Monitoring** (Sprint 20): CSV tracking with degradation detection
+- **Model Monitoring** (Sprint 20): CSV tracking with degradation detection - **Solo Prophet ML**
   - Metrics: MAE, RMSE, R², samples, duration
   - Baseline: median over 30 entries
   - Alerts: MAE >2x, R² <50% baseline (Telegram)
@@ -446,8 +452,8 @@ Docker bind mounts ensure data survives container restarts:
 ## Limitations & Disclaimers
 
 ### Machine Learning
-- **Prophet**: Real ML (R² 0.49) ✅ | **Optimization Scoring**: Deterministic rules (not predictive ML)
-- **Model Monitoring**: Not implemented | **A/B Testing**: Not implemented
+- **Prophet**: Real ML puro (R² 0.48 walk-forward) ✅ | **Scoring Systems (sklearn)**: Motores de reglas de negocio (targets circulares, NO predictivo)
+- **Model Monitoring**: Solo Prophet ML (CSV tracking + Telegram alerts) | **A/B Testing**: Not implemented
 
 ### Security
 - **Network**: Tailscale VPN (zero-trust, encrypted) ✅

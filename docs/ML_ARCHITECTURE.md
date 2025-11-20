@@ -23,18 +23,19 @@
 
 ## Resumen Ejecutivo
 
-El sistema ML de Chocolate Factory integra **3 tipos de modelos** para optimización energética y predicción de producción:
+El sistema de Chocolate Factory integra **Prophet ML puro + sistemas de scoring determinístico**:
 
-1. **Prophet** - Predicción de precios REE (168 horas)
-2. **sklearn RandomForest** - Optimización energética (regresión)
-3. **sklearn RandomForest** - Recomendación de producción (clasificación)
+1. **Prophet** - Predicción de precios REE (168 horas) ✅ **Real ML Puro**
+2. **sklearn RandomForest** - Sistema de scoring de optimización energética (0-100) - **Determinístico**
+3. **sklearn RandomForest** - Sistema de recomendación de producción (4 clases) - **Determinístico**
 
 **Estado Actual**:
-- ✅ 3 servicios ML en producción (no unificados)
+- ✅ 1 modelo ML puro (Prophet) + 2 sistemas de scoring (sklearn)
 - ✅ Feature engineering automático
-- ✅ Entrenamiento automático: sklearn 30min, Prophet 24h (7 APScheduler jobs total)
-- ✅ Predicciones integradas en dashboard
+- ✅ Entrenamiento automático: scoring systems 30min, Prophet ML 24h (7 APScheduler jobs total)
+- ✅ Scores/recomendaciones integrados en dashboard
 - ✅ ROI tracking: 11,045€/año (valle-prioritized vs baseline, 35.7% ahorro)
+- ⚠️ **Sistemas sklearn NO son ML predictivo**: Targets circulares (fórmulas determinísticas)
 
 ---
 
@@ -62,15 +63,15 @@ El sistema ML de Chocolate Factory integra **3 tipos de modelos** para optimizac
 └─────────────────────────────────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    ML MODELS (3 tipos)                          │
+│         ML PURO + SISTEMAS DE SCORING DETERMINÍSTICO            │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
 │  │   PROPHET    │  │  SKLEARN RF  │  │  SKLEARN RF  │         │
-│  │              │  │              │  │              │         │
+│  │   ML PURO ✅ │  │ SCORING SYS  │  │ SCORING SYS  │         │
 │  │ Predicción   │  │ Optimización │  │ Clasificación│         │
 │  │ Precios REE  │  │  Energética  │  │  Producción  │         │
-│  │              │  │              │  │              │         │
+│  │              │  │ (circular)   │  │ (circular)   │         │
 │  │ 168h ahead   │  │ Score 0-100  │  │ 4 clases     │         │
 │  └──────────────┘  └──────────────┘  └──────────────┘         │
 │                                                                 │
@@ -99,27 +100,32 @@ El sistema ML de Chocolate Factory integra **3 tipos de modelos** para optimizac
 
 ## Servicios ML Actuales
 
-### 1. `direct_ml.py` - Sklearn Models (PRINCIPAL)
+### 1. `direct_ml.py` - Sistemas de Scoring Determinístico (PRINCIPAL)
 
 **Ubicación**: `src/fastapi-app/services/direct_ml.py`
 **Estado**: ✅ **EN USO - PRODUCCIÓN**
-**Responsabilidad**: Modelos sklearn para optimización y clasificación
+**Responsabilidad**: Sistemas de scoring basados en reglas de negocio (NO ML predictivo)
 
-**Modelos**:
-- `energy_model`: RandomForestRegressor (score 0-100)
-- `production_model`: RandomForestClassifier (4 clases)
+**Sistemas**:
+- `energy_model`: RandomForestRegressor scoring 0-100 ⚠️ **Targets circulares (fórmula determinística)**
+- `production_model`: RandomForestClassifier 4 clases ⚠️ **Targets circulares (thresholds de fórmula)**
+
+**Naturaleza**:
+- **NO son modelos ML predictivos**: Targets calculados con fórmulas determinísticas desde inputs
+- **Uso de RandomForest**: Solo para capturar interacciones no lineales entre variables
+- **Problema circular**: Modelo aprende fórmula, no patrones reales de producción/eficiencia
 
 **Features**:
-- Feature engineering con targets supervisados
-- Entrenamiento automático cada 30 min
-- Versionado de modelos con timestamp
-- Métricas: R², MAE, RMSE, accuracy
+- Feature engineering con targets determinísticos (NO supervisados reales)
+- Entrenamiento automático cada 30 min (actualiza scoring engine)
+- Versionado con timestamp
+- Métricas: R², accuracy (miden estabilidad técnica, NO capacidad predictiva)
 
 **Endpoints asociados**:
-- `/models/train` (entrenamiento manual)
-- `/models/status-direct` (estado + métricas)
-- `/predict/energy-optimization` (predicción score 0-100)
-- `/predict/production-recommendation` (predicción clase)
+- `/models/train` (entrenamiento manual del scoring engine)
+- `/models/status-direct` (estado + métricas de estabilidad)
+- `/predict/energy-optimization` (calcula score 0-100 determinístico)
+- `/predict/production-recommendation` (calcula clase determinística)
 
 **UPDATE OCT 28**: CRITICAL BUG FIX
 - Métodos predicción usaban 3 features, modelo entrenado con 5
@@ -221,11 +227,17 @@ model = Prophet(
 
 ---
 
-### RandomForest Regressor - Energy Optimization
+### RandomForest Regressor - Energy Optimization Scoring System
 
-**Tipo**: Supervised regression
-**Framework**: sklearn RandomForestRegressor
-**Objetivo**: Score optimización energética (0-100)
+**Tipo**: Sistema de scoring determinístico ⚠️ **NO ML predictivo**
+**Framework**: sklearn RandomForestRegressor (como motor de scoring)
+**Objetivo**: Score optimización energética (0-100) basado en reglas de negocio
+
+**Naturaleza**:
+- **Targets circulares**: Score calculado con fórmula determinística desde inputs
+- **NO aprende de datos reales**: Memoriza fórmula de scoring, no patrones de producción
+- **Uso de RF**: Solo para capturar interacciones no lineales entre variables
+- **Problema**: Sin datos reales de eficiencia/consumo, no puede ser ML predictivo
 
 **Arquitectura**:
 ```python
@@ -239,30 +251,36 @@ RandomForestRegressor(
 - Base (5): price_eur_kwh, hour, day_of_week, temperature, humidity
 - Machinery (5): machine_power_kw, machine_thermal_efficiency, machine_humidity_efficiency, estimated_cost_eur, tariff_multiplier
 
-**Target**: `energy_optimization_score` (physics-based)
+**Target**: `energy_optimization_score` - **Fórmula determinística circular** (NO medida real)
 
-**Output**: Score 0-100 (mayor = mejor momento para producir)
+**Output**: Score 0-100 (mayor = mejor momento según reglas de negocio)
 
-**Métricas (Nov 12, 2025)**:
+**Métricas (Nov 12, 2025)** - Estabilidad técnica, NO capacidad predictiva:
 - R² test: **0.983** (train: 0.996, diff: 0.013)
 - Cross-validation 5-fold: 0.982 ± 0.003
-- Training samples: 497
-- Test samples: 125
-- Overfitting: NO (diff < 0.10 threshold)
+- Training samples: 619 (90 días REE, 100% real inputs)
+- Test samples: 155
+- Overfitting: NO (diff < 0.10 threshold) - Estabilidad técnica solamente
 
 **Entrenamiento**:
-- Automático: Cada 30 minutos
+- Automático: Cada 30 minutos (actualiza scoring engine)
 - Manual: POST `/predict/train`
 
 **Storage**: `/app/models/energy_optimization_YYYYMMDD_HHMMSS.pkl`
 
 ---
 
-### RandomForest Classifier - Production Recommendation
+### RandomForest Classifier - Production Recommendation System
 
-**Tipo**: Supervised classification (4 clases)
-**Framework**: sklearn RandomForestClassifier
-**Objetivo**: Recomendar nivel de producción
+**Tipo**: Sistema de clasificación determinístico ⚠️ **NO ML predictivo**
+**Framework**: sklearn RandomForestClassifier (como motor de clasificación)
+**Objetivo**: Recomendar nivel de producción basado en reglas de negocio
+
+**Naturaleza**:
+- **Targets circulares**: Clases calculadas por thresholds de fórmula determinística
+- **NO aprende de datos reales**: Memoriza thresholds de scoring, no estados reales de producción
+- **Uso de RF**: Solo para capturar interacciones no lineales entre variables
+- **Problema**: Sin datos reales de producción óptima/efectiva, no puede ser ML predictivo
 
 **Arquitectura**:
 ```python
@@ -272,28 +290,28 @@ RandomForestClassifier(
 )
 ```
 
-**Features**: Same 10 features as energy model (5 base + 5 machinery-specific)
+**Features**: Same 10 features as energy scoring system (5 base + 5 machinery-specific)
 
-**Target**: `production_class` (physics-based suitability score)
+**Target**: `production_class` - **Thresholds de fórmula determinística** (NO medida real)
 
-**Classes** (4):
-1. **Optimal**: suitability ≥ 75 (alta eficiencia térmica/humedad + bajo precio)
-2. **Moderate**: 55 ≤ suitability < 75 (condiciones aceptables)
-3. **Reduced**: 35 ≤ suitability < 55 (baja eficiencia o alto precio)
-4. **Halt**: suitability < 35 (condiciones adversas)
+**Classes** (4) - Basadas en threshold de fórmula:
+1. **Optimal**: suitability ≥ 75 (alta eficiencia térmica/humedad + bajo precio según fórmula)
+2. **Moderate**: 55 ≤ suitability < 75 (condiciones aceptables según fórmula)
+3. **Reduced**: 35 ≤ suitability < 55 (baja eficiencia o alto precio según fórmula)
+4. **Halt**: suitability < 35 (condiciones adversas según fórmula)
 
-**Output**: Clase + probabilidades
+**Output**: Clase + probabilidades (basadas en scoring determinístico)
 
-**Métricas (Nov 12, 2025)**:
+**Métricas (Nov 12, 2025)** - Estabilidad técnica, NO capacidad predictiva:
 - Accuracy test: **0.928** (train: 0.998, diff: 0.070)
 - Cross-validation 5-fold: 0.947 ± 0.026
-- Training samples: 497
-- Test samples: 125
+- Training samples: 619 (90 días REE, 100% real inputs)
+- Test samples: 155
 - Classes: 4 (Optimal, Moderate, Reduced, Halt)
-- Overfitting: NO (diff < 0.15 threshold)
+- Overfitting: NO (diff < 0.15 threshold) - Estabilidad técnica solamente
 
 **Entrenamiento**:
-- Automático: Cada 30 minutos (junto con energy model)
+- Automático: Cada 30 minutos (actualiza classification engine junto con energy scoring)
 - Manual: POST `/predict/train`
 
 **Storage**: `/app/models/production_classifier_YYYYMMDD_HHMMSS.pkl`
@@ -862,18 +880,22 @@ tests/ml/
 
 ### Limitaciones de ML
 
-**Energy Scoring (sklearn)**:
-- ❌ **No es ML predictivo**: Usa reglas de negocio determinísticas
-- ❌ **Métricas circulares**: R² alto porque predice su propia fórmula
-- ✅ **Útil para**: Scoring en tiempo real basado en reglas validadas
-- ⚠️ **No usar para**: Predicciones futuras, forecasting, o análisis de tendencias
+**Sistemas de Scoring (sklearn) - NO ML Predictivo**:
+- ❌ **Targets circulares**: Score/clases calculados con fórmulas determinísticas desde inputs
+- ❌ **NO aprende patrones reales**: Memoriza fórmulas de scoring, no datos de producción/eficiencia
+- ❌ **Métricas engañosas**: R² 0.983, Accuracy 0.928 miden estabilidad técnica, NO capacidad predictiva
+- ❌ **Problema fundamental**: Sin datos reales (consumo kWh, kg/hora, calidad), no puede ser ML
+- ✅ **Útil como**: Motor de reglas de negocio con captura de interacciones no lineales
+- ✅ **Aplicación válida**: Scoring en tiempo real basado en especificaciones técnicas validadas
+- ⚠️ **NO usar para**: Predicciones futuras, forecasting, o optimización aprendida (solo reglas)
+- 💡 **Para convertir en ML real**: Necesita datos reales de IoT (sensores consumo, producción, calidad)
 
-**Prophet Price Forecasting**:
-- ✅ **ML real**: Modelo entrenado con datos históricos
-- ⚠️ **R² = 0.49**: Solo explica 49% de la varianza (51% sin explicar)
-- ⚠️ **MAE = 0.033 €/kWh**: Error promedio ~3.3 céntimos por predicción
-- ⚠️ **Métricas estáticas**: Última medición 24-Oct-2025, no se actualizan dinámicamente
-- ❌ **Sin drift detection**: No hay monitoreo de degradación del modelo
+**Prophet Price Forecasting - ✅ ML Real Puro**:
+- ✅ **ML genuino**: Modelo entrenado con datos históricos, validado con walk-forward
+- ⚠️ **R² = 0.48**: Solo explica 48% de la varianza (52% sin explicar, Nov 2025 walk-forward)
+- ⚠️ **MAE = 0.029 €/kWh**: Error promedio ~2.9 céntimos por predicción
+- ⚠️ **Métricas estáticas**: Última medición 12-Nov-2025, no se actualizan dinámicamente
+- ✅ **Model monitoring**: CSV tracking con degradación detection (Sprint 20)
 - ❌ **Sin A/B testing**: No hay validación de mejoras en producción
 
 ### Limitaciones de Testing

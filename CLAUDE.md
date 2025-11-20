@@ -264,8 +264,8 @@ Implemented:
 - **Historical Data**: 25+ years weather records via SIAR system ETL (2000-2025)
 - **Automatic Backfill**: Gap detection and recovery every 2 hours
 
-### Machine Learning (Direct Implementation)
-- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.029 €/kWh, R²: 0.49 walk-forward) ✅ Real ML
+### Machine Learning & Decision Support Systems
+- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.029 €/kWh, R²: 0.49 walk-forward) ✅ **Real ML Puro**
   - Walk-forward validation: Nov 1-10, 2025 (datos no vistos, 240 samples)
   - Coverage 95%: 95.00% (objetivo >90% alcanzado)
   - Configuración optimizada: Fourier 8/5/8, changepoint_prior_scale 0.08, sin lags
@@ -276,24 +276,29 @@ Implemented:
     - ❌ Changepoints + Volatility: R² -17.91% (mucho peor)
   - Conclusión: Features simples generalizan mejor, complejidad adicional causa overfitting
   - Validation scripts: `scripts/validate_prophet_walkforward.py`, `scripts/test_prophet_*.py`
-- **Optimization Scoring**: Physics-based ML with machinery specifications (Nov 12, 2025)
-  - Energy Score: R² test 0.983, train 0.996, diff 0.013 (no overfitting)
-  - Production State: Accuracy test 0.928, train 0.998, diff 0.070 (no overfitting)
+- **Sistemas de Scoring Determinístico** (sklearn RandomForest como motor, Nov 12, 2025)
+  - **Energy Optimization Scoring System**: Scoring 0-100 basado en reglas de negocio
+    - Implementación: RandomForestRegressor (captura interacciones no lineales)
+    - R² test 0.983, train 0.996, diff 0.013 (estabilidad técnica)
+    - **Targets circulares**: Calculados con fórmula determinística desde inputs (NO predictivo)
+  - **Production Recommendation System**: Clasificación Optimal/Moderate/Reduced/Halt
+    - Implementación: RandomForestClassifier (captura interacciones no lineales)
+    - Accuracy test 0.928, train 0.998, diff 0.070 (estabilidad técnica)
+    - **Targets circulares**: Thresholds de fórmula determinística (NO predictivo)
   - Cross-validation: Energy R² 0.982±0.003, Production Acc 0.947±0.026 (stable)
   - Features: 10 (5 base + 5 machinery-specific from real equipment specs)
   - Machinery features: power_kw, thermal_efficiency, humidity_efficiency, estimated_cost, tariff_multiplier
-  - Targets: Physics-based using real thermal/humidity efficiency (not synthetic)
-  - Data: REE 619 records + machinery specs (Conchado 48kW, Refinado 42kW, Templado 36kW, Mezclado 30kW)
+  - Data: REE 619 records (90 días) + machinery specs (Conchado 48kW, Refinado 42kW, Templado 36kW, Mezclado 30kW)
   - Validation script: `scripts/validate_sklearn_overfitting.py`
-  - Overfitting detection: R² diff threshold 0.10, Accuracy diff threshold 0.15
-- **Direct Training**: sklearn + Prophet + pickle storage (no external ML services)
+  - **Naturaleza**: Motores de reglas de negocio (business rules engines), NO ML predictivo
+- **Direct Training**: Prophet ML + sklearn scoring systems + pickle storage (no external services)
 - **Feature Engineering**: 10 features total
   - Base (5): price, hour, dow, temperature, humidity
   - Machinery (5): machine_power_kw, thermal_efficiency, humidity_efficiency, estimated_cost, tariff_multiplier
   - Source: `domain/machinery/specs.py` + REE API + AEMET/OpenWeatherMap
-- **Real-time Analysis**: Energy optimization scoring + production recommendations + price forecasting
-- **Automated ML**: Model retraining every 30 min (sklearn), daily (Prophet)
-- **Model Monitoring**: CSV tracking with degradation detection (Sprint 20)
+- **Real-time Analysis**: Energy optimization scoring + production recommendations + Prophet price forecasting
+- **Automated Training**: Scoring systems every 30 min, Prophet ML daily
+- **Model Monitoring**: CSV tracking with degradation detection (Sprint 20) - **Solo Prophet ML**
   - Metrics logged: MAE, RMSE, R², samples, duration
   - Baseline: median over 30 entries
   - Alerts: MAE >2x baseline, R² <50% baseline
@@ -370,11 +375,11 @@ Implemented:
 - `GET /weather/hybrid` - Hybrid weather data
 - `GET /ree/prices` - Current electricity prices
 
-### ML Operations
-- `POST /predict/energy-optimization` - Energy optimization score (0-100) predictions
-- `POST /predict/production-recommendation` - Production class predictions (Optimal/Moderate/Reduced/Halt)
-- `POST /predict/train` - Train sklearn models manually (energy + production)
-- `POST /predict/train/hybrid` - Hybrid training: Phase 1 SIAR (88k records) + Phase 2 REE fine-tune (100 days)
+### Scoring Systems Operations (sklearn)
+- `POST /predict/energy-optimization` - Energy optimization score (0-100) - **Sistema de scoring determinístico**
+- `POST /predict/production-recommendation` - Production class (Optimal/Moderate/Reduced/Halt) - **Sistema de recomendación determinístico**
+- `POST /predict/train` - Train scoring systems manually (energy + production) - **90 días REE data**
+- `POST /predict/train/hybrid` - Hybrid training: Phase 1 SIAR (88k records) + Phase 2 REE fine-tune (deprecated)
 
 ### Price Forecasting (Sprint 06 - Prophet ML)
 - `GET /predict/prices/weekly` - 168-hour Prophet forecast with confidence intervals
@@ -575,15 +580,27 @@ date_obj = pd.to_datetime(fecha_str, format='%d/%m/%Y')
 - **Data integration**: Connect SIAR historical data with ML models
 
 
-## Machine Learning (Direct Implementation)
+## Machine Learning & Decision Support Systems
 
-### Models (Nov 12, 2025)
-- **Energy Optimization**: RandomForestRegressor for energy score (0-100)
-  - R²: 0.978 (previous: 0.287, +240% improvement)
-  - Training samples: 495, Test samples: 124
-- **Production Classifier**: RandomForestClassifier (Optimal/Moderate/Reduced/Halt)
-  - Accuracy: 0.911 (previous: 0.814, +12% improvement)
-  - Training samples: 495, Test samples: 124
+### Prophet ML (Real Predictive ML) ✅
+- **Model**: Facebook Prophet time series forecasting
+- **Purpose**: 168-hour electricity price prediction
+- **Performance**: MAE 0.029 €/kWh, R² 0.48 (walk-forward validation Nov 2025)
+- **Validation**: Walk-forward on unseen data (Nov 1-10, 2025)
+- **Training**: Daily automated retraining
+- **Storage**: Pickle serialization
+
+### Sistemas de Scoring Determinístico (sklearn, Nov 12, 2025)
+- **Energy Optimization Scoring System**: RandomForestRegressor scoring 0-100
+  - R²: 0.983 test (estabilidad técnica, NO predictiva)
+  - Training samples: 619 (90 días REE data, 100% real)
+  - **Naturaleza**: Motor de reglas de negocio basado en especificaciones técnicas
+  - **Targets circulares**: Formula determinística (price + temp + humidity + machinery specs)
+- **Production Recommendation System**: RandomForestClassifier (Optimal/Moderate/Reduced/Halt)
+  - Accuracy: 0.928 test (estabilidad técnica, NO predictiva)
+  - Training samples: 619 (90 días REE data, 100% real)
+  - **Naturaleza**: Sistema de clasificación basado en thresholds de reglas de negocio
+  - **Targets circulares**: Thresholds de fórmula determinística
 - **Training**: Direct sklearn + pickle storage (no external services)
 - **Integration**: `domain/machinery/specs.py` - Real equipment specifications
 
@@ -592,13 +609,13 @@ date_obj = pd.to_datetime(fecha_str, format='%d/%m/%Y')
 - **Machinery (5)**: machine_power_kw, thermal_efficiency, humidity_efficiency, estimated_cost_eur, tariff_multiplier
 - **Sources**: REE API, AEMET/OpenWeatherMap, machinery specs
 
-### Predictions
+### Scoring Requests (Determinístico)
 ```bash
-# Energy optimization score
+# Energy optimization score (deterministic scoring system)
 curl -X POST http://localhost:8000/predict/energy-optimization \
   -d '{"price_eur_kwh": 0.15, "temperature": 22, "humidity": 55}'
 
-# Production recommendation
+# Production recommendation (deterministic classification system)
 curl -X POST http://localhost:8000/predict/production-recommendation \
   -d '{"price_eur_kwh": 0.30, "temperature": 35, "humidity": 80}'
 ```
@@ -773,9 +790,12 @@ Technical fixes applied:
 ## System Limitations & Disclaimers
 
 ### Machine Learning
-- **Energy Scoring**: Deterministic business rules, NOT trained ML prediction (circular if measured as ML)
-- **Prophet Forecasting**: Real ML with R² 0.49 (51% variance unexplained) ✅
-- **Model Monitoring**: No drift detection or performance tracking
+- **Prophet Forecasting**: Real ML puro con R² 0.48 walk-forward (52% variance unexplained) ✅
+- **Sistemas de Scoring (sklearn)**: Motores de reglas de negocio determinísticos, NO ML predictivo
+  - Energy Optimization: Scoring 0-100 basado en fórmula (targets circulares)
+  - Production Recommendation: Clasificación basada en thresholds (targets circulares)
+  - Uso de RandomForest: Solo para capturar interacciones no lineales entre inputs
+- **Model Monitoring**: Solo Prophet ML (scoring systems no aplican)
 - **A/B Testing**: Not implemented
 
 ### Testing & Quality
