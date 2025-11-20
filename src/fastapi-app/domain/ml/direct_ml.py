@@ -228,14 +228,22 @@ class DirectMLService:
                 logger.error(f"❌ Error extrayendo REE: {e}")
                 return pd.DataFrame()
 
-    async def extract_data_from_influxdb(self, hours_back: int = 72, use_all_data: bool = False) -> pd.DataFrame:
+    async def extract_data_from_influxdb(self, hours_back: int = 2160, use_all_data: bool = False) -> pd.DataFrame:
         """
         Extrae datos usando rangos temporales expandidos + SIAR históricos para acceder datos máximos
 
+        Args:
+            hours_back: Horas históricas (default 2160 = 90 días, antes 72h)
+            use_all_data: Si True, extrae TODOS los datos históricos disponibles
+
         Si use_all_data=True:
-        - Extrae TODOS los datos de energy_prices (REE 2022-2025)
-        - Extrae SIAR históricos (25 años, 2000-2025)
+        - Extrae TODOS los datos de energy_prices (REE 2022-2025, 42k+ records)
+        - Extrae SIAR históricos (25 años, 2000-2025, 88k+ records)
         - Combina ambas fuentes para máximo coverage
+
+        Si use_all_data=False:
+        - Usa últimas 2160 horas (90 días) para training regular
+        - ~2,000 samples reales (suficiente sin necesitar sintéticos)
         """
         async with DataIngestionService() as service:
             # Usar rango expandido para training o rango limitado para testing

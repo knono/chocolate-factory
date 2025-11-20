@@ -56,8 +56,15 @@ class ChocolateFeatureEngine:
         self.optimal_humidity_range = (45, 65)  # % para chocolate
         self.peak_tariff_hours = [(18, 22), (10, 14)]  # Horarios punta
         
-    async def extract_raw_data(self, hours_back: int = 48) -> pd.DataFrame:
-        """Extraer datos raw de InfluxDB para feature engineering"""
+    async def extract_raw_data(self, hours_back: int = 2160) -> pd.DataFrame:
+        """
+        Extraer datos raw de InfluxDB para feature engineering
+
+        Args:
+            hours_back: Horas históricas a extraer (default 2160 = 90 días)
+                       Cambio de 48h a 90 días para usar más datos reales
+                       y eliminar necesidad de data augmentation sintética
+        """
         try:
             async with DataIngestionService() as service:
                 query_api = service.client.query_api()
@@ -380,8 +387,16 @@ class ChocolateFeatureEngine:
         else:
             return "Halt_Production"
     
-    async def generate_feature_set(self, hours_back: int = 48, include_synthetic: bool = False) -> List[FeatureSet]:
-        """Generar conjunto completo de features"""
+    async def generate_feature_set(self, hours_back: int = 2160, include_synthetic: bool = False) -> List[FeatureSet]:
+        """
+        Generar conjunto completo de features
+
+        Args:
+            hours_back: Horas históricas (default 2160 = 90 días, antes 48h)
+                       Con 90 días → ~2,000 samples reales (suficiente sin sintéticos)
+            include_synthetic: Usar data augmentation sintética (default False)
+                             Con 90 días reales, NO debería ser necesario
+        """
         logger.info(f"🔍 generate_feature_set called with hours_back={hours_back}, include_synthetic={include_synthetic}")
         try:
             # Extract raw data

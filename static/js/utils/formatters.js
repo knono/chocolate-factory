@@ -1,28 +1,28 @@
 // Formatters Utility - Format data for display
 
 const Formatters = {
-    // Format price
+    // Format price (formato español: coma decimal)
     price(value, currency = '€') {
         if (value === null || value === undefined) return '--';
-        return `${value.toFixed(4)} ${currency}/kWh`;
+        return `${value.toFixed(4).replace('.', ',')} ${currency}/kWh`;
     },
 
-    // Format large price
+    // Format large price (formato español: punto miles, coma decimal)
     largePrice(value, currency = '€') {
         if (value === null || value === undefined) return '--';
         return `${value.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
     },
 
-    // Format temperature
+    // Format temperature (formato español: coma decimal)
     temperature(value) {
         if (value === null || value === undefined) return '--';
-        return `${value.toFixed(1)}°C`;
+        return `${value.toFixed(1).replace('.', ',')}°C`;
     },
 
-    // Format percentage
+    // Format percentage (formato español: coma decimal)
     percentage(value) {
         if (value === null || value === undefined) return '--';
-        return `${value.toFixed(1)}%`;
+        return `${value.toFixed(1).replace('.', ',')}%`;
     },
 
     // Format datetime
@@ -95,16 +95,28 @@ const Formatters = {
         return text.substring(0, maxLength) + '...';
     },
 
-    // Format large numbers
+    // Format large numbers (formato español: punto miles, coma decimal)
     largeNumber(value) {
         if (value === null || value === undefined) return '--';
         if (value >= 1000000) {
-            return `${(value / 1000000).toFixed(1)}M`;
+            return `${(value / 1000000).toFixed(1).replace('.', ',')}M`;
         }
         if (value >= 1000) {
-            return `${(value / 1000).toFixed(1)}k`;
+            return `${(value / 1000).toFixed(1).replace('.', ',')}k`;
         }
-        return value.toString();
+        return value.toLocaleString('es-ES');
+    },
+
+    // Format decimal number (formato español: coma decimal, N decimales)
+    decimal(value, decimals = 2) {
+        if (value === null || value === undefined) return '--';
+        return value.toFixed(decimals).replace('.', ',');
+    },
+
+    // Format integer with thousands separator (formato español: punto miles)
+    integer(value) {
+        if (value === null || value === undefined) return '--';
+        return Math.round(value).toLocaleString('es-ES');
     }
 };
 

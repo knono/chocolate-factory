@@ -42,7 +42,7 @@ class OptimalWindowsComponent {
                         <div class="stat-label">Horas Óptimas</div>
                     </div>
                     <div class="summary-stat info">
-                        <div class="stat-value">${summary.best_price ? summary.best_price.toFixed(4) : '--'}</div>
+                        <div class="stat-value">${summary.best_price ? Formatters.decimal(summary.best_price, 4) : '--'}</div>
                         <div class="stat-label">Mejor Precio (€/kWh)</div>
                     </div>
                     <div class="summary-stat warning">
@@ -96,7 +96,7 @@ class OptimalWindowsComponent {
                     <div class="window-content">
                         <div class="window-price">
                             <span class="price-label">Precio Promedio:</span>
-                            <span class="price-value">${window.avg_price_eur_kwh.toFixed(4)} €/kWh</span>
+                            <span class="price-value">${Formatters.decimal(window.avg_price_eur_kwh, 4)} €/kWh</span>
                         </div>
                         <div class="window-tariff">
                             <span class="tariff-badge ${this.getTariffClass(window.tariff_period)}">
@@ -110,7 +110,7 @@ class OptimalWindowsComponent {
                         </div>
                         <div class="window-savings">
                             <span class="savings-icon">💰</span>
-                            <span class="savings-text">Ahorro: ${window.estimated_savings_eur.toFixed(2)}€ vs producir en pico</span>
+                            <span class="savings-text">Ahorro: ${Formatters.decimal(window.estimated_savings_eur, 2)}€ vs producir en pico</span>
                         </div>
                     </div>
                 </div>
@@ -142,7 +142,7 @@ class OptimalWindowsComponent {
                     <div class="window-content">
                         <div class="window-price danger">
                             <span class="price-label">Precio:</span>
-                            <span class="price-value">${window.avg_price.toFixed(4)} €/kWh</span>
+                            <span class="price-value">${Formatters.decimal(window.avg_price, 4)} €/kWh</span>
                         </div>
                         <div class="window-recommendation warning">
                             <div class="rec-icon">⚠️</div>

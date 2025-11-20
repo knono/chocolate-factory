@@ -40,21 +40,21 @@ class REEDeviationComponent {
                     <div class="deviation-metric">
                         <div class="metric-icon">📊</div>
                         <div class="metric-content">
-                            <div class="metric-value">±${validation_metrics.mae_eur_kwh.toFixed(3)}</div>
+                            <div class="metric-value">±${Formatters.decimal(validation_metrics.mae_eur_kwh, 3)}</div>
                             <div class="metric-label">MAE (Error Medio)</div>
                         </div>
                     </div>
                     <div class="deviation-metric">
                         <div class="metric-icon">🎯</div>
                         <div class="metric-content">
-                            <div class="metric-value">${(validation_metrics.r2_score * 100).toFixed(1)}%</div>
+                            <div class="metric-value">${Formatters.decimal(validation_metrics.r2_score * 100, 1)}%</div>
                             <div class="metric-label">R² Score</div>
                         </div>
                     </div>
                     <div class="deviation-metric">
                         <div class="metric-icon">📈</div>
                         <div class="metric-content">
-                            <div class="metric-value">${validation_metrics.coverage_95pct.toFixed(1)}%</div>
+                            <div class="metric-value">${Formatters.decimal(validation_metrics.coverage_95pct, 1)}%</div>
                             <div class="metric-label">Coverage 95%</div>
                         </div>
                     </div>
@@ -151,7 +151,7 @@ class REEDeviationComponent {
 
         // Coverage interpretation
         if (metrics.coverage_95pct >= 90) {
-            insights.push(`✅ ${metrics.coverage_95pct.toFixed(0)}% predicciones dentro intervalo confianza - alta fiabilidad`);
+            insights.push(`✅ ${Math.round(metrics.coverage_95pct)}% predicciones dentro intervalo confianza - alta fiabilidad`);
         }
 
         // MAE practical value

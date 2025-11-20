@@ -41,19 +41,19 @@ class SavingsTrackingComponent {
                     <div class="comparison-grid">
                         <div class="comparison-card baseline">
                             <div class="card-label">Plan Baseline (08-16h)</div>
-                            <div class="card-value">${daily_savings?.baseline_cost_eur?.toFixed(2) || '0.00'}€</div>
+                            <div class="card-value">${daily_savings?.baseline_cost_eur ? Formatters.decimal(daily_savings.baseline_cost_eur, 2) : '0,00'}€</div>
                             <div class="card-sublabel">Horario fijo tradicional</div>
                         </div>
                         <div class="comparison-arrow">→</div>
                         <div class="comparison-card optimized">
                             <div class="card-label">Plan Optimizado</div>
-                            <div class="card-value">${daily_savings?.optimized_cost_eur?.toFixed(2) || '0.00'}€</div>
+                            <div class="card-value">${daily_savings?.optimized_cost_eur ? Formatters.decimal(daily_savings.optimized_cost_eur, 2) : '0,00'}€</div>
                             <div class="card-sublabel">Prophet + ML optimization</div>
                         </div>
                     </div>
                     <div class="savings-highlight">
-                        <div class="savings-amount">💰 ${daily_savings?.savings_eur?.toFixed(2) || '0.00'}€</div>
-                        <div class="savings-percentage">${daily_savings?.savings_pct?.toFixed(1) || '0.0'}% ahorro diario</div>
+                        <div class="savings-amount">💰 ${daily_savings?.savings_eur ? Formatters.decimal(daily_savings.savings_eur, 2) : '0,00'}€</div>
+                        <div class="savings-percentage">${daily_savings?.savings_pct ? Formatters.decimal(daily_savings.savings_pct, 1) : '0,0'}% ahorro diario</div>
                     </div>
                 </div>
 
@@ -63,15 +63,15 @@ class SavingsTrackingComponent {
                     <div class="projection-grid">
                         <div class="projection-metric">
                             <div class="metric-label">Plan Optimizado</div>
-                            <div class="metric-value success">${weekly_projection?.optimized_cost_eur?.toFixed(2) || '0.00'}€</div>
+                            <div class="metric-value success">${weekly_projection?.optimized_cost_eur ? Formatters.decimal(weekly_projection.optimized_cost_eur, 2) : '0,00'}€</div>
                         </div>
                         <div class="projection-metric">
                             <div class="metric-label">Plan Baseline</div>
-                            <div class="metric-value warning">${weekly_projection?.baseline_cost_eur?.toFixed(2) || '0.00'}€</div>
+                            <div class="metric-value warning">${weekly_projection?.baseline_cost_eur ? Formatters.decimal(weekly_projection.baseline_cost_eur, 2) : '0,00'}€</div>
                         </div>
                         <div class="projection-metric highlight">
                             <div class="metric-label">Ahorro Semanal</div>
-                            <div class="metric-value highlight">${weekly_projection?.savings_eur?.toFixed(2) || '0.00'}€</div>
+                            <div class="metric-value highlight">${weekly_projection?.savings_eur ? Formatters.decimal(weekly_projection.savings_eur, 2) : '0,00'}€</div>
                         </div>
                     </div>
                 </div>
@@ -92,7 +92,7 @@ class SavingsTrackingComponent {
                             <div class="stat-item">
                                 <span class="stat-label">Progreso:</span>
                                 <span class="stat-value ${(monthly_tracking?.progress_pct || 0) >= 90 ? 'success' : 'warning'}">
-                                    ${monthly_tracking?.progress_pct?.toFixed(1) || '0.0'}%
+                                    ${monthly_tracking?.progress_pct ? Formatters.decimal(monthly_tracking.progress_pct, 1) : '0,0'}%
                                 </span>
                             </div>
                         </div>
@@ -110,10 +110,10 @@ class SavingsTrackingComponent {
                 <div class="savings-section annual">
                     <h4 class="section-title">📈 ROI Anual Estimado</h4>
                     <div class="annual-roi-card">
-                        <div class="roi-amount">${(annual_projection?.baseline_theoretical_savings_eur || 0).toLocaleString('es-ES')}€</div>
+                        <div class="roi-amount">${Formatters.integer(annual_projection?.baseline_theoretical_savings_eur || 0)}€</div>
                         <div class="roi-description">${annual_projection?.roi_description || 'N/A'}</div>
                         <div class="roi-breakdown">
-                            Basado en ahorro diario promedio de ${daily_savings?.savings_eur?.toFixed(2) || '0.00'}€ × 365 días
+                            Basado en ahorro diario promedio de ${daily_savings?.savings_eur ? Formatters.decimal(daily_savings.savings_eur, 2) : '0,00'}€ × 365 días
                         </div>
                     </div>
                 </div>

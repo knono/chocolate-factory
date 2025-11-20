@@ -35,7 +35,7 @@ class WeeklyHeatmap {
                 </div>
                 <div class="heatmap-day-content">
                     <div class="heatmap-price">
-                        ${day.price_eur_kwh ? day.price_eur_kwh.toFixed(4) : '--'}
+                        ${day.price_eur_kwh ? Formatters.decimal(day.price_eur_kwh, 3) : '--'}
                         <span class="heatmap-price-unit">€/kWh</span>
                     </div>
                     ${day.weather ? this.renderWeather(day.weather) : ''}
