@@ -201,7 +201,7 @@ async def train_price_forecast_model(
                 "test_samples": 369
             },
             "last_training": "2025-10-23T17:41:39",
-            "model_file": "/app/models/forecasting/prophet_latest.pkl"
+            "model_file": "/app/models/latest/price_forecast_prophet.pkl"
         }
     }
     ```

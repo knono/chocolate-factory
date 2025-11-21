@@ -13,10 +13,12 @@ async def ensure_prophet_model():
 
     try:
         service = PriceForecastingService()
-        model_path = service.models_dir / "prophet_latest.pkl"
+        # Check for model in latest/ (new pattern) or fallback to old path
+        model_path = service.models_dir / "latest" / "price_forecast_prophet.pkl"
+        old_path = service.models_dir / "prophet_latest.pkl"
 
-        if model_path.exists():
-            logger.info(f"✅ Prophet model exists: {model_path}")
+        if model_path.exists() or old_path.exists():
+            logger.info(f"✅ Prophet model exists: {model_path if model_path.exists() else old_path}")
             return
 
         logger.warning("⚠️  Prophet model missing, training now...")

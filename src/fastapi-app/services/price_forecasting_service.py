@@ -44,12 +44,12 @@ class PriceForecastingService:
         metrics: Métricas del modelo actual (MAE, RMSE, R²)
     """
 
-    def __init__(self, models_dir: str = "/app/models/forecasting"):
+    def __init__(self, models_dir: str = "/app/models"):
         """
         Inicializa el servicio de predicción de precios.
 
         Args:
-            models_dir: Ruta donde almacenar modelos Prophet
+            models_dir: Ruta donde almacenar modelos Prophet (mismo que sklearn)
         """
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
@@ -402,7 +402,7 @@ class PriceForecastingService:
                     "test_samples": int(len(df_test)),
                 },
                 "last_training": self.last_training.isoformat(),
-                "model_file": str(self.models_dir / "prophet_latest.pkl"),
+                "model_file": str(self.models_dir / "latest" / "price_forecast_prophet.pkl"),
                 "meets_objectives": {
                     "mae_ok": bool(mae < 0.02),
                     "rmse_ok": bool(rmse < 0.03),
@@ -590,14 +590,17 @@ class PriceForecastingService:
             "model_loaded": self.model is not None,
             "last_training": self.last_training.isoformat() if self.last_training else None,
             "metrics": self.metrics,
-            "model_file": str(self.models_dir / "prophet_latest.pkl"),
+            "model_file": str(self.models_dir / "latest" / "price_forecast_prophet.pkl"),
             "prophet_config": self.prophet_config,
         }
 
     def _save_model(self):
-        """Guarda modelo Prophet en disco"""
+        """Guarda modelo Prophet en disco con timestamp (mismo patrón que sklearn)"""
         try:
-            model_path = self.models_dir / "prophet_latest.pkl"
+            # Create timestamp for versioned filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            versioned_filename = f"price_forecast_prophet_{timestamp}.pkl"
+            versioned_path = self.models_dir / versioned_filename
 
             model_data = {
                 'model': self.model,
@@ -606,23 +609,41 @@ class PriceForecastingService:
                 'config': self.prophet_config,
             }
 
-            with open(model_path, 'wb') as f:
+            # Save versioned model
+            with open(versioned_path, 'wb') as f:
                 pickle.dump(model_data, f)
 
-            logger.info(f"💾 Modelo guardado: {model_path}")
+            logger.info(f"💾 Modelo Prophet guardado: {versioned_path}")
+
+            # Create symlink in latest/ directory (same as sklearn)
+            latest_dir = self.models_dir / "latest"
+            latest_dir.mkdir(exist_ok=True)
+            latest_path = latest_dir / "price_forecast_prophet.pkl"
+
+            if latest_path.exists() or latest_path.is_symlink():
+                latest_path.unlink()
+            latest_path.symlink_to(f"../{versioned_filename}")
+
+            logger.info(f"🔗 Symlink actualizado: {latest_path} → {versioned_filename}")
 
         except Exception as e:
             logger.error(f"❌ Error guardando modelo: {e}")
 
     def _load_latest_model(self) -> bool:
         """
-        Carga último modelo Prophet entrenado.
+        Carga último modelo Prophet entrenado desde symlink latest/.
 
         Returns:
             True si carga exitosa
         """
         try:
-            model_path = self.models_dir / "prophet_latest.pkl"
+            # Try loading from latest/ symlink first (new pattern)
+            latest_path = self.models_dir / "latest" / "price_forecast_prophet.pkl"
+
+            # Fallback to old path for backwards compatibility
+            old_path = self.models_dir / "prophet_latest.pkl"
+
+            model_path = latest_path if latest_path.exists() else old_path
 
             if not model_path.exists():
                 logger.info("ℹ️ No hay modelo previo disponible")

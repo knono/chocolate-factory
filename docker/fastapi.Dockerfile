@@ -52,9 +52,9 @@ COPY static/ ./static/
 COPY .claude/ ./.claude/
 
 # Crear directorios necesarios y ajustar permisos
-RUN mkdir -p /app/data /app/logs /app/models/forecasting /app/scripts && \
+RUN mkdir -p /app/data /app/logs /app/models/forecasting /app/models/latest /app/scripts && \
     chown -R appuser:appuser /app && \
-    chmod -R 775 /app/logs /app/scripts
+    chmod -R 775 /app/logs /app/scripts /app/models
 
 # Copy entrypoint script (Sprint 20 Fase 2 fix: handle bind mount permissions)
 COPY docker/entrypoint.sh /entrypoint.sh

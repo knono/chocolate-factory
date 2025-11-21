@@ -54,8 +54,8 @@ async def lifespan(app: FastAPI):
     """Application lifecycle management."""
     logger.info("🧠 Starting Chocolate Factory API (Clean Architecture)")
 
-    # Prophet model is pre-trained and included in Docker image
-    # See docker/fastapi.Dockerfile: COPY models/forecasting/prophet_latest.pkl
+    # Prophet model saves versioned files with timestamp (like sklearn)
+    # Pattern: price_forecast_prophet_YYYYMMDD_HHMMSS.pkl + symlink in latest/
     # If model is missing, it will be trained automatically on first prediction request
 
     # Initialize APScheduler
