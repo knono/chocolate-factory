@@ -17,11 +17,11 @@ RUN apk add --no-cache \
     gettext \
     && mkdir -p /var/lib/tailscale /var/log/nginx /run/nginx
 
-# Instalar Tailscale 1.90.6 (App Capabilities support - Sprint 18)
-RUN wget https://pkgs.tailscale.com/stable/tailscale_1.90.6_amd64.tgz -O /tmp/tailscale.tgz \
+# Instalar Tailscale 1.90.8 (App Capabilities support - Sprint 18)
+RUN wget https://pkgs.tailscale.com/stable/tailscale_1.90.8_amd64.tgz -O /tmp/tailscale.tgz \
     && tar xzf /tmp/tailscale.tgz -C /tmp \
-    && mv /tmp/tailscale_1.90.6_amd64/tailscale /usr/local/bin/ \
-    && mv /tmp/tailscale_1.90.6_amd64/tailscaled /usr/local/bin/ \
+    && mv /tmp/tailscale_1.90.8_amd64/tailscale /usr/local/bin/ \
+    && mv /tmp/tailscale_1.90.8_amd64/tailscaled /usr/local/bin/ \
     && rm -rf /tmp/tailscale*
 
 # Script de inicio

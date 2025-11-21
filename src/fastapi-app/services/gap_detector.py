@@ -137,11 +137,11 @@ class GapDetectionService:
         try:
             async with DataIngestionService() as service:
                 query_api = service.client.query_api()
-                
+
                 # Obtener datos climáticos existentes
                 end_time = datetime.now(timezone.utc)
                 start_time = end_time - timedelta(days=days_back)
-                
+
                 query = f'''
                 from(bucket: "{service.config.bucket}")
                 |> range(start: -{days_back}d)
@@ -149,33 +149,35 @@ class GapDetectionService:
                 |> filter(fn: (r) => r._field == "temperature")
                 |> sort(columns: ["_time"])
                 '''
-                
+
                 tables = query_api.query(query)
-                
-                # Extraer timestamps existentes
-                existing_times = []
+
+                # Extraer timestamps existentes y agrupar por hora
+                # FIXED: No buscar timestamps exactos, agrupar por hora
+                hours_with_data = set()
                 for table in tables:
                     for record in table.records:
-                        existing_times.append(record.get_time())
-                
+                        timestamp = record.get_time()
+                        # Normalizar a la hora (truncar minutos/segundos)
+                        hour_key = timestamp.replace(minute=0, second=0, microsecond=0)
+                        hours_with_data.add(hour_key)
+
                 # Generar timeline esperado (cada hora)
-                expected_times = []
+                expected_hours = []
                 current = start_time.replace(minute=0, second=0, microsecond=0)
                 while current <= end_time:
-                    expected_times.append(current)
+                    expected_hours.append(current)
                     current += timedelta(hours=1)
-                
-                # Detectar gaps
-                gaps = self._find_time_gaps(
-                    expected_times,
-                    existing_times,
-                    "weather_data", 
-                    timedelta(hours=1)
-                )
-                
+
+                # Detectar gaps: horas sin ningún dato
+                missing_hours = [h for h in expected_hours if h not in hours_with_data]
+
+                # Agrupar horas faltantes en rangos continuos
+                gaps = self._group_missing_hours_into_gaps(missing_hours, "weather_data")
+
                 logger.info(f"🌤️ Weather: {len(gaps)} gaps detectados en {days_back} días")
                 return gaps
-                
+
         except Exception as e:
             logger.error(f"Error detectando gaps climáticos: {e}")
             return []
@@ -240,8 +242,68 @@ class GapDetectionService:
             gaps.append(gap)
 
         return gaps
-    
-    def _create_gap(self, measurement: str, start: datetime, 
+
+    def _group_missing_hours_into_gaps(
+        self,
+        missing_hours: List[datetime],
+        measurement: str
+    ) -> List[DataGap]:
+        """
+        Agrupar horas faltantes en rangos continuos de gaps.
+
+        Args:
+            missing_hours: Lista de horas sin datos
+            measurement: Nombre del measurement
+
+        Returns:
+            Lista de DataGap objetos
+        """
+        if not missing_hours:
+            return []
+
+        missing_hours.sort()
+        gaps = []
+
+        # Inicializar primer gap
+        gap_start = missing_hours[0]
+        gap_end = missing_hours[0]
+
+        for i in range(1, len(missing_hours)):
+            # Si la hora siguiente es consecutiva (diferencia de 1h)
+            if missing_hours[i] - gap_end == timedelta(hours=1):
+                gap_end = missing_hours[i]
+            else:
+                # Gap terminado, crear objeto si es significativo
+                gap_duration = (gap_end - gap_start).total_seconds() / 3600 + 1  # +1 para incluir hora final
+
+                # Solo crear gap si es >= 2 horas
+                if gap_duration >= 2:
+                    gap = self._create_gap(
+                        measurement,
+                        gap_start,
+                        gap_end + timedelta(hours=1),  # End time inclusivo
+                        timedelta(hours=1)
+                    )
+                    gaps.append(gap)
+
+                # Iniciar nuevo gap
+                gap_start = missing_hours[i]
+                gap_end = missing_hours[i]
+
+        # Añadir último gap si es significativo
+        gap_duration = (gap_end - gap_start).total_seconds() / 3600 + 1
+        if gap_duration >= 2:
+            gap = self._create_gap(
+                measurement,
+                gap_start,
+                gap_end + timedelta(hours=1),
+                timedelta(hours=1)
+            )
+            gaps.append(gap)
+
+        return gaps
+
+    def _create_gap(self, measurement: str, start: datetime,
                    end: datetime, interval: timedelta) -> DataGap:
         """Crear objeto DataGap con metadatos calculados"""
         
