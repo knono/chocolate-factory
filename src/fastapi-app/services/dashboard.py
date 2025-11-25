@@ -243,13 +243,26 @@ class DashboardService:
                         )
                     }
             
+            # Calcular estado de producción y eficiencia basado en condiciones actuales
+            production_status = self._calculate_production_status(
+                current_price.get("price_eur_kwh", 0.15) if current_price else 0.15,
+                current_weather.get("temperature", 20) if current_weather else 20,
+                current_weather.get("humidity", 50) if current_weather else 50
+            )
+
+            factory_efficiency = self._calculate_factory_efficiency(
+                current_price.get("price_eur_kwh", 0.15) if current_price else 0.15,
+                current_weather.get("temperature", 20) if current_weather else 20,
+                current_weather.get("humidity", 50) if current_weather else 50
+            )
+
             current_info = {
                 "energy": current_price,
                 "weather": current_weather,
-                "production_status": "🟢 Operativo",  # TODO: Integrar con datos reales
-                "factory_efficiency": 85.2  # TODO: Calcular basado en condiciones
+                "production_status": production_status,
+                "factory_efficiency": factory_efficiency
             }
-            
+
             return current_info
             
         except Exception as e:
@@ -741,7 +754,115 @@ class DashboardService:
             "Halt": "Parar producción"
         }
         return actions.get(class_name, "Evaluar condiciones")
-    
+
+    def _calculate_production_status(self, price: float, temperature: float, humidity: float) -> str:
+        """
+        Calcula el estado de producción basado en condiciones actuales.
+
+        Sistema de puntos:
+        - Base: 100 puntos
+        - Precio >0.35: -40 pts | >0.25: -25 pts
+        - Temperatura >32°C: -25 pts | >28°C: -15 pts
+        - Humedad >80%: -15 pts
+
+        Clasificación:
+        - ≥75 puntos: 🟢 Operativo
+        - ≥50 puntos: 🟡 Reducida
+        - <50 puntos: 🔴 Mínima
+        """
+        puntos = 100
+
+        # Penalización por precio
+        if price > 0.35:
+            puntos -= 40
+        elif price > 0.25:
+            puntos -= 25
+
+        # Penalización por temperatura
+        if temperature > 32:
+            puntos -= 25
+        elif temperature > 28:
+            puntos -= 15
+
+        # Penalización por humedad
+        if humidity > 80:
+            puntos -= 15
+
+        # Clasificar estado
+        if puntos >= 75:
+            return "🟢 Operativo"
+        elif puntos >= 50:
+            return "🟡 Reducida"
+        else:
+            return "🔴 Mínima"
+
+    def _calculate_factory_efficiency(self, price: float, temperature: float, humidity: float) -> float:
+        """
+        Calcula la eficiencia de fábrica como favorabilidad para producción (modo standby).
+
+        Factores:
+        - Precio energético (40%): Mejor en valle (<0.10), peor en punta (>0.25)
+        - Condiciones climáticas (40%): Óptimo 18-28°C, 45-65% humedad
+        - Favorabilidad horaria (20%): Basado en precio vs umbral 0.15
+
+        Retorna: Eficiencia en % (0-100)
+        """
+        # Factor 1: Precio energético (40%)
+        if price <= 0.10:
+            price_factor = 100  # Valle, excelente
+        elif price <= 0.15:
+            price_factor = 80  # Normal-bajo
+        elif price <= 0.20:
+            price_factor = 60  # Normal-medio
+        elif price <= 0.25:
+            price_factor = 40  # Alto
+        else:
+            price_factor = 20  # Punta, crítico
+
+        # Factor 2: Condiciones climáticas (40%)
+        # Temperatura óptima: 18-28°C
+        if 18 <= temperature <= 28:
+            temp_score = 100
+        elif 15 <= temperature < 18 or 28 < temperature <= 30:
+            temp_score = 80
+        elif 12 <= temperature < 15 or 30 < temperature <= 32:
+            temp_score = 60
+        elif temperature > 35:
+            temp_score = 20  # Crítico
+        else:
+            temp_score = 40
+
+        # Humedad óptima: 45-65%
+        if 45 <= humidity <= 65:
+            humidity_score = 100
+        elif 40 <= humidity < 45 or 65 < humidity <= 70:
+            humidity_score = 80
+        elif 35 <= humidity < 40 or 70 < humidity <= 75:
+            humidity_score = 60
+        elif humidity > 80:
+            humidity_score = 20  # Crítico
+        else:
+            humidity_score = 40
+
+        # Promedio clima
+        climate_factor = (temp_score + humidity_score) / 2
+
+        # Factor 3: Favorabilidad general (20%)
+        # Combinación simple: mejor si precio bajo + clima bueno
+        if price < 0.15 and 18 <= temperature <= 28 and 45 <= humidity <= 65:
+            favorability_factor = 100  # Condiciones perfectas
+        elif price < 0.20 and 15 <= temperature <= 30 and 40 <= humidity <= 70:
+            favorability_factor = 80  # Condiciones buenas
+        elif price > 0.25 or temperature > 32 or humidity > 80:
+            favorability_factor = 30  # Condiciones difíciles
+        else:
+            favorability_factor = 60  # Condiciones aceptables
+
+        # Cálculo final ponderado
+        efficiency = (price_factor * 0.40) + (climate_factor * 0.40) + (favorability_factor * 0.20)
+
+        return round(efficiency, 1)
+
     async def _get_weekly_forecast_heatmap(self) -> Dict[str, Any]:
         """Genera datos de pronóstico semanal con heatmap para calendario"""
         try:
