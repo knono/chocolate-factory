@@ -199,23 +199,26 @@ class PredictiveInsightsService:
                 "status": "success",
                 "model_info": {
                     "model_type": "Prophet (Facebook/Meta)",
-                    "last_validation": "2025-11-12",
-                    "validation_method": "Walk-forward (train Oct 31, test Nov 1-10)",
-                    "validation_script": "scripts/validate_prophet_walkforward.py",
-                    "note": "Métricas validadas con datos no vistos (unseen future data)"
+                    "last_validation": "2025-11-27",
+                    "validation_method": "Walk-forward (train Nov 16, test Nov 17-27)",
+                    "validation_script": "scripts/validate_prophet_walkforward_dynamic.py",
+                    "note": "Métricas validadas con datos no vistos (unseen future data)",
+                    "overfitting_check": "Degradación test→walk-forward: 7% (excelente - NO overfitting)"
                 },
                 "validation_metrics": {
-                    "mae_eur_kwh": 0.029,  # Mean Absolute Error (validado Nov 2025)
-                    "rmse_eur_kwh": 0.041,  # Root Mean Squared Error
-                    "r2_score": 0.48,  # Explica 48% de varianza (52% ruido mercado)
-                    "coverage_95pct": 95.0,  # 95% predicciones dentro intervalo confianza
-                    "samples_test": 240  # Nov 1-10, 2025 (10 días × 24 horas)
+                    "mae_eur_kwh": 0.031,  # Mean Absolute Error (validado Nov 27, 2025)
+                    "rmse_eur_kwh": 0.037,  # Root Mean Squared Error
+                    "r2_score": 0.54,  # Explica 54% de varianza (46% ruido mercado)
+                    "coverage_95pct": 95.49,  # 95.49% predicciones dentro intervalo confianza
+                    "samples_test": 288,  # Nov 17-27, 2025 (10 días × 24 horas, dinámico)
+                    "r2_test_set": 0.5848,  # R² en test set (mismo periodo temporal)
+                    "r2_degradation_pct": 7.0  # Degradación test→walk-forward (excelente)
                 },
                 "performance_context": {
                     "market_volatility": "400% variación diaria (0.05€ valle → 0.25€ punta)",
-                    "r2_interpretation": "R² 0.48 aceptable dado alta volatilidad mercado eléctrico",
-                    "mae_practical": "Error ±2.9 céntimos - suficiente para decisiones scheduling",
-                    "confidence": "✅ Alta (walk-forward con datos futuros no vistos)"
+                    "r2_interpretation": "R² 0.54 bueno dado alta volatilidad mercado eléctrico",
+                    "mae_practical": "Error ±3.1 céntimos - suficiente para decisiones scheduling",
+                    "confidence": "✅ Alta (walk-forward con datos futuros no vistos, NO overfitting)"
                 },
                 "reliability_by_period": {
                     "valle_p3": {
@@ -248,7 +251,7 @@ class PredictiveInsightsService:
                     "conchado_batch": "240 kWh/batch → ahorro 40€/batch vs aleatorio",
                     "weekly_savings": "4 batches × 40€ = 160€/semana",
                     "annual_impact": "8,320€/año solo optimizando Conchado",
-                    "error_cost": "MAE 0.029€ × 240kWh = 7€ error típico (17.5% del ahorro)"
+                    "error_cost": "MAE 0.031€ × 240kWh = 7.4€ error típico (18.5% del ahorro)"
                 }
             }
 

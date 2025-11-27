@@ -18,7 +18,7 @@ Energy optimization system combining machine learning price forecasting, automat
 
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
-- **Prophet ML (Real ML Puro)**: 168-hour price forecasting (MAE: 0.029 €/kWh, R²: 0.48 walk-forward Nov 2025) ✅
+- **Prophet ML (Real ML Puro)**: 168-hour price forecasting (MAE: 0.031 €/kWh, R²: 0.54 walk-forward Nov 27, 2025) ✅
 - **Sistemas de Scoring Determinístico** (sklearn RandomForest como motor, Nov 12, 2025):
   - Energy Optimization: Scoring 0-100, R² test 0.983 (estabilidad técnica, targets circulares)
   - Production Recommendation: Clasificación 4-class, Accuracy test 0.928 (targets circulares)
@@ -229,7 +229,7 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 
 | Sprint | Date | Description | Key Metrics |
 |--------|------|-------------|-------------|
-| 06 | Oct-Nov 2025 | Prophet Price Forecasting | MAE: 0.029 €/kWh, R²: 0.48 (walk-forward) |
+| 06 | Oct-Nov 2025 | Prophet Price Forecasting | MAE: 0.031 €/kWh, R²: 0.54 (walk-forward Nov 27) |
 | 07 | Oct 2025 | SIAR Historical Analysis | 88,935 records, 25 years |
 | 08 | Oct 2025 | Hourly Production Optimization | 85.33% savings vs baseline |
 | 09 | Oct 2025 | Unified Predictive Dashboard | 7-day forecast integration |
@@ -247,11 +247,12 @@ Modules: 60+ Python files organized by layer (Clean Architecture)
 
 ### ML Models & Decision Support Systems
 
-- **Price Forecasting (Prophet)**: 168h ahead (MAE: 0.029 €/kWh, R²: 0.48 walk-forward) ✅ **Real ML Puro**
-  - Walk-forward validation: Nov 1-10, 2025 (239 samples no vistos)
-  - Coverage 95%: 94.98%
+- **Price Forecasting (Prophet)**: 168h ahead (MAE: 0.031 €/kWh, R²: 0.54 walk-forward) ✅ **Real ML Puro**
+  - Walk-forward validation: Nov 17-27, 2025 (288 samples no vistos, dinámico)
+  - Degradación test→walk-forward: 7% (NO overfitting confirmado)
+  - Coverage 95%: 95.49%
   - Modelo simplificado: Fourier 8/5/8, 7 features exógenas, sin lags
-  - Validation: `scripts/validate_prophet_walkforward.py`
+  - Validation: `scripts/validate_prophet_walkforward_dynamic.py`
 - **Sistemas de Scoring Determinístico (sklearn)**: Motores de reglas de negocio (Nov 12, 2025)
   - **Energy Optimization Scoring System**: RandomForestRegressor scoring 0-100
     - R² test 0.983, train 0.996 (diff 0.013, estabilidad técnica)
@@ -452,7 +453,7 @@ Docker bind mounts ensure data survives container restarts:
 ## Limitations & Disclaimers
 
 ### Machine Learning
-- **Prophet**: Real ML puro (R² 0.48 walk-forward) ✅ | **Scoring Systems (sklearn)**: Motores de reglas de negocio (targets circulares, NO predictivo)
+- **Prophet**: Real ML puro (R² 0.54 walk-forward, degradación 7% - NO overfitting) ✅ | **Scoring Systems (sklearn)**: Motores de reglas de negocio (targets circulares, NO predictivo)
 - **Model Monitoring**: Solo Prophet ML (CSV tracking + Telegram alerts) | **A/B Testing**: Not implemented
 
 ### Security

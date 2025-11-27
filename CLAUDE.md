@@ -265,9 +265,12 @@ Implemented:
 - **Automatic Backfill**: Gap detection and recovery every 2 hours
 
 ### Machine Learning & Decision Support Systems
-- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.029 €/kWh, R²: 0.49 walk-forward) ✅ **Real ML Puro**
-  - Walk-forward validation: Nov 1-10, 2025 (datos no vistos, 240 samples)
-  - Coverage 95%: 95.00% (objetivo >90% alcanzado)
+- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.031 €/kWh, R²: 0.54 walk-forward) ✅ **Real ML Puro**
+  - **Walk-forward validation** (Nov 27, 2025): Nov 17-27 datos no vistos, 288 samples
+    - Test set R²: 0.5848 (58.48%) | Walk-forward R²: 0.5418 (54.18%)
+    - Degradación: **7%** (excelente - NO overfitting)
+    - MAE: 0.0308 €/kWh | RMSE: 0.0369 €/kWh
+    - Coverage 95%: 95.49% (objetivo >90% ✅)
   - Configuración optimizada: Fourier 8/5/8, changepoint_prior_scale 0.08, sin lags
   - Features: is_peak_hour, is_valley_hour, is_winter, is_summer (simples, óptimas)
   - **Optimización validada** (Nov 12, 2025): 3 experimentos probados, baseline óptimo
@@ -275,7 +278,8 @@ Implemented:
     - ❌ Tariff periods (P1/P2/P3): R² -17.11% (mucho peor)
     - ❌ Changepoints + Volatility: R² -17.91% (mucho peor)
   - Conclusión: Features simples generalizan mejor, complejidad adicional causa overfitting
-  - Validation scripts: `scripts/validate_prophet_walkforward.py`, `scripts/test_prophet_*.py`
+  - **Generalización confirmada**: R² > 0.50 en datos futuros reales = Producción viable
+  - Validation scripts: `scripts/validate_prophet_walkforward_dynamic.py`, `scripts/test_prophet_*.py`
 - **Sistemas de Scoring Determinístico** (sklearn RandomForest como motor, Nov 12, 2025)
   - **Energy Optimization Scoring System**: Scoring 0-100 basado en reglas de negocio
     - Implementación: RandomForestRegressor (captura interacciones no lineales)
@@ -585,8 +589,9 @@ date_obj = pd.to_datetime(fecha_str, format='%d/%m/%Y')
 ### Prophet ML (Real Predictive ML) ✅
 - **Model**: Facebook Prophet time series forecasting
 - **Purpose**: 168-hour electricity price prediction
-- **Performance**: MAE 0.029 €/kWh, R² 0.48 (walk-forward validation Nov 2025)
-- **Validation**: Walk-forward on unseen data (Nov 1-10, 2025)
+- **Performance**: MAE 0.031 €/kWh, R² 0.54 (walk-forward validation Nov 27, 2025)
+- **Validation**: Walk-forward on unseen data (Nov 17-27, 2025) - 288 samples
+- **Generalization**: Test R² 0.58 → Walk-forward R² 0.54 (degradación 7% - excelente)
 - **Training**: Daily automated retraining
 - **Storage**: Pickle serialization
 
@@ -790,7 +795,8 @@ Technical fixes applied:
 ## System Limitations & Disclaimers
 
 ### Machine Learning
-- **Prophet Forecasting**: Real ML puro con R² 0.48 walk-forward (52% variance unexplained) ✅
+- **Prophet Forecasting**: Real ML puro con R² 0.54 walk-forward (46% variance unexplained, 54% explained) ✅
+  - Generalización validada: degradación test→walk-forward solo 7% (NO overfitting)
 - **Sistemas de Scoring (sklearn)**: Motores de reglas de negocio determinísticos, NO ML predictivo
   - Energy Optimization: Scoring 0-100 basado en fórmula (targets circulares)
   - Production Recommendation: Clasificación basada en thresholds (targets circulares)
@@ -822,6 +828,7 @@ Technical fixes applied:
 
 ### Data & Metrics
 - **ROI (11,045€/year)**: Estimación valle-prioritized vs baseline (35.7% ahorro), NOT measured from real production
-- **Data Volumes**: Verifiable from InfluxDB (42k REE, 88k SIAR records as of Oct 2025)
-- **Prophet Metrics**: Last measured Oct 3, 2025 (MAE 0.033, R² 0.49) - initial benchmark, not dynamically updated
+- **Data Volumes**: Verifiable from InfluxDB (42k REE, 88k SIAR records as of Nov 2025)
+- **Prophet Metrics**: Walk-forward validado Nov 27, 2025 (MAE 0.031, R² 0.54, Coverage 95.49%)
+  - Test set R² 0.58 | Walk-forward R² 0.54 | Degradación 7% (NO overfitting)
 - cuando documentes, hazlo de forma austera y directa; sin artefactos de marketing

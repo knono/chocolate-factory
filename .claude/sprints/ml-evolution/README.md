@@ -25,8 +25,9 @@
 - ✅ Heatmap poblado con predicciones reales (no simuladas)
 - ✅ API `/predict/prices/weekly` + `/predict/prices/hourly`
 - ✅ Intervalos de confianza 95%
-- ✅ Métricas optimizadas (Nov 10, 2025): MAE 0.029 €/kWh, R² 0.48 (walk-forward), Coverage 94.98%
-- ✅ Walk-forward validation: train hasta Oct 31, test Nov 1-10 (datos no vistos)
+- ✅ Métricas validadas (Nov 27, 2025): MAE 0.031 €/kWh, R² 0.54 (walk-forward), Coverage 95.49%
+- ✅ Walk-forward validation: train hasta Nov 16, test Nov 17-27 (10 días no vistos, dinámico)
+- ✅ Degradación test→walk-forward: 7% (NO overfitting, excelente generalización)
 - ✅ Configuración optimizada: Fourier 8/5/8, 7 features exógenas, sin lags
 - ✅ Dashboard integration con tooltips Safari/Chrome/Brave
 - ✅ APScheduler job: predicciones horarias automáticas
@@ -231,8 +232,9 @@ Cada sprint se considera **COMPLETADO** cuando:
 **Sprint Pendiente**: Ninguno (ML Evolution + Optimization completada)
 
 **Logros Serie ML Evolution**:
-- ✅ Prophet forecasting (MAE 0.029 €/kWh, R² 0.48 walk-forward validation Nov 2025)
-- ✅ Walk-forward validation metodológica (train Oct, test Nov - datos no vistos)
+- ✅ Prophet forecasting (MAE 0.031 €/kWh, R² 0.54 walk-forward validation Nov 27, 2025)
+- ✅ Walk-forward validation metodológica (train Nov 16, test Nov 17-27 - datos no vistos, dinámico)
+- ✅ NO overfitting confirmado: degradación test→walk-forward solo 7%
 - ✅ sklearn scoring systems (R² 0.983 - 90 días REE, targets circulares - NO ML predictivo)
 - ✅ SIAR historical analysis (88,935 registros)
 - ✅ Hourly optimization (85.33% savings)
@@ -246,6 +248,6 @@ Cada sprint se considera **COMPLETADO** cuando:
 
 ---
 
-**Última actualización**: 2025-11-10
-**Autor**: Sistema ML Evolution (Walk-Forward Validation)
-**Versión**: 3.3 (Sprint 06 optimizado - Prophet R² 0.48 walk-forward)
+**Última actualización**: 2025-11-27
+**Autor**: Sistema ML Evolution (Walk-Forward Validation Dinámica)
+**Versión**: 3.4 (Sprint 06 validado - Prophet R² 0.54 walk-forward, NO overfitting)

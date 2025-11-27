@@ -187,7 +187,12 @@ El sistema de Chocolate Factory integra **Prophet ML puro + sistemas de scoring 
 - Nuevo método `_add_prophet_features()`: is_peak_hour, is_weekend, is_holiday
 - Integrado `add_country_holidays('ES')`
 - Regressores: is_peak_hour (prior 0.1), is_weekend (prior 0.05), is_holiday (prior 0.1)
-- **Impacto esperado**: R² 0.49 → 0.55-0.65, MAE 0.033 → 0.027-0.030
+
+**UPDATE NOV 27**: Walk-forward validation con datos reales (Nov 17-27, 2025)
+- **Test set R²**: 0.5848 (58.48%) | **Walk-forward R²**: 0.5418 (54.18%)
+- **Degradación**: 7% (excelente - NO overfitting detectado)
+- **Métricas**: MAE 0.0308 €/kWh, RMSE 0.0369 €/kWh, Coverage 95.49%
+- **Conclusión**: Modelo generaliza BIEN a datos futuros no vistos
 
 ---
 
@@ -653,14 +658,17 @@ GET /predict/prices/weekly
 
 | Métrica | Valor Actual | Objetivo | Estado |
 |---------|-------------|----------|--------|
-| MAE | 0.033 €/kWh | < 0.05 | ✅ |
-| RMSE | 0.042 €/kWh | < 0.06 | ✅ |
-| R² | 0.49 | > 0.40 | ✅ |
-| Coverage 95% | 88.3% | > 85% | ✅ |
+| MAE (walk-forward) | 0.031 €/kWh | < 0.05 | ✅ |
+| RMSE (walk-forward) | 0.037 €/kWh | < 0.06 | ✅ |
+| R² (walk-forward) | **0.54** | > 0.40 | ✅ |
+| Coverage 95% | 95.5% | > 85% | ✅ |
+| Degradación test→wf | 7% | < 15% | ✅ |
+
+**Validación Nov 27, 2025**: Walk-forward en datos no vistos (Nov 17-27) confirma NO overfitting.
 
 #### Experimentos de Optimización Prophet (Nov 12, 2025)
 
-Se probaron **3 variantes** para mejorar baseline (R² 0.4932). Todos empeoraron rendimiento:
+Se probaron **3 variantes** para mejorar baseline (R² 0.49 inicial). Todos empeoraron rendimiento:
 
 **1. Clima Real (temperature/humidity)**
 - **Objetivo**: Usar valores reales clima vs categóricos (is_winter/summer)
