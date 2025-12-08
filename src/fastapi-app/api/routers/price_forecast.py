@@ -173,13 +173,13 @@ async def get_hourly_forecast(
 
 @router.post("/models/price-forecast/train")
 async def train_price_forecast_model(
-    months_back: int = Query(default=12, ge=1, le=36, description="Months of historical data to use")
+    months_back: int = Query(default=36, ge=1, le=48, description="Months of historical data to use (default 36, max 48)")
 ) -> Dict[str, Any]:
     """
     🤖 Train Prophet model with historical REE price data.
 
     Args:
-        months_back: Historical months to use for training (default 12, max 36)
+        months_back: Historical months to use for training (default 36, max 48)
 
     Returns:
         - Training success status

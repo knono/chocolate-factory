@@ -85,12 +85,12 @@ class PriceForecastingService:
         # Intentar cargar modelo existente
         self._load_latest_model()
 
-    async def extract_ree_historical_data(self, months_back: int = 12) -> pd.DataFrame:
+    async def extract_ree_historical_data(self, months_back: int = 36) -> pd.DataFrame:
         """
         Extrae datos históricos de precios REE desde InfluxDB.
 
         Args:
-            months_back: Meses de historia a extraer (default: 12 meses)
+            months_back: Meses de historia a extraer (default: 36 meses = 3 años)
 
         Returns:
             DataFrame con columnas: timestamp, price_eur_kwh
@@ -243,12 +243,12 @@ class PriceForecastingService:
 
         return df
 
-    async def train_model(self, months_back: int = 12, test_size: float = 0.2) -> Dict[str, Any]:
+    async def train_model(self, months_back: int = 36, test_size: float = 0.2) -> Dict[str, Any]:
         """
         Entrena modelo Prophet con datos históricos REE.
 
         Args:
-            months_back: Meses de historia para entrenar (default: 12)
+            months_back: Meses de historia para entrenar (default: 36 = 3 años)
             test_size: Proporción datos para testing (default: 20%)
 
         Returns:
