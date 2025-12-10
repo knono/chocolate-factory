@@ -265,21 +265,14 @@ Implemented:
 - **Automatic Backfill**: Gap detection and recovery every 2 hours
 
 ### Machine Learning & Decision Support Systems
-- **Prophet Forecasting**: 168-hour REE price prediction (MAE: 0.031 €/kWh, R²: 0.54 walk-forward) ✅ **Real ML Puro**
-  - **Walk-forward validation** (Nov 27, 2025): Nov 17-27 datos no vistos, 288 samples
-    - Test set R²: 0.5848 (58.48%) | Walk-forward R²: 0.5418 (54.18%)
-    - Degradación: **7%** (excelente - NO overfitting)
-    - MAE: 0.0308 €/kWh | RMSE: 0.0369 €/kWh
-    - Coverage 95%: 95.49% (objetivo >90% ✅)
-  - Configuración optimizada: Fourier 8/5/8, changepoint_prior_scale 0.08, sin lags
-  - Features: is_peak_hour, is_valley_hour, is_winter, is_summer (simples, óptimas)
-  - **Optimización validada** (Nov 12, 2025): 3 experimentos probados, baseline óptimo
-    - ❌ Clima real (temp/humidity): R² -0.26% (peor)
-    - ❌ Tariff periods (P1/P2/P3): R² -17.11% (mucho peor)
-    - ❌ Changepoints + Volatility: R² -17.91% (mucho peor)
-  - Conclusión: Features simples generalizan mejor, complejidad adicional causa overfitting
-  - **Generalización confirmada**: R² > 0.50 en datos futuros reales = Producción viable
-  - Validation scripts: `scripts/validate_prophet_walkforward_dynamic.py`, `scripts/test_prophet_*.py`
+- **Prophet Forecasting + Inercia 3h**: 168-hour REE price prediction ✅ **Real ML Puro**
+  - **Modelo híbrido** (Dic 10, 2025): Prophet + corrección por inercia
+    - Prophet: captura estacionalidad (hora, día, semana)
+    - Inercia 3h: corrige nivel con media últimas 3h reales
+    - Walk-forward (7 días, 157 pred): MAE 0.030→0.023 (+24%), R² 0.33→0.61
+  - Configuración: Fourier 8/5/8, changepoint_prior_scale 0.08, sin lags
+  - Features: is_peak_hour, is_valley_hour, is_winter, is_summer
+  - Validation scripts: `scripts/test_prophet_inertia_walkforward.py`
 - **Sistemas de Scoring Determinístico** (sklearn RandomForest como motor, Nov 12, 2025)
   - **Energy Optimization Scoring System**: Scoring 0-100 basado en reglas de negocio
     - Implementación: RandomForestRegressor (captura interacciones no lineales)

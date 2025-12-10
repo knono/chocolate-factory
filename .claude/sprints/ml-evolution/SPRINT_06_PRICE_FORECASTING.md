@@ -454,3 +454,37 @@ is_summer:      prior_scale=0.04
 - Implementation: `src/fastapi-app/services/price_forecasting_service.py:1-577`
 - Dashboard: `static/js/dashboard.js:fetchWeeklyHeatmap()`
 - CSV Metrics: `/app/models/metrics_history.csv`
+
+---
+
+## UPDATE DEC 10, 2025: CORRECCIÓN POR INERCIA 3H
+
+**Version**: 1.3.0
+**Date**: 2025-12-10
+**Script**: `scripts/test_prophet_inertia_walkforward.py`
+
+### Objetivo
+Resolver limitación del modelo Prophet puro (R² ~0.33 en últimos días) mediante corrección en tiempo real usando datos recientes.
+
+### Implementación Híbrida
+Modelo compuesto que combina:
+1. **Prophet (Base)**: Captura estacionalidad (hora, día, semana) y tendencias largo plazo.
+2. **Inercia 3h (Corrección)**: Ajusta el nivel base de la predicción usando la desviación media de las últimas 3 horas reales.
+
+**Lógica**:
+```python
+correction = mean(last_3h_real) - mean(prophet_baseline)
+prediction_final = prediction_prophet + correction
+```
+
+### Resultados Walk-Forward (7 días)
+Validación simalando predicción día a día (sin data leakage):
+
+| Métrica | Prophet Solo | Prophet + Inercia | Mejora | Status |
+|---------|--------------|-------------------|--------|--------|
+| **R²**      | 0.33         | **0.61**          | +0.28  | ✅ Excellent |
+| **MAE**     | 0.030 €/kWh  | **0.023 €/kWh**   | +24%   | ✅ Target <0.025 |
+
+### Conclusión
+La corrección por inercia es **altamente efectiva** para capturar el nivel absoluto del precio, mientras Prophet aporta la forma de la curva diaria. La combinación supera significativamente a Prophet solo.
+

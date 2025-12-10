@@ -692,9 +692,28 @@ Se probaron **3 variantes** para mejorar baseline (R² 0.49 inicial). Todos empe
 - **Causa**: Overfitting, volatilidad ya capturada por Fourier
 - **Script**: `test_prophet_changepoints.py`
 
-**Conclusión**: Baseline actual óptimo. Features simples (is_peak_hour, is_valley_hour, is_winter, is_summer) generalizan mejor que features elaboradas. Complejidad adicional causa overfitting.
+**Conclusión**: Features simples generalizan mejor. Complejidad adicional causa overfitting.
 
-**Principio validado**: "Less is more" en ML para series temporales volátiles.
+#### Corrección por Inercia 3h (Dic 10, 2025)
+
+Modelo híbrido que mejora predicciones en tiempo real:
+- Prophet: captura estacionalidad (hora, día, semana)
+- Inercia 3h: corrige nivel con media de últimas 3 horas reales
+
+**Validación walk-forward** (7 días, 157 predicciones):
+
+| Métrica | Prophet Solo | Prophet + Inercia | Mejora |
+|---------|--------------|-------------------|--------|
+| MAE | 0.030 | 0.023 | +24% |
+| R² | 0.33 | 0.61 | +0.28 |
+
+**Por qué funciona**: Prophet predice bien la forma de la curva (picos/valles) pero no el nivel absoluto del día. La inercia usa precios reales recientes para anclar el nivel.
+
+**Implementación**: `services/price_forecasting_service.py`
+- Método `_get_inertia_correction(window_hours=3)`
+- Aplicado en `predict_weekly(apply_inertia=True)`
+
+**Scripts validación**: `scripts/test_prophet_inertia_walkforward.py`
 
 ---
 
