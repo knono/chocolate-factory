@@ -20,6 +20,7 @@ services:
       context: .
       dockerfile: docker/fastapi.Dockerfile
     container_name: chocolate_factory_brain
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "${FASTAPI_PORT:-8000}:8000"
     environment:
