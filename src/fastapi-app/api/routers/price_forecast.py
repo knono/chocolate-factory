@@ -173,18 +173,25 @@ async def get_hourly_forecast(
 
 @router.post("/models/price-forecast/train")
 async def train_price_forecast_model(
-    months_back: int = Query(default=36, ge=1, le=48, description="Months of historical data to use (default 36, max 48)")
+    months_back: int = Query(default=36, ge=1, le=48, description="Months of historical data to use (default 36, max 48)"),
+    test_days: int = Query(default=7, ge=1, le=30, description="Days to use for validation (default 7 = weekly forecast horizon)")
 ) -> Dict[str, Any]:
     """
     🤖 Train Prophet model with historical REE price data.
 
     Args:
         months_back: Historical months to use for training (default 36, max 48)
+        test_days: Days to use for validation (default 7 = weekly forecast horizon)
 
     Returns:
         - Training success status
         - Model performance metrics (MAE, RMSE, R², coverage)
         - Model file path
+
+    Note:
+        test_days=7 means validation uses last 168 hours, matching the real
+        forecast horizon. This gives more representative R² metrics than
+        the old 80/20 split which tested on ~7 months.
 
     Example Response:
     ```json
@@ -193,14 +200,14 @@ async def train_price_forecast_model(
         "training_result": {
             "success": true,
             "metrics": {
-                "mae": 0.0325,
-                "rmse": 0.0396,
-                "r2": 0.489,
-                "coverage_95": 0.883,
-                "train_samples": 1475,
-                "test_samples": 369
+                "mae": 0.028,
+                "rmse": 0.035,
+                "r2": 0.49,
+                "coverage_95": 0.95,
+                "train_samples": 26130,
+                "test_samples": 168
             },
-            "last_training": "2025-10-23T17:41:39",
+            "last_training": "2025-12-11T18:30:00",
             "model_file": "/app/models/latest/price_forecast_prophet.pkl"
         }
     }
@@ -210,7 +217,7 @@ async def train_price_forecast_model(
         service = PriceForecastingService()
 
         logger.info(f"🤖 Training Prophet model with {months_back} months of data...")
-        result = await service.train_model(months_back=months_back)
+        result = await service.train_model(months_back=months_back, test_days=test_days)
 
         if not result.get('success'):
             raise HTTPException(

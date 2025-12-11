@@ -248,13 +248,13 @@ class PriceForecastingService:
 
         return df
 
-    async def train_model(self, months_back: int = 36, test_size: float = 0.2) -> Dict[str, Any]:
+    async def train_model(self, months_back: int = 36, test_days: int = 7) -> Dict[str, Any]:
         """
         Entrena modelo Prophet con datos históricos REE.
 
         Args:
             months_back: Meses de historia para entrenar (default: 36 = 3 años)
-            test_size: Proporción datos para testing (default: 20%)
+            test_days: Días para validación (default: 7 = horizonte real de predicción)
 
         Returns:
             Diccionario con métricas de entrenamiento y validación
@@ -278,12 +278,15 @@ class PriceForecastingService:
         df_prophet = self._add_prophet_features(df_prophet, include_lags=False)
         logger.info("✅ Features exógenas simples: holidays, peak hours (sin lags para evitar overfitting)")
 
-        # 3. Split train/test (temporal, no aleatorio)
-        split_idx = int(len(df_prophet) * (1 - test_size))
+        # 3. Split train/test: test = últimos N días (horizonte real de predicción)
+        # Antes: 80/20 (test = ~7 meses) - no representativo del uso real
+        # Ahora: test = 7 días (168 horas) - horizonte real de predicción semanal
+        test_samples = test_days * 24  # 7 días × 24 horas = 168 samples
+        split_idx = len(df_prophet) - test_samples
         df_train = df_prophet[:split_idx].copy()
         df_test = df_prophet[split_idx:].copy()
 
-        logger.info(f"📊 Split: {len(df_train)} train / {len(df_test)} test")
+        logger.info(f"📊 Split: {len(df_train)} train / {len(df_test)} test ({test_days} días)")
 
         try:
             # 4. Configurar y entrenar Prophet con custom seasonality
