@@ -257,3 +257,90 @@ class REEAPIClient:
         """
         logger.warning("⚠️ Demand data endpoint not yet implemented")
         return []
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((httpx.TimeoutException, httpx.NetworkError)),
+        before_sleep=before_sleep_log(logger, logging.WARNING)
+    )
+    async def get_generation_structure(
+        self,
+        target_date: Optional[date] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get generation structure data, extracting Combined Cycle (gas) generation.
+
+        Uses the endpoint: generacion/estructura-generacion with time_trunc=day
+
+        Args:
+            target_date: Date to fetch generation for (defaults to yesterday)
+
+        Returns:
+            Dict with 'value_mwh' and 'percentage' for Ciclo Combinado,
+            or None if not available.
+
+        Example:
+            >>> async with REEAPIClient() as client:
+            ...     gas = await client.get_generation_structure()
+            ...     print(f"Gas: {gas['value_mwh']:,.0f} MWh")
+        """
+        if target_date is None:
+            target_date = date.today() - timedelta(days=1)
+
+        endpoint = "generacion/estructura-generacion"
+        params = {
+            "start_date": f"{target_date}T00:00",
+            "end_date": f"{target_date}T23:59",
+            "time_trunc": "day"  # IMPORTANT: 'hour' returns 500 error
+        }
+
+        logger.info(f"📊 Fetching generation structure for {target_date}")
+
+        try:
+            data = await self._make_request(endpoint, params)
+
+            if not data:
+                logger.warning(f"⚠️ No generation data returned for {target_date}")
+                return None
+
+            # Parse response to find Ciclo Combinado
+            return self._parse_generation_response(data)
+
+        except REEAPIError as e:
+            logger.error(f"❌ Failed to fetch generation data: {e}")
+            return None
+
+    @staticmethod
+    def _parse_generation_response(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Parse REE API response to extract Ciclo Combinado (gas) data.
+
+        Args:
+            data: Raw API response
+
+        Returns:
+            Dict with value_mwh and percentage, or None
+        """
+        included = data.get("included", [])
+
+        for item in included:
+            item_type = item.get("type", "")
+            # Match "Ciclo combinado" (case insensitive)
+            if "ciclo" in item_type.lower() and "combinado" in item_type.lower():
+                attrs = item.get("attributes", {})
+                values = attrs.get("values", [])
+
+                if values:
+                    # Take the first (and usually only) value for daily data
+                    v = values[0]
+                    return {
+                        "value_mwh": v.get("value", 0),
+                        "percentage": v.get("percentage", 0),
+                        "datetime": v.get("datetime"),
+                        "technology": item_type
+                    }
+
+        logger.warning("⚠️ Ciclo combinado not found in generation response")
+        return None
+

@@ -14,6 +14,7 @@ from .weather_jobs import weather_ingestion_job
 from .ml_jobs import ensure_prophet_model_job
 from .sklearn_jobs import sklearn_training_job  # sklearn training
 from .gap_detection_jobs import automatic_gap_detection  # Sprint 18
+from .gas_generation_jobs import gas_ingestion_job  # Gas feature (Ciclo Combinado)
 from .health_monitoring_jobs import (  # Sprint 13 (pivoted) + Sprint 20
     collect_health_metrics,
     log_health_status,
@@ -132,5 +133,17 @@ async def register_all_jobs(scheduler: AsyncIOScheduler):
         replace_existing=True
     )
     logger.info("   ✅ Connection metrics: every 5 minutes (latency, traffic, relay alerts)")
+
+    # Gas generation ingestion (daily at 11:00 AM) - Gas Feature Sprint
+    scheduler.add_job(
+        func=gas_ingestion_job,
+        trigger="cron",
+        hour=11,
+        minute=0,
+        id="gas_ingestion_daily",
+        name="Gas Generation Ingestion (11:00h)",
+        replace_existing=True
+    )
+    logger.info("   ✅ Gas generation ingestion: daily at 11:00h")
 
     logger.info(f"✅ Registered {len(scheduler.get_jobs())} jobs")

@@ -715,6 +715,35 @@ Modelo híbrido que mejora predicciones en tiempo real:
 
 **Scripts validación**: `scripts/test_prophet_inertia_walkforward.py`
 
+#### Gas Generation Regressor (Dec 11, 2025)
+
+Combined Cycle (gas) generation data added as Prophet regressor:
+- **Data source**: REE API (`generacion/estructura-generacion`, `time_trunc=day`)
+- **Storage**: InfluxDB `generation_mix` measurement (1107 records, Dec 2022 - Dec 2025)
+- **Feature**: `gas_gen_scaled` (normalized 0-1)
+- **Ingestion**: APScheduler job daily at 11:00 AM
+
+**Walk-forward validation** (10 iterations, 90d train, 168h test):
+
+| Metric | Baseline | + Gas | Improvement |
+|--------|----------|-------|-------------|
+| Avg MAE | 0.044 | 0.032 | +27.4% |
+| Avg R² | -0.20 | 0.37 | +57.6pp |
+| Wins | 1/10 | 9/10 | 90% |
+
+**Why it works**: Gas generation correlates with electricity demand and market prices. High gas generation typically indicates peak demand periods with higher prices.
+
+**Implementation**: `services/price_forecasting_service.py`
+- Training: merges daily gas data with hourly prices
+- Prediction: uses last known gas value for 168h forecast
+
+**New components**:
+- `services/gas_generation_service.py`: query/write/detect_gaps
+- `tasks/gas_generation_jobs.py`: daily ingestion
+- `ree_client.py`: +`get_generation_structure()`
+
+**Scripts validación**: `scripts/test_gas_prophet_walkforward.py`
+
 ---
 
 ### sklearn Energy Optimization (Nov 12, 2025)

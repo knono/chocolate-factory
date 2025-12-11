@@ -18,21 +18,22 @@ Energy optimization system combining machine learning price forecasting, automat
 
 **Key Metrics**:
 - 131,513 historical records (REE electricity prices + weather data, 2000-2025)
-- **Prophet ML**: 168-hour price forecasting (MAE: 0.023 €/kWh, R²: 0.61 walk-forward Dec 10, 2025) ✅
+- **Prophet ML**: 168-hour price forecasting (MAE: 0.025 €/kWh, R²: 0.60 with gas regressor Dec 11, 2025) ✅
+  - Gas Generation (Combined Cycle) regressor: +27% MAE improvement in walk-forward validation
 - **Deterministic Scoring Systems** (sklearn RandomForest as engine, 12 November 2025):
   - Energy Optimization: Scoring 0-100, R² test 0.983 (technical stability, circular targets)
-  - Production Recommendation: Clasificación 4-class, Accuracy test 0.928
+  - Production Recommendation: Classification 4-class, Accuracy test 0.928
   - **Nature**: Business rule engines, NOT predictive ML
 - Features: 10 total (5 base + 5 machinery-specific from real equipment specs)
 - Validation: Cross-validation 5-fold, train/test split 80/20, scripts in `/scripts`
-- Data: REE 619 records (90 días) + machinery specs (4 processes: 30-48 kW, 1-5h cycles)
+- Data: REE 619 records (90 days) + machinery specs (4 processes: 30-48 kW, 1-5h cycles)
 - ROI: 11,045€/year energy savings (valle-prioritized vs baseline, 35.7% reduction)
 - Testing: 186 tests (174 passing 93%, coverage 33%)
 - Clean Architecture: 12 routers, 47 endpoints
 - CI/CD: Automated testing + smoke tests + rollback on failure
 - Security: Tailscale auth (admin/viewer roles), Telegram alerts (5 types)
 - Observability: Health monitoring + Tailscale connection metrics + Prophet ML monitoring
-- APScheduler: 9 automated jobs
+- APScheduler: 10 automated jobs
 
 **Components**:
 - FastAPI application with ML models (Prophet, sklearn RandomForest)

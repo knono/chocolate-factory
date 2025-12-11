@@ -252,6 +252,19 @@ Implemented:
   - Tests totales: 29/29 passing (Fase 2: 11, Fase 3: 18)
   - Docs: ML_MONITORING.md creado
   - Coverage: 33%
+- Sprint 21: Gas Generation Feature (Dec 11, 2025) - COMPLETED
+  - Combined Cycle (gas) generation as Prophet regressor
+  - Walk-forward validation (10 iter, 90d train, 168h test):
+    - MAE: +27.4% improvement (gas wins 9/10 iterations)
+    - R²: +57.6pp improvement (-0.20 → 0.37)
+  - New components:
+    - `gas_generation_service.py`: query/write/detect_gaps
+    - `gas_generation_jobs.py`: daily ingestion at 11:00 AM
+    - `ree_client.py`: +`get_generation_structure()` (time_trunc=day)
+    - `scheduler_config.py`: job registered (10 jobs total)
+  - InfluxDB: measurement `generation_mix`, tag `source=ree_generation`
+  - Backfill: 1107 records (Dec 2022 → Dec 2025)
+  - Prediction: uses last known value for future 168h
 
 ### Core Infrastructure
 - **FastAPI Brain** (chocolate_factory_brain) - API + Dashboard + Direct ML

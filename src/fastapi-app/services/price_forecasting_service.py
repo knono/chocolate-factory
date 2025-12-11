@@ -33,6 +33,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from influxdb_client import Point
 
 from .data_ingestion import DataIngestionService
+from .gas_generation_service import GasGenerationService
 from domain.ml.model_metrics_tracker import ModelMetricsTracker
 
 logger = logging.getLogger(__name__)
@@ -278,6 +279,38 @@ class PriceForecastingService:
         df_prophet = self._add_prophet_features(df_prophet, include_lags=False)
         logger.info("✅ Features exógenas simples: holidays, peak hours (sin lags para evitar overfitting)")
 
+        # 2c. Agregar gas generation data (Ciclo Combinado) como regressor
+        try:
+            gas_service = GasGenerationService()
+            gas_df = await gas_service.get_historical(months=months_back)
+            
+            if not gas_df.empty:
+                # Gas data is daily, need to expand to hourly (same value for all hours in a day)
+                gas_df['date'] = gas_df['ds'].dt.date
+                df_prophet['date'] = df_prophet['ds'].dt.date
+                
+                # Merge gas data (left join to keep all price records)
+                df_prophet = df_prophet.merge(
+                    gas_df[['date', 'gas_gen_scaled']], 
+                    on='date', 
+                    how='left'
+                )
+                
+                # Fill any missing gas values with median
+                df_prophet['gas_gen_scaled'] = df_prophet['gas_gen_scaled'].fillna(
+                    df_prophet['gas_gen_scaled'].median()
+                )
+                
+                df_prophet = df_prophet.drop(columns=['date'])
+                logger.info(f"✅ Gas generation data merged: {gas_df['gas_gen_scaled'].notna().sum()} days")
+            else:
+                # No gas data available, use placeholder
+                df_prophet['gas_gen_scaled'] = 0.5
+                logger.warning("⚠️ No gas data available, using placeholder value")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not load gas data: {e}, using placeholder")
+            df_prophet['gas_gen_scaled'] = 0.5
+
         # 3. Split train/test: test = últimos N días (horizonte real de predicción)
         # Antes: 80/20 (test = ~7 meses) - no representativo del uso real
         # Ahora: test = 7 días (168 horas) - horizonte real de predicción semanal
@@ -333,6 +366,9 @@ class PriceForecastingService:
             self.model.add_regressor('is_winter', prior_scale=0.04)
             self.model.add_regressor('is_summer', prior_scale=0.04)
 
+            # Gas generation regressor (Ciclo Combinado)
+            self.model.add_regressor('gas_gen_scaled', prior_scale=0.10)
+
             # NO lags autoregressivos (causan overfitting temporal)
 
             # Suprimir output verbose de Prophet
@@ -347,7 +383,8 @@ class PriceForecastingService:
             # Seleccionar columnas de regressores (sin lags)
             regressor_cols = [
                 'ds', 'is_peak_hour', 'is_valley_hour',
-                'is_weekend', 'is_holiday', 'is_winter', 'is_summer'
+                'is_weekend', 'is_holiday', 'is_winter', 'is_summer',
+                'gas_gen_scaled'
             ]
             future_test = df_test[regressor_cols].copy()
             forecast_test = self.model.predict(future_test)
@@ -555,6 +592,21 @@ class PriceForecastingService:
 
             # 2. Agregar features exógenas (sin lags)
             future = self._add_prophet_features(future, include_lags=False)
+
+            # 2b. Agregar gas generation (último valor conocido para todas las horas futuras)
+            try:
+                gas_service = GasGenerationService()
+                latest_gas = await gas_service.get_latest()
+                
+                if latest_gas:
+                    future['gas_gen_scaled'] = latest_gas['gas_gen_scaled']
+                    logger.info(f"✅ Gas value for prediction: {latest_gas['gas_gen']:.0f} MWh (from {latest_gas['date']})")
+                else:
+                    future['gas_gen_scaled'] = 0.5
+                    logger.warning("⚠️ No gas data, using placeholder 0.5")
+            except Exception as e:
+                future['gas_gen_scaled'] = 0.5
+                logger.warning(f"⚠️ Could not load gas data: {e}, using placeholder")
 
             logger.info("✅ Features exógenas agregadas (sin lags)")
 
