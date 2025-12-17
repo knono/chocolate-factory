@@ -69,30 +69,30 @@ Energy optimization system combining machine learning price forecasting, automat
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  TAILSCALE NETWORK (Zero-Trust VPN)                             │
+│  TAILSCALE NETWORK (Zero-Trust VPN)                              │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  ┌────────────────────────┐  ┌────────────────────────────┐    │
-│  │  NODE 1: GIT/CI/CD     │  │  NODE 2: DEVELOPMENT       │    │
-│  │  git.*.ts.net          │  │  *-dev.ts.net              │    │
-│  │                        │  │                            │    │
-│  │  - Forgejo 1.21        │  │  - FastAPI (dev)           │    │
-│  │  - Runners (dev/prod)  │  │  - InfluxDB shared (read)  │    │
-│  │  - Docker Registry     │  │  - Hot reload enabled      │    │
-│  │  - Nginx SSL           │  │  - Port 8001               │    │
-│  └────────────────────────┘  └────────────────────────────┘    │
+│  ┌────────────────────────┐  ┌────────────────────────────┐      │
+│  │  NODE 1: GIT/CI/CD     │  │  NODE 2: DEVELOPMENT       │      │
+│  │  git.*.ts.net          │  │  *-dev.ts.net              │      │
+│  │                        │  │                            │      │
+│  │  - Forgejo 1.21        │  │  - FastAPI (dev)           │      │
+│  │  - Runners (dev/prod)  │  │  - InfluxDB shared (read)  │      │
+│  │  - Docker Registry     │  │  - Hot reload enabled      │      │
+│  │  - Nginx SSL           │  │  - Port 8001               │      │
+│  └────────────────────────┘  └────────────────────────────┘      │
 │                                                                  │
-│  ┌────────────────────────────────────────────────────┐         │
-│  │  NODE 3: PRODUCTION                                │         │
-│  │  *.ts.net                                          │         │
-│  │                                                    │         │
-│  │  - FastAPI (prod)                                 │         │
-│  │  - InfluxDB (data ingestion)                      │         │
-│  │  - ML models (Prophet, sklearn)                   │         │
-│  │  - APScheduler (9 jobs)                          │         │
-│  │  - Port 8000                                      │         │
-│  │  - Nginx SSL                                      │         │
-│  └────────────────────────────────────────────────────┘         │
+│  ┌────────────────────────────────────────────────────┐          │
+│  │  NODE 3: PRODUCTION                                │          │
+│  │  *.ts.net                                          │          │
+│  │                                                    │          │
+│  │  - FastAPI (prod)                                  │          │
+│  │  - InfluxDB (data ingestion)                       │          │
+│  │  - ML models (Prophet, sklearn)                    │          │
+│  │  - APScheduler (9 jobs)                            │          │
+│  │  - Port 8000                                       │          │
+│  │  - Nginx SSL                                       │          │
+│  └────────────────────────────────────────────────────┘          │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 
