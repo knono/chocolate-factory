@@ -34,7 +34,8 @@ class GapAnalysis(BaseModel):
     analysis_timestamp: datetime
     total_gaps_found: int
     ree_gaps: List[DataGap]
-    weather_gaps: List[DataGap] 
+    weather_gaps: List[DataGap]
+    gas_gaps: List[DataGap] = []  # Nuevo: Ciclos Combinados
     recommended_backfill_strategy: Dict[str, Any]
     estimated_backfill_duration: str
 
@@ -58,25 +59,29 @@ class GapDetectionService:
             # Detectar gaps en datos climáticos  
             weather_gaps = await self._detect_weather_gaps(days_back)
             
+            # Detectar gaps en datos de gas (Ciclos Combinados)
+            gas_gaps = await self._detect_gas_gaps(days_back)
+            
             # Generar estrategia de backfill
-            strategy = self._generate_backfill_strategy(ree_gaps, weather_gaps)
+            strategy = self._generate_backfill_strategy(ree_gaps, weather_gaps, gas_gaps)
             
             # Estimar duración total
-            duration = self._estimate_backfill_duration(ree_gaps, weather_gaps)
+            duration = self._estimate_backfill_duration(ree_gaps, weather_gaps, gas_gaps)
             
             analysis = GapAnalysis(
                 analysis_timestamp=datetime.now(timezone.utc),
-                total_gaps_found=len(ree_gaps) + len(weather_gaps),
+                total_gaps_found=len(ree_gaps) + len(weather_gaps) + len(gas_gaps),
                 ree_gaps=ree_gaps,
                 weather_gaps=weather_gaps,
+                gas_gaps=gas_gaps,
                 recommended_backfill_strategy=strategy,
                 estimated_backfill_duration=duration
             )
 
             logger.info(f"✅ Análisis completado: {analysis.total_gaps_found} gaps encontrados")
 
-            # Send alert if critical gaps detected (>12h)
-            await self._check_and_alert_critical_gaps(ree_gaps, weather_gaps)
+            # Send alert if critical gaps detected (>12h) or any gas gaps
+            await self._check_and_alert_critical_gaps(ree_gaps, weather_gaps, gas_gaps)
 
             return analysis
             
@@ -180,6 +185,39 @@ class GapDetectionService:
 
         except Exception as e:
             logger.error(f"Error detectando gaps climáticos: {e}")
+            return []
+
+    async def _detect_gas_gaps(self, days_back: int) -> List[DataGap]:
+        """Detectar gaps en datos de generación de gas (Ciclos Combinados)"""
+        try:
+            from .gas_generation_service import GasGenerationService
+            service = GasGenerationService()
+            
+            missing_dates = await service.detect_gaps(days_back)
+            
+            gaps = []
+            if not missing_dates:
+                return gaps
+                
+            # Convertir fechas a objetos DataGap
+            for missing_date in missing_dates:
+                # Cada dato de gas representa un día entero
+                start_time = datetime.combine(missing_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+                end_time = start_time + timedelta(days=1)
+                
+                gap = self._create_gap(
+                    "generation_mix",
+                    start_time,
+                    end_time,
+                    timedelta(days=1)
+                )
+                gaps.append(gap)
+                
+            logger.info(f"⛽ Gas: {len(gaps)} gaps detectados en {days_back} días")
+            return gaps
+            
+        except Exception as e:
+            logger.error(f"Error detectando gaps gas: {e}")
             return []
     
     def _find_time_gaps(self, expected_times: List[datetime],
@@ -329,8 +367,10 @@ class GapDetectionService:
         )
     
     def _generate_backfill_strategy(self, ree_gaps: List[DataGap], 
-                                  weather_gaps: List[DataGap]) -> Dict[str, Any]:
+                                  weather_gaps: List[DataGap],
+                                  gas_gaps: List[DataGap] = None) -> Dict[str, Any]:
         """Generar estrategia óptima de backfill"""
+        if gas_gaps is None: gas_gaps = []
         
         strategy = {
             "approach": "intelligent_progressive",
@@ -347,9 +387,15 @@ class GapDetectionService:
                 "gaps_count": len(weather_gaps),
                 "total_missing_hours": sum(gap.gap_duration_hours for gap in weather_gaps)
             },
+            "gas_strategy": {
+                "api": "REE_generation",
+                "method": "daily_records",
+                "gaps_count": len(gas_gaps)
+            },
             "execution_order": [
-                "ree_backfill",  # Más fácil primero
-                "weather_backfill"  # Más complejo después
+                "ree_backfill",
+                "weather_backfill",
+                "gas_backfill"
             ],
             "rate_limiting": {
                 "ree_requests_per_minute": 30,
@@ -360,17 +406,21 @@ class GapDetectionService:
         return strategy
     
     def _estimate_backfill_duration(self, ree_gaps: List[DataGap], 
-                                  weather_gaps: List[DataGap]) -> str:
+                                  weather_gaps: List[DataGap],
+                                  gas_gaps: List[DataGap] = None) -> str:
         """Estimar duración total del proceso de backfill"""
+        if gas_gaps is None: gas_gaps = []
         
         total_ree_hours = sum(gap.gap_duration_hours for gap in ree_gaps)
         total_weather_hours = sum(gap.gap_duration_hours for gap in weather_gaps)
+        total_gas_days = len(gas_gaps)
         
         # Estimaciones basadas en rate limits
         ree_minutes = (total_ree_hours / 24) * 2  # 2 min por día de datos REE
         weather_minutes = (total_weather_hours / 24) * 5  # 5 min por día de datos clima
+        gas_minutes = total_gas_days * 0.5  # 30s por día de gas
         
-        total_minutes = ree_minutes + weather_minutes
+        total_minutes = ree_minutes + weather_minutes + gas_minutes
         
         if total_minutes < 5:
             return "< 5 minutos"
@@ -386,7 +436,7 @@ class GapDetectionService:
             async with DataIngestionService() as service:
                 query_api = service.client.query_api()
                 
-                # Último precio REE - Fix: ordenar por timestamp desc y tomar el más reciente
+                # Último precio REE
                 ree_query = f'''
                 from(bucket: "{service.config.bucket}")
                 |> range(start: -30d)
@@ -397,12 +447,23 @@ class GapDetectionService:
                 |> limit(n: 1)
                 '''
                 
-                # Último dato climático - Fix: mismo fix para weather data
+                # Último dato climático
                 weather_query = f'''
                 from(bucket: "{service.config.bucket}")
                 |> range(start: -30d)
                 |> filter(fn: (r) => r._measurement == "weather_data")
                 |> filter(fn: (r) => r._field == "temperature")
+                |> group()
+                |> sort(columns: ["_time"], desc: true)
+                |> limit(n: 1)
+                '''
+
+                # Último dato de gas (Ciclos Combinados)
+                gas_query = f'''
+                from(bucket: "{service.config.bucket}")
+                |> range(start: -30d)
+                |> filter(fn: (r) => r._measurement == "generation_mix")
+                |> filter(fn: (r) => r._field == "value_mwh")
                 |> group()
                 |> sort(columns: ["_time"], desc: true)
                 |> limit(n: 1)
@@ -416,7 +477,6 @@ class GapDetectionService:
                 for table in ree_tables:
                     for record in table.records:
                         results['latest_ree'] = record.get_time()
-                        logger.info(f"Gap detector: Latest REE timestamp found: {results['latest_ree']}")
                         break
                 
                 # Obtener último Weather
@@ -425,6 +485,14 @@ class GapDetectionService:
                 for table in weather_tables:
                     for record in table.records:
                         results['latest_weather'] = record.get_time()
+                        break
+
+                # Obtener último Gas
+                gas_tables = query_api.query(gas_query)
+                results['latest_gas'] = None
+                for table in gas_tables:
+                    for record in table.records:
+                        results['latest_gas'] = record.get_time()
                         break
                 
                 return results
@@ -436,7 +504,8 @@ class GapDetectionService:
     async def _check_and_alert_critical_gaps(
         self,
         ree_gaps: List[DataGap],
-        weather_gaps: List[DataGap]
+        weather_gaps: List[DataGap],
+        gas_gaps: List[DataGap] = None
     ):
         """
         Check for critical gaps (>12h) and send Telegram alert.

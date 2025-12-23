@@ -73,14 +73,23 @@ class BackfillService:
                 logger.info(f"🌤️ Ejecutando backfill Weather para {len(analysis.weather_gaps)} gaps")
                 weather_results = await self._backfill_weather_gaps(analysis.weather_gaps)
             
-            # 4. Consolidar resultados
+            # 4. Ejecutar backfill Gas (Ciclos Combinados)
+            gas_results = []
+            if hasattr(analysis, "gas_gaps") and analysis.gas_gaps:
+                logger.info(f"⛽ Ejecutando backfill Gas para {len(analysis.gas_gaps)} gaps")
+                gas_results = await self._backfill_gas_gaps(analysis.gas_gaps)
+            
+            # 5. Consolidar resultados
             total_duration = (datetime.now() - start_time).total_seconds()
             
             summary = self._generate_backfill_summary(
-                ree_results, weather_results, total_duration
+                ree_results, weather_results, gas_results, total_duration
             )
 
             logger.info(f"✅ Backfill completado en {total_duration:.1f}s")
+            
+            # 6. Acciones post-backfill (e.g. reentrenamiento Prophet)
+            await self._post_backfill_actions(summary)
 
             # Send success alert
             if self.telegram_service:
@@ -576,12 +585,95 @@ class BackfillService:
             errors=errors
         )
 
+    async def _backfill_gas_gaps(self, gaps: List[DataGap]) -> List[BackfillResult]:
+        """Backfill específico para gaps de generación de gas (Ciclos Combinados)"""
+        results = []
+        try:
+            from .gas_generation_service import GasGenerationService
+            service = GasGenerationService()
+            
+            for gap in gaps:
+                gap_start_time = datetime.now()
+                target_date = gap.start_time.date()
+                logger.info(f"⛽ Rellenando gap Gas: {target_date}")
+                
+                try:
+                    result_ingesta = await service.ingest_gas_data(target_date)
+                    
+                    obtained = 1 if result_ingesta["success"] and result_ingesta.get("action") == "ingested" else 0
+                    written = obtained
+                    
+                    res = BackfillResult(
+                        measurement="generation_mix",
+                        gap_start=gap.start_time,
+                        gap_end=gap.end_time,
+                        records_requested=1,
+                        records_obtained=obtained,
+                        records_written=written,
+                        success_rate=100.0 if written > 0 else 0.0,
+                        duration_seconds=(datetime.now() - gap_start_time).total_seconds(),
+                        method_used="REE_generation_daily",
+                        errors=[result_ingesta.get("error")] if not result_ingesta["success"] else []
+                    )
+                    results.append(res)
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error en backfill gas para {target_date}: {e}")
+                    results.append(BackfillResult(
+                        measurement="generation_mix",
+                        gap_start=gap.start_time,
+                        gap_end=gap.end_time,
+                        records_requested=1,
+                        records_obtained=0,
+                        records_written=0,
+                        success_rate=0.0,
+                        duration_seconds=(datetime.now() - gap_start_time).total_seconds(),
+                        method_used="REE_generation_daily",
+                        errors=[str(e)]
+                    ))
+            return results
+        except Exception as e:
+            logger.error(f"Error general en backfill Gas: {e}")
+            return results
+
+    async def _post_backfill_actions(self, summary: Dict[str, Any]):
+        """Acciones a realizar tras un backfill exitoso (e.g. reentrenar Prophet)"""
+        try:
+            total_written = summary.get("records", {}).get("total_written", 0)
+            if total_written == 0:
+                logger.debug("⏭️ No se recuperaron registros, saltando acciones post-backfill")
+                return
+
+            now = datetime.now()
+            # Si se han recuperado datos y estamos después de la hora de entrenamiento (15:00)
+            # o si el gap recuperado era grande (>12h), forzamos entrenamiento.
+            is_post_training_time = now.hour >= 15
+            
+            # Detectar si hubo gaps significativos recuperados
+            had_significant_gaps = any(
+                res.get("records_written", 0) > 0 and res.get("success_rate", 0) > 50
+                for res in summary.get("detailed_results", [])
+            )
+
+            if had_significant_gaps:
+                if is_post_training_time:
+                    logger.info("🤖 Detectados nuevos datos tras hora de entrenamiento (15h). Disparando reentrenamiento Prophet...")
+                    from tasks.ml_jobs import ensure_prophet_model_job
+                    # Ejecutar en background para no bloquear la respuesta de la API
+                    asyncio.create_task(ensure_prophet_model_job())
+                else:
+                    logger.info("🤖 Datos recuperados, pero antes de las 15h. El entrenamiento programado se encargará.")
+
+        except Exception as e:
+            logger.error(f"Error en acciones post-backfill: {e}")
+
     def _generate_backfill_summary(self, ree_results: List[BackfillResult], 
                                  weather_results: List[BackfillResult],
+                                 gas_results: List[BackfillResult],
                                  total_duration: float) -> Dict[str, Any]:
         """Generar resumen completo del backfill"""
         
-        all_results = ree_results + weather_results
+        all_results = ree_results + weather_results + gas_results
         
         total_requested = sum(r.records_requested for r in all_results)
         total_obtained = sum(r.records_obtained for r in all_results)
@@ -592,6 +684,7 @@ class BackfillService:
         # Contadores por tipo
         ree_written = sum(r.records_written for r in ree_results)
         weather_written = sum(r.records_written for r in weather_results)
+        gas_written = sum(r.records_written for r in gas_results)
         
         return {
             "status": "success" if overall_success_rate > 70 else "partial",
@@ -600,6 +693,7 @@ class BackfillService:
                 "total_gaps_processed": len(all_results),
                 "ree_gaps": len(ree_results),
                 "weather_gaps": len(weather_results),
+                "gas_gaps": len(gas_results),
                 "total_duration_seconds": round(total_duration, 1),
                 "overall_success_rate": round(overall_success_rate, 1)
             },
@@ -608,7 +702,8 @@ class BackfillService:
                 "total_obtained": total_obtained,
                 "total_written": total_written,
                 "ree_records_written": ree_written,
-                "weather_records_written": weather_written
+                "weather_records_written": weather_written,
+                "gas_records_written": gas_written
             },
             "detailed_results": [
                 {
@@ -638,38 +733,50 @@ class BackfillService:
             needs_backfill = False
             ree_gap_hours = 0
             weather_gap_hours = 0
+            gas_gap_hours = 0
             
             # Verificar gap REE
-            if latest['latest_ree']:
+            if latest.get('latest_ree'):
                 ree_gap_hours = (now - latest['latest_ree']).total_seconds() / 3600
                 if ree_gap_hours > max_gap_hours:
                     needs_backfill = True
             else:
                 needs_backfill = True
-                ree_gap_hours = 24 * 7  # Asumimos 1 semana sin datos
+                ree_gap_hours = 24 * 7
             
             # Verificar gap Weather
-            if latest['latest_weather']:
+            if latest.get('latest_weather'):
                 weather_gap_hours = (now - latest['latest_weather']).total_seconds() / 3600
                 if weather_gap_hours > max_gap_hours:
                     needs_backfill = True
             else:
                 needs_backfill = True
-                weather_gap_hours = 24 * 7  # Asumimos 1 semana sin datos
+                weather_gap_hours = 24 * 7
+
+            # Verificar gap Gas (Ciclos Combinados)
+            if latest.get('latest_gas'):
+                # Los datos de gas son diarios, si el último es de hace más de 36h (ayer 11am), necesitamos backfill
+                gas_gap_hours = (now - latest['latest_gas']).total_seconds() / 3600
+                if gas_gap_hours > 36:  # Tolerancia para datos diarios
+                    needs_backfill = True
+            else:
+                needs_backfill = True
+                gas_gap_hours = 24 * 7
             
             if needs_backfill:
-                logger.info(f"🔄 Auto-backfill triggered: REE gap {ree_gap_hours:.1f}h, Weather gap {weather_gap_hours:.1f}h")
+                logger.info(f"🔄 Auto-backfill triggered: REE {ree_gap_hours:.1f}h, Weather {weather_gap_hours:.1f}h, Gas {gas_gap_hours:.1f}h")
                 
                 # Calcular días hacia atrás necesarios
-                max_gap = max(ree_gap_hours, weather_gap_hours)
-                days_back = min(int(max_gap / 24) + 2, 30)  # Máximo 30 días
+                max_gap = max(ree_gap_hours, weather_gap_hours, gas_gap_hours)
+                days_back = min(int(max_gap / 24) + 2, 30)
                 
                 # Ejecutar backfill
                 result = await self.execute_intelligent_backfill(days_back)
                 result["trigger"] = "automatic"
                 result["detected_gaps"] = {
                     "ree_hours": round(ree_gap_hours, 1),
-                    "weather_hours": round(weather_gap_hours, 1)
+                    "weather_hours": round(weather_gap_hours, 1),
+                    "gas_hours": round(gas_gap_hours, 1)
                 }
                 
                 return result

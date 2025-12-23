@@ -725,13 +725,12 @@ docker compose up -d chocolate-factory
 
 ## Recent System Updates
 
-### AEMET Hourly Forecast & Robustness Fixes (Dec 23, 2025)
-Optimización del sistema de backfill y cliente AEMET.
-- **Estrategia 48h**: Gaps <48h usan predicción horaria por municipio (`/prediccion/especifica/municipio/horaria/23055`), permitiendo 100% recuperación con el equipo encendido solo por las tardes.
-- **Robustez de Codificación**: Fallback automático ISO-8859-1 para errores de decodificación en la API de AEMET.
-- **Fix Timestamps**: Normalización de fechas del forecast para evitar errores de formato ISO (detección de "doble T").
-- **Validación Práctica**: Nuevo script `scripts/test_aemet_parsing.py` para verificar el parseo sin rebuilds.
-- **Hook**: `backfill.sh auto` actualizado con `max_gap_hours=48`.
+### Backfill & Prophet Retraining (Dec 23, 2025)
+Optimización crítica del sistema de recuperación y frescura del modelo.
+- **Gas Backfill**: Recuperación automática de datos de generación gas (Ciclos Combinados) de REE.
+- **Prophet Retraining**: Disparador automático de entrenamiento post-backfill si es después de las 15:00h, asegurando predicciones actualizadas tras restaurar el sistema.
+- **AEMET Robustness**: Soporte ISO-8859-1 y corrección de timestamps "double T" en predicciones.
+- **Estrategia 48h**: Gaps <48h usan `/prediccion/.../municipio/horaria/23055` para recuperación total.
 
 ### Intelligent Backfill Strategy (Oct 7, 2025)
 Dual strategy based on gap age: OpenWeatherMap for gaps <48h, AEMET for gaps ≥48h.

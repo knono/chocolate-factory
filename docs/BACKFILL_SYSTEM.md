@@ -242,7 +242,18 @@ async def _backfill_weather_siar(gap):
 
 **Practical Result:**
 - Gaps <48h: OWM provides 1 current record (better than nothing)
-- Gaps ≥48h: AEMET provides complete backfill
+- Gaps ≥48h: AEMET proporciona backfill completo vía observaciones históricas.
+
+### Gas Data Backfill (Ciclos Combinados)
+- **Detección:** Basada en días naturales mediante `GasGenerationService.detect_gaps()`.
+- **Estrategia:** Recuperación diaria de registros individuales de REE.
+- **Importancia:** Fundamental como regresor para el modelo Prophet.
+- **Automatización:** Verificación diaria a las 11:00 AM y durante cualquier proceso de backfill inteligente.
+
+### Acciones Post-Backfill
+Tras un backfill inteligente exitoso:
+1. **Re-entrena Prophet:** Si se recuperan datos después de las 15:00h (su hora habitual de entrenamiento), el sistema dispara un re-entrenamiento automático inmediato para garantizar predicciones basadas en datos frescos.
+2. **Notifica:** Se envían alertas vía Telegram informando de la finalización del backfill y del estado del modelo.
 
 ---
 
