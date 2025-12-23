@@ -118,8 +118,8 @@ execute_backfill() {
 
     case $mode in
         "auto")
-            endpoint="/gaps/backfill/auto?max_gap_hours=3.5"
-            description="Backfill automático inteligente"
+            endpoint="/gaps/backfill/auto?max_gap_hours=48"
+            description="Backfill automático inteligente (hasta 48h con AEMET forecast)"
             ;;
         "full")
             endpoint="/gaps/backfill?days_back=10"

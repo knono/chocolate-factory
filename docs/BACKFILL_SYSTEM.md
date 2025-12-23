@@ -125,9 +125,34 @@ async def _backfill_ree_gaps(gaps):
 
 ### Weather Data Backfill
 
-**Adaptive strategy based on gap age:**
+**Adaptive strategy based on gap age (optimizado Dec 2025):**
 
-#### 72-Hour Strategy (Adapted to AEMET OpenData)
+#### Estrategia de 48h con Predicción Horaria por Municipio
+
+```python
+# Calcular posición temporal del gap
+gap_age_hours = (now - gap.start_time).total_seconds() / 3600
+hours_until_gap_end = (gap.end_time - now).total_seconds() / 3600
+
+# Estrategia optimizada para reducir tiempo de equipo encendido
+if hours_until_gap_end > 0 and hours_until_gap_end <= 48:
+    # Gap que incluye futuro cercano: predicción horaria AEMET (48h forecast)
+    # Endpoint: /prediccion/especifica/municipio/horaria/23055 (Linares)
+    result = await self._backfill_weather_aemet_forecast(gap)
+elif gap_age_hours < 48 and gap.gap_duration_hours <= 48:
+    # Gap muy reciente: también usar predicción
+    result = await self._backfill_weather_aemet_forecast(gap)
+elif gap_age_hours >= 72 or gap.gap_duration_hours >= 72:
+    # Gap antiguo: usar valores climatológicos diarios
+    result = await self._backfill_weather_aemet(gap)
+else:
+    # Gap intermedio (48-72h): observaciones horarias de estación
+    result = await self._backfill_weather_aemet_hourly(gap)
+```
+
+**Beneficio clave:** Con el equipo encendido solo por las tardes, se recuperan hasta 48h de datos weather usando la predicción horaria por municipio.
+
+#### Legacy 72-Hour Strategy (referencia)
 
 ```python
 GAP_AGE_THRESHOLD_HOURS = 72
@@ -253,15 +278,16 @@ curl -X POST "http://localhost:8000/gaps/backfill?days_back=7"
 ```
 
 #### `POST /gaps/backfill/auto?max_gap_hours=N`
-Automatic intelligent backfill (default: 3.5h threshold)
+Automatic intelligent backfill (default: 48h threshold with AEMET forecast)
 ```bash
-curl -X POST "http://localhost:8000/gaps/backfill/auto?max_gap_hours=3.5"
+curl -X POST "http://localhost:8000/gaps/backfill/auto?max_gap_hours=48"
 ```
 
 **Threshold Configuration:**
-- Current: 3.5 hours (optimized for AEMET 12h window)
+- Current: 48 hours (optimizado con predicción AEMET por municipio)
 - Location: `.claude/hooks/backfill.sh:121`
-- Rationale: Balance between sensitivity and AEMET data availability
+- Rationale: Permite recuperar hasta 48h de datos weather con el equipo encendido solo por las tardes
+- Datos marcados con `data_type=forecast` para diferenciar de observaciones
 
 #### `POST /gaps/backfill/range`
 Date range specific backfill with data_source filter
@@ -464,6 +490,12 @@ Common cause: Requesting daily values for dates <72h old.
 - Token caching: 6-day validity, disk persistence
 - Rate limiting: 20 req/min (3s delay)
 
+### Technical Robustness & Edge Cases
+
+- **Encoding Fallback**: AEMET API responses can sometimes be encoded in ISO-8859-1 (Latin-1) instead of UTF-8, especially in fields with Spanish accents. The client implements an automatic fallback to decode these correctly.
+- **Timestamp Formatting**: The `/prediccion/...` endpoints return base dates in different formats (sometimes `YYYY-MM-DD`, sometimes `YYYY-MM-DDTHH:MM:SS`). The parser handles both by extracting only the date part before appending hourly offsets, avoiding "double T" ISO format errors.
+- **Validation Script**: Use `scripts/test_aemet_parsing.py` to verify the JSON structure and parsing without requiring a full system rebuild.
+
 ### Documentation
 
 - API Spec: https://opendata.aemet.es/AEMET_OpenData_specification.json
@@ -471,26 +503,35 @@ Common cause: Requesting daily values for dates <72h old.
 
 ---
 
-## Limitaciones Actuales
+## Limitaciones y Estrategias
 
-### AEMET: Ventana de 12 horas
+### Estrategia Actual: Predicción Horaria por Municipio (48h)
 
-AEMET `/observacion/convencional` retorna solo últimas 12 horas (12 registros).
-Delay publicación: 2-3h.
+Con la predicción horaria AEMET por municipio (endpoint `/prediccion/especifica/municipio/horaria/23055`), se recuperan hasta **48 horas** de datos weather con el equipo apagado.
 
-**Pérdida de datos por apagado:**
+**Beneficio:** Encender el equipo solo por las tardes es suficiente para mantener datos completos.
 
-| Apagado | Gap | Backfill activa | Pérdida |
+**Pérdida de datos por apagado (con predicción AEMET):**
+
+| Apagado | Gap | Fuente backfill | Pérdida |
 |---------|-----|-----------------|---------|
-| 3h      | 3.0h| No (<3.5h)      | ~2h     |
-| 5h      | 5.0h| Sí              | 0h      |
-| 8h      | 8.0h| Sí              | ~4h     |
-| 48h     | 48h | Sí              | ~36h    |
+| 12h     | 12h | Predicción 48h  | 0h      |
+| 24h     | 24h | Predicción 48h  | 0h      |
+| 48h     | 48h | Predicción 48h  | 0h      |
+| 72h     | 72h | Observaciones   | ~60h    |
 
 **Configuración actual:**
-- Threshold: 3.5h (`.claude/hooks/backfill.sh:121`)
-- Sweet spot: gaps 3.5h-12h = 100% recuperación
-- Gaps >12h: pérdida parcial (inicio del gap no disponible)
+- Threshold: 48h (`.claude/hooks/backfill.sh:121`)
+- Gaps <48h: 100% recuperación con predicción horaria
+- Gaps ≥48h: recuperación parcial con observaciones (limitada a últimas 12h)
+
+### AEMET: Fuentes de Datos
+
+| Endpoint | Datos | Disponibilidad | Limitación |
+|----------|-------|----------------|------------|
+| `/prediccion/especifica/municipio/horaria/{municipio}` | Predicción 48h | Inmediata | Es PREDICCIÓN, no observación real |
+| `/observacion/convencional/datos/estacion/{idema}` | Últimas 12h | Inmediata | Solo 12 registros |
+| `/valores/climatologicos/diarios/...` | Históricos | 72h delay | Requiere 3 días procesamiento |
 
 ---
 
@@ -520,6 +561,15 @@ Delay publicación: 2-3h.
 
 - Gap Detection: `src/fastapi-app/services/gap_detector.py`
 - Backfill Engine: `src/fastapi-app/services/backfill_service.py`
+  - `_backfill_weather_aemet_forecast()`: Predicción horaria por municipio (gaps <48h)
+  - `_backfill_weather_aemet_hourly()`: Observaciones de estación (gaps 48-72h)
+  - `_backfill_weather_aemet()`: Valores climatológicos diarios (gaps ≥72h)
 - AEMET Client: `src/fastapi-app/infrastructure/external_apis/aemet_client.py`
-- Scheduler Jobs: `src/fastapi-app/tasks/scheduler_config.py`
+  - `get_hourly_forecast_municipality()`: Predicción horaria por municipio (48h)
+  - `get_current_weather()`: Observaciones horarias de estación
+  - `get_daily_weather()`: Valores climatológicos diarios
+- Data Ingestion: `src/fastapi-app/services/data_ingestion.py`
+  - `ingest_weather_forecast()`: Ingesta datos de predicción (tag `data_type=forecast`)
+- Scheduler Jobs: `src/fastapi-app/tasks/scheduler_config.py`, `gap_detection_jobs.py`
 - Router: `src/fastapi-app/api/routers/gaps.py`
+- Hook: `.claude/hooks/backfill.sh` (max_gap_hours=48)

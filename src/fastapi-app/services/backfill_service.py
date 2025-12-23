@@ -224,10 +224,14 @@ class BackfillService:
         IMPORTANTE: OpenWeatherMap Free tier NO soporta datos históricos, solo actuales.
         Por lo tanto, SIEMPRE usamos AEMET API para backfill de gaps históricos.
 
-        Estrategia adaptada al delay de AEMET:
-        - Gaps recientes (<72h): AEMET observaciones horarias (datos disponibles inmediatos)
-        - Gaps antiguos (≥72h): AEMET valores climatológicos diarios (requieren ~3 días procesamiento)
+        Estrategia optimizada para reducir tiempo de equipo encendido:
+        - Gaps futuros o recientes (<48h desde ahora): AEMET predicción horaria por municipio (48h forecast)
+        - Gaps pasados recientes (48-72h): AEMET observaciones horarias de estación
+        - Gaps antiguos (≥72h): AEMET valores climatológicos diarios
         - OpenWeatherMap solo se usa para ingesta en tiempo real (no backfill)
+
+        La predicción por municipio permite pre-cargar 48h de datos meteorológicos,
+        reduciendo la necesidad de tener el equipo encendido para backfill.
         """
         results = []
 
@@ -239,20 +243,30 @@ class BackfillService:
 
                 # Calcular antigüedad del gap (desde INICIO, no desde fin)
                 gap_age_hours = (now - gap.start_time).total_seconds() / 3600
+                # Calcular si el gap termina en el futuro cercano (dentro de 48h)
+                hours_until_gap_end = (gap.end_time - now).total_seconds() / 3600
 
                 logger.info(f"🌤️ Rellenando gap Weather: {gap.start_time} - {gap.end_time}")
                 logger.info(f"   ⏰ Antigüedad gap: {gap_age_hours:.1f}h (duración: {gap.gap_duration_hours:.1f}h)")
+                logger.info(f"   ⏰ Horas hasta fin del gap: {hours_until_gap_end:.1f}h")
 
                 try:
-                    # Seleccionar estrategia según antigüedad del gap INICIO
-                    # Si el gap empezó hace >72h O tiene duración >72h, usar método diario
-                    if gap_age_hours >= 72 or gap.gap_duration_hours >= 72:
+                    # Seleccionar estrategia según posición temporal del gap
+                    if hours_until_gap_end > 0 and hours_until_gap_end <= 48:
+                        # Gap que incluye el futuro cercano: usar predicción horaria AEMET (48h forecast)
+                        logger.info(f"   🔮 Usando AEMET predicción horaria por municipio (gap incluye futuro <48h)")
+                        result = await self._backfill_weather_aemet_forecast(gap)
+                    elif gap_age_hours < 48 and gap.gap_duration_hours <= 48:
+                        # Gap muy reciente y corto: también podemos usar predicción
+                        logger.info(f"   🔮 Usando AEMET predicción horaria por municipio (gap reciente <48h)")
+                        result = await self._backfill_weather_aemet_forecast(gap)
+                    elif gap_age_hours >= 72 or gap.gap_duration_hours >= 72:
                         # Gap antiguo o muy largo: usar valores climatológicos diarios
                         logger.info(f"   📅 Usando AEMET valores climatológicos diarios (gap antiguo o largo)")
                         result = await self._backfill_weather_aemet(gap)
                     else:
-                        # Gap reciente y corto: usar observaciones horarias (últimas 24h disponibles)
-                        logger.info(f"   📅 Usando AEMET observaciones horarias (gap reciente <72h)")
+                        # Gap intermedio (48-72h): usar observaciones horarias de estación
+                        logger.info(f"   📊 Usando AEMET observaciones horarias (gap 48-72h)")
                         result = await self._backfill_weather_aemet_hourly(gap)
 
                     # Si AEMET falla con gap grande (>30 días), notificar para descarga SIAR manual
@@ -431,6 +445,99 @@ class BackfillService:
                 success_rate=0,
                 duration_seconds=(datetime.now() - gap_start).total_seconds(),
                 method_used="aemet_hourly_observations",
+                errors=[str(e)]
+            )
+
+    async def _backfill_weather_aemet_forecast(self, gap: DataGap) -> BackfillResult:
+        """
+        Backfill usando predicción horaria AEMET por municipio (para gaps <48h).
+
+        Este método usa el endpoint de predicción horaria por municipio que proporciona
+        datos hora a hora para las próximas 48 horas. Ideal para:
+        - Llenar gaps cuando el equipo está apagado
+        - Pre-cargar datos meteorológicos futuros
+        - Reducir dependencia de tener el equipo encendido 24/7
+
+        Endpoint: /api/prediccion/especifica/municipio/horaria/{municipio}
+        Municipio Linares (Jaén): 23055
+
+        NOTA: Estos son datos de PREDICCIÓN, no observaciones reales.
+        Se marcan con data_type='forecast' para diferenciarnos.
+        """
+        gap_start_time = datetime.now()
+
+        try:
+            from infrastructure.external_apis import AEMETAPIClient
+            async with AEMETAPIClient() as aemet_client:
+                async with DataIngestionService() as ingestion_service:
+
+                    logger.info(f"🔮 Obteniendo predicción horaria AEMET para gap: {gap.start_time} - {gap.end_time}")
+
+                    total_records = 0
+                    total_written = 0
+                    errors = []
+
+                    try:
+                        # Obtener predicción horaria (hasta 48h)
+                        forecast_data = await aemet_client.get_hourly_forecast_municipality()
+
+                        if not forecast_data:
+                            errors.append("No se obtuvieron datos de predicción AEMET")
+                            logger.warning("⚠️ AEMET predicción horaria no devolvió datos")
+                        else:
+                            # Filtrar solo los registros dentro del rango del gap
+                            relevant_records = []
+                            for record in forecast_data:
+                                record_time = record.get("timestamp")
+                                if record_time and gap.start_time <= record_time <= gap.end_time:
+                                    relevant_records.append(record)
+
+                            total_records = len(relevant_records)
+
+                            if relevant_records:
+                                # Escribir a InfluxDB usando ingestion service
+                                write_result = await ingestion_service.ingest_weather_forecast(relevant_records)
+                                total_written = write_result.successful_writes
+
+                                logger.info(f"✅ AEMET predicción horaria: {total_written}/{total_records} records escritos")
+                            else:
+                                logger.warning(f"⚠️ No hay registros de predicción dentro del gap {gap.start_time} - {gap.end_time}")
+
+                    except Exception as forecast_error:
+                        error_msg = f"Error obteniendo predicción AEMET: {forecast_error}"
+                        errors.append(error_msg)
+                        logger.warning(error_msg)
+
+                    # Calcular resultado
+                    duration = (datetime.now() - gap_start_time).total_seconds()
+                    success_rate = (total_written / gap.expected_records * 100) if gap.expected_records > 0 else 0
+
+                    return BackfillResult(
+                        measurement="weather_data",
+                        gap_start=gap.start_time,
+                        gap_end=gap.end_time,
+                        records_requested=gap.expected_records,
+                        records_obtained=total_records,
+                        records_written=total_written,
+                        success_rate=success_rate,
+                        duration_seconds=duration,
+                        method_used="aemet_hourly_forecast_municipality",
+                        errors=errors
+                    )
+
+        except Exception as e:
+            logger.error(f"Error en backfill AEMET forecast: {e}")
+
+            return BackfillResult(
+                measurement="weather_data",
+                gap_start=gap.start_time,
+                gap_end=gap.end_time,
+                records_requested=gap.expected_records,
+                records_obtained=0,
+                records_written=0,
+                success_rate=0,
+                duration_seconds=(datetime.now() - gap_start_time).total_seconds(),
+                method_used="aemet_hourly_forecast_municipality",
                 errors=[str(e)]
             )
 

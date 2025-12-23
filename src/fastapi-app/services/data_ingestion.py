@@ -818,6 +818,110 @@ class DataIngestionService:
         # Use OpenWeatherMap (either by strategy or as fallback)
         return await self.ingest_openweathermap_weather()
     
+    async def ingest_weather_forecast(self, forecast_records: List[Dict[str, Any]]) -> DataIngestionStats:
+        """
+        Ingest AEMET hourly forecast data into InfluxDB.
+
+        This method stores weather FORECAST data (predictions, not observations).
+        Data is tagged with data_type='forecast' to distinguish from real observations.
+
+        Args:
+            forecast_records: List of forecast records from AEMET hourly forecast API
+
+        Returns:
+            DataIngestionStats with ingestion results
+        """
+        if not self.client or not self.write_api:
+            raise RuntimeError("Service not initialized. Use async context manager.")
+
+        start_time = datetime.now()
+        stats = DataIngestionStats()
+        stats.total_records = len(forecast_records)
+
+        if not forecast_records:
+            logger.warning("No forecast records provided")
+            return stats
+
+        try:
+            logger.info(f"🔮 Processing {len(forecast_records)} AEMET forecast records")
+
+            valid_points = []
+            for record in forecast_records:
+                try:
+                    # Create InfluxDB point for forecast data
+                    point = Point("weather_data")
+                    point.time(record["timestamp"], WritePrecision.S)
+
+                    # Tags - distinguish forecast from observations
+                    point.tag("data_source", "aemet_forecast")
+                    point.tag("data_type", "forecast")  # Important: marks as prediction
+                    point.tag("municipality_code", record.get("municipality_code", "23055"))
+                    point.tag("season", get_season_from_date(record["timestamp"]))
+
+                    # Optional municipality name
+                    if record.get("municipality_name"):
+                        point.tag("municipality_name", record["municipality_name"])
+
+                    # Fields - weather data
+                    if record.get("temperature") is not None:
+                        point.field("temperature", float(record["temperature"]))
+                    if record.get("humidity") is not None:
+                        point.field("humidity", float(record["humidity"]))
+                    if record.get("wind_speed") is not None:
+                        point.field("wind_speed", float(record["wind_speed"]))
+                    if record.get("precipitation_probability") is not None:
+                        point.field("precipitation_probability", float(record["precipitation_probability"]))
+
+                    # Text fields
+                    if record.get("wind_direction_text"):
+                        point.tag("wind_direction_text", record["wind_direction_text"])
+                    if record.get("sky_state"):
+                        point.tag("sky_state", record["sky_state"])
+
+                    # Calculate derived fields if temperature and humidity available
+                    temp = record.get("temperature")
+                    hum = record.get("humidity")
+                    if temp is not None and hum is not None:
+                        point.field("heat_index", calculate_heat_index(temp, hum))
+                        point.field("chocolate_production_index",
+                                   calculate_chocolate_production_index(temp, hum, None))
+
+                    valid_points.append(point)
+
+                except Exception as e:
+                    logger.warning(f"Failed to process forecast record: {e}")
+                    stats.validation_errors += 1
+
+            # Batch write to InfluxDB
+            if valid_points:
+                try:
+                    logger.info(f"📥 Writing {len(valid_points)} forecast points to InfluxDB")
+                    self.write_api.write(
+                        bucket=self.config.bucket,
+                        org=self.config.org,
+                        record=valid_points
+                    )
+                    stats.successful_writes = len(valid_points)
+                    logger.info(f"✅ Successfully wrote {stats.successful_writes} forecast records to InfluxDB")
+
+                except Exception as e:
+                    logger.error(f"❌ Failed to write forecast data to InfluxDB: {e}")
+                    stats.failed_writes = len(valid_points)
+                    raise
+            else:
+                logger.warning("No valid forecast points to write")
+
+        except Exception as e:
+            logger.error(f"❌ Weather forecast ingestion failed: {e}")
+            raise
+
+        finally:
+            stats.processing_time_seconds = (datetime.now() - start_time).total_seconds()
+            logger.info(f"🔮 Forecast ingestion completed in {stats.processing_time_seconds:.2f}s - "
+                       f"Success rate: {stats.success_rate:.1f}%")
+
+        return stats
+
     async def ingest_current_weather(self, station_ids: Optional[List[str]] = None) -> DataIngestionStats:
         """Ingest current weather data for specified stations"""
         return await self.ingest_aemet_weather(station_ids=station_ids)

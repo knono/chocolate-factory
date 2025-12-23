@@ -231,8 +231,20 @@ class AEMETAPIClient:
             data_response = await self._client.get(data_url)
             data_response.raise_for_status()
 
-            logger.info(f"✅ AEMET API success: {endpoint}")
-            return data_response.json()
+            # Robust JSON decoding with encoding fallback (AEMET uses ISO-8859-1 sometimes)
+            # This handles cases where Spanish accents cause UnicodeDecodeErrors with UTF-8
+            try:
+                # Try default (usually UTF-8)
+                return data_response.json()
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                try:
+                    # Fallback to ISO-8859-1 (Latin-1) which is common in Spanish government APIs
+                    logger.debug("⚠️ UTF-8 decoding failed, falling back to ISO-8859-1")
+                    content = data_response.content.decode("iso-8859-1")
+                    return json.loads(content)
+                except Exception as e:
+                    logger.error(f"❌ Failed to decode AEMET response even with fallback: {e}")
+                    raise AEMETAPIError(500, f"Encoding error: {str(e)}")
 
         except httpx.HTTPStatusError as e:
             logger.error(f"❌ AEMET API HTTP error: {e.response.status_code} - {e.response.text[:200]}")
@@ -458,3 +470,200 @@ class AEMETAPIClient:
             List of historical weather records
         """
         return await self.get_daily_weather(start_date, end_date, station_id)
+
+    async def get_hourly_forecast_municipality(
+        self,
+        municipality_code: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get hourly weather forecast for a municipality (up to 48 hours).
+
+        This endpoint provides forecast data (not observations) hour by hour
+        for the next 48 hours, ideal for filling gaps when equipment is off.
+
+        Args:
+            municipality_code: INE municipality code (defaults to Linares: 23055)
+
+        Returns:
+            List of hourly forecast records with temperature, humidity, wind, etc.
+
+        API Endpoint:
+            /api/prediccion/especifica/municipio/horaria/{municipio}
+
+        Note:
+            This is FORECAST data (model predictions), not real observations.
+            Accuracy decreases with forecast horizon.
+        """
+        municipality = municipality_code or settings.AEMET_LINARES_MUNICIPALITY
+        endpoint = f"prediccion/especifica/municipio/horaria/{municipality}"
+
+        logger.info(f"🌤️ Fetching AEMET hourly forecast for municipality {municipality}")
+
+        try:
+            data = await self._make_request(endpoint)
+            forecast_records = self._parse_hourly_forecast_response(data, municipality)
+
+            if forecast_records:
+                logger.info(f"✅ Retrieved {len(forecast_records)} AEMET hourly forecast records (up to 48h)")
+            else:
+                logger.warning(f"⚠️ No hourly forecast data found for municipality {municipality}")
+
+            return forecast_records
+
+        except Exception as e:
+            logger.error(f"❌ Failed to fetch AEMET hourly forecast: {e}")
+            raise
+
+    def _parse_hourly_forecast_response(
+        self,
+        data: Any,
+        municipality_code: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Parse AEMET API hourly forecast response (predicción horaria por municipio).
+
+        Args:
+            data: Raw API response (list with prediction data)
+            municipality_code: Municipality INE code
+
+        Returns:
+            List of parsed hourly forecast records
+        """
+        records = []
+
+        try:
+            # AEMET response structure: list with one element containing 'prediccion'
+            if not data:
+                logger.warning("AEMET hourly forecast: empty response")
+                return records
+
+            logger.info(f"🔍 Parsing AEMET forecast data. Type: {type(data)}")
+
+            if isinstance(data, str):
+                logger.error(f"❌ AEMET forecast response is a string: {data[:200]}")
+                return records
+
+            prediction_data = data[0] if isinstance(data, list) and len(data) > 0 else data
+
+            if not isinstance(prediction_data, dict):
+                logger.error(f"❌ AEMET forecast prediction_data is not a dict: {type(prediction_data)}")
+                return records
+
+            # Get municipality info
+            municipality_name = prediction_data.get("nombre", municipality_code)
+
+            # Get prediction object (MUST be a dict)
+            prediccion = prediction_data.get("prediccion")
+            if not isinstance(prediccion, dict):
+                logger.error(f"❌ AEMET forecast 'prediccion' field is not a dict: {type(prediccion)} - Value: {prediccion}")
+                return records
+
+            dias = prediccion.get("dia", [])
+            if not isinstance(dias, list):
+                logger.error(f"❌ AEMET forecast 'dia' field is not a list: {type(dias)}")
+                return records
+
+            for dia in dias:
+                if not isinstance(dia, dict):
+                    logger.warning(f"⚠️ AEMET forecast 'dia' entry is not a dict: {type(dia)} - {str(dia)[:100]}")
+                    continue
+
+                fecha = dia.get("fecha")  # Format: YYYY-MM-DD
+                if not fecha:
+                    continue
+
+                logger.info(f"📅 Parsing forecast for day: {fecha}")
+
+                # Safely extract hourly data arrays with type checking
+                def safe_get_list(obj, key):
+                    val = obj.get(key, [])
+                    return val if isinstance(val, list) else []
+
+                raw_temps = safe_get_list(dia, "temperatura")
+                raw_hums = safe_get_list(dia, "humedadRelativa")
+                raw_winds = safe_get_list(dia, "vientoAndRachaMax")
+
+                temperaturas = {}
+                for t in raw_temps:
+                    if isinstance(t, dict) and t.get("periodo"):
+                        try:
+                            temperaturas[int(t.get("periodo"))] = self._safe_float(t.get("value"))
+                        except (ValueError, TypeError): pass
+
+                humedades = {}
+                for h in raw_hums:
+                    if isinstance(h, dict) and h.get("periodo"):
+                        try:
+                            humedades[int(h.get("periodo"))] = self._safe_float(h.get("value"))
+                        except (ValueError, TypeError): pass
+
+                # Wind data (contains direccion and velocidad)
+                vientos = {}
+                for v in raw_winds:
+                    if not isinstance(v, dict): continue
+                    periodo = v.get("periodo")
+                    if periodo:
+                        try:
+                            hora = int(str(periodo).split("-")[0]) if "-" in str(periodo) else int(periodo)
+                            
+                            # Extremely safe direction extraction
+                            dir_val = None
+                            dirs = v.get("direccion")
+                            if isinstance(dirs, list) and len(dirs) > 0 and isinstance(dirs[0], dict):
+                                dir_val = dirs[0].get("value")
+
+                            # Extremely safe speed extraction
+                            speed_val = None
+                            speeds = v.get("velocidad")
+                            if isinstance(speeds, list) and len(speeds) > 0 and isinstance(speeds[0], dict):
+                                speed_val = self._safe_float(speeds[0].get("value"))
+
+                            vientos[hora] = {
+                                "direccion": dir_val,
+                                "velocidad": speed_val
+                            }
+                        except (ValueError, TypeError, IndexError): pass
+
+                # Precipitation probability
+                prob_precip = {int(p.get("periodo", "0").split("-")[0]): self._safe_float(p.get("value"))
+                              for p in dia.get("probPrecipitacion", []) if p.get("periodo") and p.get("value")}
+
+                # Sky state (estado del cielo)
+                estados_cielo = {int(e.get("periodo", 0)): e.get("descripcion", "")
+                                for e in dia.get("estadoCielo", []) if e.get("periodo")}
+
+                # Create hourly records
+                for hora in range(24):
+                    if hora not in temperaturas and hora not in humedades:
+                        continue  # Skip hours without data
+
+                    try:
+                        # Extract only the date part if fecha contains time.
+                        # AEMET sometimes returns 'YYYY-MM-DD' and sometimes 'YYYY-MM-DDTHH:MM:SS'.
+                        # Using split("T")[0] ensures we don't end up with '2025-12-23T00:00:00T10:00:00' (Double T error).
+                        date_part = fecha.split("T")[0] if "T" in fecha else fecha
+                        timestamp = datetime.fromisoformat(f"{date_part}T{hora:02d}:00:00+00:00")
+
+                        record = {
+                            "timestamp": timestamp,
+                            "municipality_code": municipality_code,
+                            "municipality_name": municipality_name,
+                            "temperature": temperaturas.get(hora),
+                            "humidity": humedades.get(hora),
+                            "wind_speed": vientos.get(hora, {}).get("velocidad"),
+                            "wind_direction_text": vientos.get(hora, {}).get("direccion"),
+                            "precipitation_probability": prob_precip.get(hora),
+                            "sky_state": estados_cielo.get(hora),
+                            "source": "aemet_forecast",
+                            "data_type": "forecast"  # Important: this is prediction, not observation
+                        }
+
+                        records.append(record)
+
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to parse hourly forecast record for {fecha} {hora}:00: {e}")
+
+        except Exception as e:
+            logger.error(f"❌ Error parsing AEMET hourly forecast response: {e}")
+
+        return records

@@ -150,7 +150,8 @@ class Settings(BaseSettings):
     REE_RETRY_DELAY_SECONDS: int = 5
 
     # AEMET settings
-    AEMET_DEFAULT_STATION: str = "3195"  # Madrid-Retiro
+    AEMET_DEFAULT_STATION: str = "5279X"  # Linares, Jaén (estación principal)
+    AEMET_LINARES_MUNICIPALITY: str = "23055"  # Código INE Linares para predicción horaria por municipio
     AEMET_TOKEN_REFRESH_DAYS: int = 6
 
     # Weather hybrid settings
